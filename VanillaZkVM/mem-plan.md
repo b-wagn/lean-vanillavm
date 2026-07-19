@@ -104,17 +104,57 @@ Proof by case on `w` (mirrors the paper's Step A, minus probabilities). `addr`, 
 
 This is the first place `PositionBinding` and `PuncturedBinding` — declared but unused in Crypto.lean — actually get consumed. Expect the `funext` + `by_cases` write case to be the bulk of the work.
 
-## Stage 3 — Trace-level reconstruction (Step 6) and integration
+## Stage 3 — Trace-level reconstruction (Step 6): extend the existing system and CTE
 
-1. **Strengthen the committed CTE conclusion** so it exposes, per step, the descriptor and the intermediate committed states (add `steps : Fin Nseg → MemStep VC` to `SegWitness` in Twostep.lean, and make `RSeg.rel` use `stepC … (w.steps i)`). `toy_cte` still goes through — the extractor now also returns the descriptors/openings.
-2. **Memory reconstruction fold:** given a committed chain `Ŝ₀ … Ŝ_T` with `CommitInv Ŝ₀ S₀` (from the CTE adversary's initial state), define `mem_{k+1}` by recursion on the descriptor (read/other: `mem_k`; write `(addr, v, …)`: `Function.update mem_k addr v`). Prove `CommitInv Ŝ_{k+1} S_{k+1}` is maintained — the inductive step that itself needs `hpos`/`hpunc`/`hComplete`.
-3. **Apply `step_mem_extract` at every `k`** to get `stepF (S_k, S_{k+1})`, yielding a genuine full-memory execution. Wrap as:
+Do the upgrade **in place** — enrich the one `System` and the one `toy_cte`, do
+**not** introduce a parallel `System'` or a separate `toy_cte_full_memory`.
+Because non-memory ops carry `.other`, every change below is a *conservative
+extension*: the old opaque behaviour is recovered as the `.other` special case,
+so anything already built on `System`/`toy_cte` keeps working.
+
+1. **Extend `System` and `SegWitness` (Twostep.lean) — mutate, don't clone.**
+   - Replace the opaque field with the classified, descriptor-carrying predicate
+     `stepC : CommittedVMState VC → CommittedVMState VC → MemStep VC → Prop`, and
+     add a `regPart : RegPart` field. The previous `stepC Ŝ Ŝ'` is exactly
+     `stepC Ŝ Ŝ' .other` (with a memory-free `regPart`), so the segment/final
+     relations and their argument systems are otherwise untouched.
+   - Add `steps : Fin Nseg → MemStep VC` to the **existing** `SegWitness`, and
+     change `RSeg.rel` to `sys.stepC (w.states i.castSucc) (w.states i.succ) (w.steps i)`.
+   The two-layer extraction in `toy_cte` still goes through with the same proof
+   skeleton — the extractor now additionally returns the per-step descriptors and
+   openings.
+2. **Memory reconstruction fold.** From the extracted committed chain `Ŝ₀ … Ŝ_T`
+   and its descriptors, together with `CommitInv Ŝ₀ S₀` for the adversary's
+   initial full state `S₀`, define `mem_{k+1}` by recursion on the descriptor
+   (read/other: `mem_k`; write `(addr, v, …)`: point-wise update of `mem_k` at
+   `addr` to `v`). Prove `CommitInv Ŝ_{k+1} S_{k+1}` is maintained — the inductive
+   step, which consumes `hpos`/`hpunc`/`hComplete` through `step_mem_extract`.
+3. **Strengthen `toy_cte` in place — no new theorem.** Give the *existing*
+   `toy_cte` the extra memory hypotheses and a stronger conclusion, so the single
+   theorem yields both the committed segmentation *and* the reconstructed
+   full-memory execution:
    ```lean
-   theorem toy_cte_full_memory (sys) (hComplete hpos hpunc)
-       (hseg hfinal) (st pf) (hpf) (hInit : CommitInv d0 S0) :
-       ∃ (S : Fin (…+1) → FullVMState VC),
-         (S 0).mem = mem₀ ∧ … ∧ ∀ k, stepF (S k.castSucc) (S k.succ)
+   theorem toy_cte (sys : System)
+       (hComplete : Complete sys.VC) (hpos : PositionBinding sys.VC)
+       (hpunc : PuncturedBinding sys.VC)
+       (hseg : KnowledgeSound sys.ASSeg) (hfinal : KnowledgeSound sys.ASFinal)
+       (st : FinalStmt sys.VC) (pf : sys.FinalProof) (hpf : sys.finalVerify st pf)
+       (S₀ : FullVMState sys.VC) (hInit : CommitInv st.S0 S₀) :
+       ∃ d : Fin (sys.m + 1) → CommittedVMState sys.VC,
+         d 0 = st.S0 ∧ d (Fin.last sys.m) = st.ST ∧
+         -- (a) committed content: exactly the old conclusion, unchanged
+         (∀ i, ∃ ws : SegWitness sys.VC sys.Nseg, sys.RSeg.rel ⟨d i.castSucc, d i.succ⟩ ws) ∧
+         -- (b) new: a genuine full-memory execution, per segment, glued by CommitInv
+         (∀ i, ∃ S : Fin (sys.Nseg + 1) → FullVMState sys.VC,
+             CommitInv (d i.castSucc) (S 0) ∧ CommitInv (d i.succ) (S (Fin.last sys.Nseg)) ∧
+             ∀ j : Fin sys.Nseg, stepF sys.regPart (S j.castSucc) (S j.succ) (ws i).steps j)
    ```
+   Conjunct (a) is the original statement verbatim, so existing callers keep
+   compiling; conjunct (b) is the memory upgrade, obtained by running the fold of
+   step 2 and applying `step_mem_extract` at every `j`. Keep the per-segment shape
+   (each segment reconstructed on its own `Fin (Nseg+1)` chain and chained through
+   the boundary `CommitInv`); flattening `m·Nseg` into one `Fin (T+1)` stays the
+   separate combinatorial step and does not touch the memory argument.
 
 ## Ordering, risks, effort
 
@@ -122,7 +162,12 @@ This is the first place `PositionBinding` and `PuncturedBinding` — declared bu
 - **Biggest proof risk:** the write case `funext`/`by_cases` and getting the `PuncturedBinding` argument order to line up (its signature already matches, so this is mechanical but fiddly). The `mem₂ = mem₁` read argument needs position-binding *at every address* — cheap here (no union bound) but requires `hComplete`.
 - **New assumption to justify:** `Complete VC`. It's uncontroversial (honest openings verify) and the paper uses it implicitly; worth adding as an explicit field so it's visible.
 - **Deliberately deferred:** the bus (so `stepC`'s `other` class stays a black box), range checks, and flattening `m·Nseg` into one `Fin (T+1)` — none of them interact with the memory argument, matching the whitepaper's separation.
-- **Interaction with flattening:** reconstruction is cleanest on a single flat chain; if you keep the per-segment shape, do the fold per segment and chain via the boundary `CommitInv`. Either works; flat is simpler to state.
+- **Interaction with flattening:** the strengthened `toy_cte` keeps the
+  per-segment shape — each segment is reconstructed on its own `Fin (Nseg+1)`
+  chain and chained through the boundary `CommitInv` — so the memory upgrade
+  lands entirely inside the existing theorem. Flattening the `m·Nseg` steps into
+  one flat chain remains a separate, purely combinatorial follow-up that does not
+  touch the memory argument.
 
 Net: the memory-only slice (Stages 0–2) is a compact, high-value addition that finally exercises `PositionBinding`/`PuncturedBinding`; Stage 3 is the inductive glue that upgrades `toy_cte` from committed states to real memory.
 
