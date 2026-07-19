@@ -106,8 +106,8 @@ This is the first place `PositionBinding` and `PuncturedBinding` — declared bu
 
 ## Stage 3 — Trace-level reconstruction (Step 6) and integration
 
-1. **Strengthen the committed CTE conclusion** so it exposes, per step, the descriptor and the intermediate committed states (add `steps : Fin Nseg → MemStep VC` to `SegWitness` in Twostep.lean, and make `RSeg.rel` use `stepC … (w.steps i)`). `toy_cte` still goes through — the extractor now also returns the descriptors/openings.
-2. **Memory reconstruction fold:** given a committed chain `Ŝ₀ … Ŝ_T` with `CommitInv Ŝ₀ S₀` (from the CTE adversary's initial state), define `mem_{k+1}` by recursion on the descriptor (read/other: `mem_k`; write `(addr, v, …)`: `Function.update mem_k addr v`). Prove `CommitInv Ŝ_{k+1} S_{k+1}` is maintained — the inductive step that itself needs `hpos`/`hpunc`/`hComplete`.
+1. **Strengthen the committed CTE conclusion (implemented).** `SegWitness` now exposes `steps : Fin Nseg → MemStep VC` alongside the intermediate committed states, and `RSeg.rel` applies `stepC` to each `w.steps i`. `toy_cte` still goes through unchanged structurally, so its extracted segment witnesses now also contain the descriptors/openings.
+2. **Memory reconstruction fold:** given a committed chain `Ŝ₀ … Ŝ_T` with `CommitInv Ŝ₀ S₀` (from the CTE adversary's initial state), define `mem_{k+1}` by recursion on the descriptor (read/other: `mem_k`; write `(addr, v, …)`: `Function.update mem_k addr v`). Prove `CommitInv Ŝ_{k+1} S_{k+1}` is maintained. Before implementing the fold, isolate the additional update/realizability property needed here: `step_mem_extract` assumes `CommitInv` for the post-state, while `Complete`, `PositionBinding`, and `PuncturedBinding` alone do not state that an arbitrary extracted post-commitment is `VC.commit` of a full memory.
 3. **Apply `step_mem_extract` at every `k`** to get `stepF (S_k, S_{k+1})`, yielding a genuine full-memory execution. Wrap as:
    ```lean
    theorem toy_cte_full_memory (sys) (hComplete hpos hpunc)
@@ -126,4 +126,4 @@ This is the first place `PositionBinding` and `PuncturedBinding` — declared bu
 
 Net: the memory-only slice (Stages 0–2) is a compact, high-value addition that finally exercises `PositionBinding`/`PuncturedBinding`; Stage 3 is the inductive glue that upgrades `toy_cte` from committed states to real memory.
 
-**Next step to scaffold:** add `FullVMState`, `CommitInv`, `Complete`, `MemStep`, the predicate splits, and a `step_mem_extract` skeleton with `sorry`s — a compiling starting point that keeps the existing `VectorCommitment`.
+**Next step:** formulate the smallest commitment update/realizability property that lets a valid classified step extend `CommitInv` to its post-state, then use it in the Stage 3.2 reconstruction fold. Keep this as a standalone predicate over the existing `VectorCommitment` rather than replacing the commitment structure.
