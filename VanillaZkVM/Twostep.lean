@@ -1,4 +1,4 @@
-import VanillaZkVM.zkVM
+import VanillaZkVM.Zkvm
 
 /-!
 # A minimal "two-step" zkVM, instantiating the abstract system
