@@ -73,6 +73,9 @@ structure System where
   VC : VectorCommitment
   Nseg : ℕ
   m : ℕ
+  /-- Classified committed step predicate `φ̂_step`, with its explicit
+  descriptor/opening witness. -/
+  stepC : CommittedVMState VC → CommittedVMState VC → MemStep VC → Prop
   /-- Memory-free register/program-counter part of each classified step. -/
   regPart : RegPart
   SegProof : Type
@@ -95,7 +98,7 @@ def RSeg : Relation where
     w.states 0 = st.Sin ∧
     w.states (Fin.last sys.Nseg) = st.Sout ∧
     ∀ i : Fin sys.Nseg,
-      stepC sys.regPart (w.states i.castSucc) (w.states i.succ) (w.steps i)
+      sys.stepC (w.states i.castSucc) (w.states i.succ) (w.steps i)
 
 /-- The segment argument system `Π_seg`. -/
 def ASSeg : ArgumentSystem sys.RSeg where
