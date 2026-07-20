@@ -165,5 +165,67 @@ theorem segment_extract_upto_collisionE [DecidableEq H.Domain]
         obtain ⟨rfl, rfl⟩ := hbus
         exact ⟨hbb, by rw [← hstepHash, ← hchipHash]; rfl⟩
 
+/-! ## Exact reduction costs: the naive fan-out re-runs `Eseg`
+
+The `IsPoly` bound above is existential (`∃ p, cost ≤ p.eval size`), which hides
+constants. Here we compute the reduction's cost *exactly*. It reveals that the
+naive `pair`-based fan-out executes the shared segment extractor `Eseg` **twice**
+— and that `Alg.share` removes exactly that redundancy. -/
+
+@[simp] theorem Dstep_cost (t : H.Digest × IProof × CProof) :
+    (Dstep : Alg (H.Digest × IProof × CProof) (H.Digest × IProof)).cost t = 0 := rfl
+
+@[simp] theorem Dchip_cost (t : H.Digest × IProof × CProof) :
+    (Dchip : Alg (H.Digest × IProof × CProof) (H.Digest × CProof)).cost t = 0 := rfl
+
+@[simp] theorem busGlue_cost [DecidableEq H.Domain] (b : H.Domain × H.Domain) :
+    (busGlue : Alg (H.Domain × H.Domain) (H.Domain ⊕ (H.Domain × H.Domain))).cost b = 0 := rfl
+
+variable [DecidableEq H.Domain]
+variable (Eseg : Alg (Stmt × Proof) (H.Digest × IProof × CProof))
+  (Estep : Alg (H.Digest × IProof) H.Domain)
+  (Echip : Alg (H.Digest × CProof) H.Domain)
+
+/-- Naive reduction: fan out with `pair`, which re-runs `Eseg` in each branch. -/
+def reductionPair : Alg (Stmt × Proof) (H.Domain ⊕ (H.Domain × H.Domain)) :=
+  busGlue.comp ((Estep.comp (Dstep.comp Eseg)).pair (Echip.comp (Dchip.comp Eseg)))
+
+/-- Shared reduction: run `Eseg` once, fan out with `Alg.share`. Same `run`. -/
+def reductionShare : Alg (Stmt × Proof) (H.Domain ⊕ (H.Domain × H.Domain)) :=
+  busGlue.comp (Alg.share Eseg (Estep.comp Dstep) (Echip.comp Dchip))
+
+/-- **Exact cost of the naive reduction** — note the `2 *`: `Eseg` runs twice. -/
+theorem reductionPair_cost (x : Stmt) (p : Proof) :
+    (reductionPair Eseg Estep Echip).cost (x, p)
+      = 2 * Eseg.cost (x, p)
+        + Estep.cost (Dstep.run (Eseg.run (x, p)))
+        + Echip.cost (Dchip.run (Eseg.run (x, p))) := by
+  simp only [reductionPair, Alg.comp, Alg.pair, Function.comp,
+    Dstep_cost, Dchip_cost, busGlue_cost, Nat.add_zero]
+  ring
+
+/-- **Exact cost of the shared reduction** — `Eseg` runs exactly once. -/
+theorem reductionShare_cost (x : Stmt) (p : Proof) :
+    (reductionShare Eseg Estep Echip).cost (x, p)
+      = Eseg.cost (x, p)
+        + Estep.cost (Dstep.run (Eseg.run (x, p)))
+        + Echip.cost (Dchip.run (Eseg.run (x, p))) := by
+  simp only [reductionShare, Alg.comp, Alg.share, Function.comp,
+    Dstep_cost, Dchip_cost, busGlue_cost, Nat.add_zero, Nat.zero_add]
+
+/-- **The redundancy, exactly:** the naive fan-out costs one extra `Eseg` run. -/
+theorem reductionPair_cost_gap (x : Stmt) (p : Proof) :
+    (reductionPair Eseg Estep Echip).cost (x, p)
+      = (reductionShare Eseg Estep Echip).cost (x, p) + Eseg.cost (x, p) := by
+  rw [reductionPair_cost, reductionShare_cost]; ring
+
+/-- The shared reduction is still `IsPoly` — efficiency composes as before. -/
+theorem isPoly_reductionShare
+    (hEseg : IsPoly Eseg) (hEstep : IsPoly Estep) (hEchip : IsPoly Echip) :
+    IsPoly (reductionShare Eseg Estep Echip) := by
+  unfold reductionShare
+  exact isPoly_busGlue.comp
+    (IsPoly.share hEseg (hEstep.comp isPoly_Dstep) (hEchip.comp isPoly_Dchip))
+
 end BusE
 end VanillaZkVM

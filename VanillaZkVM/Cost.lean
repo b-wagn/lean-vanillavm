@@ -49,7 +49,7 @@ structure Alg (α β : Type) where
 
 namespace Alg
 
-variable {α β γ : Type}
+variable {α β γ δ : Type}
 
 /-- Sequential composition: run `f`, then `g`. Costs **add** (straight-line, no
 rewinding). -/
@@ -61,6 +61,14 @@ def comp (g : Alg β γ) (f : Alg α β) : Alg α γ where
 def pair (f : Alg α β) (g : Alg α γ) : Alg α (β × γ) where
   run := fun a => (f.run a, g.run a)
   cost := fun a => f.cost a + g.cost a
+
+/-- **Shared** fan-out: run `f` *once*, feed its result to both `g` and `h`, and
+pair the outputs. Unlike `(g.comp f).pair (h.comp f)`, the shared prefix `f` is
+charged a **single** time — the honest cost of a straight-line reduction that
+reuses an intermediate result. -/
+def share (f : Alg α β) (g : Alg β γ) (h : Alg β δ) : Alg α (γ × δ) where
+  run := fun a => (g.run (f.run a), h.run (f.run a))
+  cost := fun a => f.cost a + g.cost (f.run a) + h.cost (f.run a)
 
 end Alg
 
@@ -83,7 +91,7 @@ theorem evalNat_mono (p : Polynomial ℕ) {m n : ℕ} (h : m ≤ n) : p.eval m �
 
 namespace IsPoly
 
-variable {α β γ : Type}
+variable {α β γ δ : Type}
 
 /-- The identity algorithm (cost `0`) is polynomial. -/
 theorem id_ [Sized α] : IsPoly (⟨id, fun _ => 0⟩ : Alg α α) where
@@ -134,6 +142,40 @@ theorem pair [Sized α] [Sized β] [Sized γ]
         = size (f.run a) + size (g.run a) := rfl
       _ ≤ of.eval (size a) + og.eval (size a) := Nat.add_le_add (hof a) (hog a)
       _ = (of + og).eval (size a) := by rw [Polynomial.eval_add]
+
+/-- **Shared fan-out preserves poly-time.** Same closure as `pair`, but the
+shared prefix `f` is counted once. -/
+theorem share [Sized α] [Sized β] [Sized γ] [Sized δ]
+    {f : Alg α β} {g : Alg β γ} {h : Alg β δ}
+    (hf : IsPoly f) (hg : IsPoly g) (hh : IsPoly h) :
+    IsPoly (f.share g h) where
+  costPoly := by
+    obtain ⟨pf, hpf⟩ := hf.costPoly
+    obtain ⟨pg, hpg⟩ := hg.costPoly
+    obtain ⟨ph, hph⟩ := hh.costPoly
+    obtain ⟨of, hof⟩ := hf.sizePoly
+    refine ⟨pf + pg.comp of + ph.comp of, fun a => ?_⟩
+    calc (f.share g h).cost a
+        = f.cost a + g.cost (f.run a) + h.cost (f.run a) := rfl
+      _ ≤ pf.eval (size a) + pg.eval (size (f.run a)) + ph.eval (size (f.run a)) :=
+            Nat.add_le_add (Nat.add_le_add (hpf a) (hpg _)) (hph _)
+      _ ≤ pf.eval (size a) + pg.eval (of.eval (size a)) + ph.eval (of.eval (size a)) :=
+            Nat.add_le_add (Nat.add_le_add_left (evalNat_mono pg (hof a)) _)
+              (evalNat_mono ph (hof a))
+      _ = (pf + pg.comp of + ph.comp of).eval (size a) := by
+            simp only [Polynomial.eval_add, Polynomial.eval_comp]
+  sizePoly := by
+    obtain ⟨of, hof⟩ := hf.sizePoly
+    obtain ⟨og, hog⟩ := hg.sizePoly
+    obtain ⟨oh, hoh⟩ := hh.sizePoly
+    refine ⟨og.comp of + oh.comp of, fun a => ?_⟩
+    calc size ((f.share g h).run a)
+        = size (g.run (f.run a)) + size (h.run (f.run a)) := rfl
+      _ ≤ og.eval (size (f.run a)) + oh.eval (size (f.run a)) := Nat.add_le_add (hog _) (hoh _)
+      _ ≤ og.eval (of.eval (size a)) + oh.eval (of.eval (size a)) :=
+            Nat.add_le_add (evalNat_mono og (hof a)) (evalNat_mono oh (hof a))
+      _ = (og.comp of + oh.comp of).eval (size a) := by
+            simp only [Polynomial.eval_add, Polynomial.eval_comp]
 
 end IsPoly
 
