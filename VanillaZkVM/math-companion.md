@@ -60,13 +60,24 @@ $$
 \;\Rightarrow\; u=u'.
 $$
 
+**Commitment completeness.**
+$$
+\mathsf{Complete}(\mathsf{VC}) \;:=\; \forall m,i,\quad \mathsf{Vf}\bigl(\mathsf{cm}(m),\ i,\ m(i),\ \mathsf{op}(m,i)\bigr)\qquad(\text{honest openings verify}).
+$$
+
 **Hash commitment / collision resistance.** $H=(\mathsf{Domain},\mathsf{Digest},\mathsf{hash})$, and
 $$
 \mathsf{CR}(H) \;:=\; \forall b,b',\quad H.\mathsf{hash}(b)=H.\mathsf{hash}(b') \Rightarrow b=b'\qquad(\text{i.e. } \mathsf{hash}\text{ injective}).
 $$
 
-*Nothing is proven in this file — it is the vocabulary.* On this branch, unlike
-`main`, $\mathsf{PB}$ and $\mathsf{PuB}$ are no longer inert: they are consumed in §3.
+**Injectivity of commitment on memories** (`mem_eq_of_commit_eq`).
+$$
+\mathsf{Complete}(\mathsf{VC})\ \wedge\ \mathsf{PB}(\mathsf{VC})\ \wedge\ \mathsf{cm}(m_1)=\mathsf{cm}(m_2)\quad\Rightarrow\quad m_2=m_1.
+$$
+*Proof.* Fix $i$. The honest opening gives $\mathsf{Vf}(\mathsf{cm}(m_1),i,m_2(i),\mathsf{op}(m_2,i))$ after rewriting by the hypothesis, and $\mathsf{Vf}(\mathsf{cm}(m_1),i,m_1(i),\mathsf{op}(m_1,i))$ directly; $\mathsf{PB}$ forces $m_1(i)=m_2(i)$; `funext`. $\square$
+
+On this branch, unlike `main`, $\mathsf{PB}$ and $\mathsf{PuB}$ are no longer inert:
+`mem_eq_of_commit_eq` (here) and `step_mem_extract` (§3) consume them.
 
 ---
 
@@ -121,31 +132,29 @@ $$
 
 ## 3. Memory extractability (`Memory.lean`)
 
-This is the mathematical heart of the branch, and the first place $\mathsf{PB}$ and $\mathsf{PuB}$ do work.
+This is the mathematical heart of the branch. The binding notions $\mathsf{PB}$/$\mathsf{PuB}$ do their main work here (the generic injectivity lemma `mem_eq_of_commit_eq` is in §1).
 
 ### Definitions
 
 **Full-memory state.** $\mathsf{FullVMState}(\mathsf{VC}) := \mathsf{VMStateWith}(\mathsf{VC.Index}\to\mathsf{VC.Value})$.
 (The classic $\mathsf{VMState}$ is the instance $\mathsf{Index}=\mathsf{Value}=\mathbb N$.)
 
-**Completeness** (the one new assumption).
-$$
-\mathsf{Complete}(\mathsf{VC}) \;:=\; \forall m,i,\quad \mathsf{Vf}\bigl(\mathsf{cm}(m),\ i,\ m(i),\ \mathsf{op}(m,i)\bigr)\qquad(\text{honest openings verify}).
-$$
+(**Completeness** $\mathsf{Complete}(\mathsf{VC})$ and the injectivity lemma
+`mem_eq_of_commit_eq` are generic and now live in §1 / `Crypto.lean`.)
 
 **Commitment invariant** (links a committed state to a full one).
 $$
 \mathsf{CommitInv}(\hat S, S) \;:=\; \hat S.\mathsf{pc}=S.\mathsf{pc}\ \wedge\ \hat S.\mathsf{regs}=S.\mathsf{regs}\ \wedge\ \hat S.\widehat{\mathsf{mem}}=\mathsf{cm}(S.\mathsf{mem}).
 $$
 
-**Register part / step descriptor.**
-$\mathsf{RegPart} := \mathsf{Word}\to(\mathbb N\to\mathsf{Word})\to\mathsf{Word}\to(\mathbb N\to\mathsf{Word})\to\mathsf{Prop}$ (a relation on $(\mathsf{pc}_1,\mathsf{regs}_1,\mathsf{pc}_2,\mathsf{regs}_2)$).
+**Memory-free predicate / step descriptor.**
+$\mathsf{MemFreePredicate} := \mathsf{Word}\to(\mathbb N\to\mathsf{Word})\to\mathsf{Word}\to(\mathbb N\to\mathsf{Word})\to\mathsf{Prop}$ (a relation on $(\mathsf{pc}_1,\mathsf{regs}_1,\mathsf{pc}_2,\mathsf{regs}_2)$).
 The descriptor is the typed sum
 $$
 \mathsf{MemStep}(\mathsf{VC}) \;=\; \mathsf{read}(a{:}\mathsf{Index},\,v{:}\mathsf{Value},\,\pi{:}\mathsf{OpenProof})\ \mid\ \mathsf{write}(a,\,v,\,v_{\mathrm{old}},\,\pi)\ \mid\ \mathsf{other}.
 $$
 
-**Committed op predicates** (write $\varrho:=\mathrm{regPart}(\hat S_1.\mathsf{pc},\hat S_1.\mathsf{regs},\hat S_2.\mathsf{pc},\hat S_2.\mathsf{regs})$):
+**Committed op predicates** (write $\varrho:=\mathrm{memFreePred}(\hat S_1.\mathsf{pc},\hat S_1.\mathsf{regs},\hat S_2.\mathsf{pc},\hat S_2.\mathsf{regs})$):
 $$
 \begin{aligned}
 \widehat{\varphi}_{\mathrm{read}} &:\quad \varrho\ \wedge\ \hat S_1.\widehat{\mathsf{mem}}=\hat S_2.\widehat{\mathsf{mem}}\ \wedge\ \mathsf{Vf}(\hat S_1.\widehat{\mathsf{mem}},\,a,\,v,\,\pi),\\
@@ -153,7 +162,7 @@ $$
 \end{aligned}
 $$
 
-**Full-memory op predicates** (write $\varrho:=\mathrm{regPart}(S_1.\mathsf{pc},S_1.\mathsf{regs},S_2.\mathsf{pc},S_2.\mathsf{regs})$):
+**Full-memory op predicates** (write $\varrho:=\mathrm{memFreePred}(S_1.\mathsf{pc},S_1.\mathsf{regs},S_2.\mathsf{pc},S_2.\mathsf{regs})$):
 $$
 \begin{aligned}
 \varphi_{\mathrm{read}} &:\quad \varrho\ \wedge\ S_1.\mathsf{mem}(a)=v\ \wedge\ S_2.\mathsf{mem}=S_1.\mathsf{mem},\\
@@ -164,26 +173,20 @@ $$
 
 **Classified steps** (dispatch on the descriptor $w$):
 $$
-\widehat{\varphi}_{\mathrm{step}}(\mathrm{regPart},\hat S_1,\hat S_2,w) = \begin{cases}\widehat{\varphi}_{\mathrm{read}} & w=\mathsf{read}\\ \widehat{\varphi}_{\mathrm{write}} & w=\mathsf{write}\\ \varrho\wedge \hat S_1.\widehat{\mathsf{mem}}=\hat S_2.\widehat{\mathsf{mem}} & w=\mathsf{other}\end{cases}
+\widehat{\varphi}_{\mathrm{step}}(\mathrm{memFreePred},\hat S_1,\hat S_2,w) = \begin{cases}\widehat{\varphi}_{\mathrm{read}} & w=\mathsf{read}\\ \widehat{\varphi}_{\mathrm{write}} & w=\mathsf{write}\\ \varrho\wedge \hat S_1.\widehat{\mathsf{mem}}=\hat S_2.\widehat{\mathsf{mem}} & w=\mathsf{other}\end{cases}
 $$
 and $\varphi_{\mathrm{step}}$ analogously with $\varphi_{\mathrm{read}}/\varphi_{\mathrm{write}}$ and, for $\mathsf{other}$, $\varrho\wedge S_2.\mathsf{mem}=S_1.\mathsf{mem}$.
 (In Lean, $\widehat{\varphi}_{\mathrm{step}}=\mathsf{stepC}$, $\varphi_{\mathrm{step}}=\mathsf{stepF}$.)
 
-### Lemma and theorem
-
-**Injectivity of commitment on memories** (`mem_eq_of_commit_eq`).
-$$
-\mathsf{Complete}(\mathsf{VC})\ \wedge\ \mathsf{PB}(\mathsf{VC})\ \wedge\ \mathsf{cm}(m_1)=\mathsf{cm}(m_2)\quad\Rightarrow\quad m_2=m_1.
-$$
-*Proof.* Fix $i$. The honest opening gives $\mathsf{Vf}(\mathsf{cm}(m_1),i,m_2(i),\mathsf{op}(m_2,i))$ after rewriting by the hypothesis, and $\mathsf{Vf}(\mathsf{cm}(m_1),i,m_1(i),\mathsf{op}(m_1,i))$ directly; $\mathsf{PB}$ forces $m_1(i)=m_2(i)$; `funext`. $\square$
+### Theorem
 
 **Memory extractability, one step** (`step_mem_extract`) — *the core proposition*.
 $$
 \boxed{\ 
 \begin{array}{c}
 \mathsf{Complete}(\mathsf{VC})\ \wedge\ \mathsf{PB}(\mathsf{VC})\ \wedge\ \mathsf{PuB}(\mathsf{VC})\ \wedge\\[2pt]
-\mathsf{CommitInv}(\hat S_1,S_1)\ \wedge\ \mathsf{CommitInv}(\hat S_2,S_2)\ \wedge\ \widehat{\varphi}_{\mathrm{step}}(\mathrm{regPart},\hat S_1,\hat S_2,w)\\[4pt]
-\Longrightarrow\quad \varphi_{\mathrm{step}}(\mathrm{regPart},S_1,S_2,w)
+\mathsf{CommitInv}(\hat S_1,S_1)\ \wedge\ \mathsf{CommitInv}(\hat S_2,S_2)\ \wedge\ \widehat{\varphi}_{\mathrm{step}}(\mathrm{memFreePred},\hat S_1,\hat S_2,w)\\[4pt]
+\Longrightarrow\quad \varphi_{\mathrm{step}}(\mathrm{memFreePred},S_1,S_2,w)
 \end{array}
 \ }
 $$
@@ -208,17 +211,17 @@ $\mathsf{SegWitness}=(\mathsf{states}:\mathbb N\to\hat S,\ \mathsf{steps}:\mathb
 $\mathsf{FinalStmt}=(\mathsf{S0},\mathsf{ST}:\hat S)$;
 $\mathsf{FinalWitness}=(\mathsf{boundary}:\mathbb N\to\hat S,\ \mathsf{proofs}:\mathbb N\to\mathsf{SegProof})$.
 
-**System.** $\mathsf{sys}=(\mathsf{VC},\ N_{\mathrm{seg}},\ m,\ \mathrm{regPart}:\mathsf{RegPart},\ \mathsf{SegProof},\ \mathsf{segVerify},\ \mathsf{FinalProof},\ \mathsf{finalVerify})$.
-Note the step is **not** an opaque field: it is the classified $\widehat{\varphi}_{\mathrm{step}}(\mathrm{regPart})$ from §3.
+**System.** $\mathsf{sys}=(\mathsf{VC},\ N_{\mathrm{seg}},\ m,\ \mathrm{memFreePred}:\mathsf{MemFreePredicate},\ \mathsf{SegProof},\ \mathsf{segVerify},\ \mathsf{FinalProof},\ \mathsf{finalVerify})$.
+Note the step is **not** an opaque field: it is the classified $\widehat{\varphi}_{\mathrm{step}}(\mathrm{memFreePred})$ from §3.
 
 **Existential step projection** (bridges the descriptor-carrying step to the descriptor-free abstract $V$):
 $$
-\mathsf{stepRel}(\hat S_1,\hat S_2) \;:=\; \exists\, w:\mathsf{MemStep},\ \widehat{\varphi}_{\mathrm{step}}(\mathrm{regPart},\hat S_1,\hat S_2,w).
+\mathsf{stepRel}(\hat S_1,\hat S_2) \;:=\; \exists\, w:\mathsf{MemStep},\ \widehat{\varphi}_{\mathrm{step}}(\mathrm{memFreePred},\hat S_1,\hat S_2,w).
 $$
 
 **Segment relation.**
 $$
-R_{\mathrm{seg}}.\mathrm{rel}(st,w) := w.\mathsf{states}(0)=st.\mathsf{Sin}\ \wedge\ w.\mathsf{states}(N_{\mathrm{seg}})=st.\mathsf{Sout}\ \wedge\ \forall j<N_{\mathrm{seg}},\ \widehat{\varphi}_{\mathrm{step}}\bigl(\mathrm{regPart},\,w.\mathsf{states}(j),\,w.\mathsf{states}(j{+}1),\,w.\mathsf{steps}(j)\bigr).
+R_{\mathrm{seg}}.\mathrm{rel}(st,w) := w.\mathsf{states}(0)=st.\mathsf{Sin}\ \wedge\ w.\mathsf{states}(N_{\mathrm{seg}})=st.\mathsf{Sout}\ \wedge\ \forall j<N_{\mathrm{seg}},\ \widehat{\varphi}_{\mathrm{step}}\bigl(\mathrm{memFreePred},\,w.\mathsf{states}(j),\,w.\mathsf{states}(j{+}1),\,w.\mathsf{steps}(j)\bigr).
 $$
 
 **Final relation.**
@@ -235,7 +238,7 @@ $$
 $$
 \boxed{\ 0<N_{\mathrm{seg}}\ \wedge\ \mathsf{KS}(\mathsf{AS}_{\mathrm{seg}})\ \wedge\ \mathsf{KS}(\mathsf{AS}_{\mathrm{final}})\ \Longrightarrow\ \mathsf{CTE}(\mathsf{toZkVM})\ }
 $$
-*Proof.* By the keystone (§2) it suffices to show $\mathsf{KS}(\mathsf{AS}^\star)$. Two-layer straight-line extraction: from an accepting final proof, extract the $R_{\mathrm{final}}$ witness (boundaries $d$ and per-segment proofs); for each $i<m$ extract an $R_{\mathrm{seg}}$ witness from proof $i$, giving states $seg\,i\,\cdot$ and descriptors. Each segment obligation $\widehat{\varphi}_{\mathrm{step}}(\mathrm{regPart},seg\,i\,j,seg\,i\,(j{+}1),\mathsf{steps}\,j)$ is repackaged as $\mathsf{stepRel}(seg\,i\,j,seg\,i\,(j{+}1))$ by $\exists$-introduction on the extracted descriptor. `chain_flatten` (§2) then glues the $m$ committed sub-chains into one valid $m N_{\mathrm{seg}}$-step trace from $\mathsf{S0}$ to $\mathsf{ST}$. $\square$
+*Proof.* By the keystone (§2) it suffices to show $\mathsf{KS}(\mathsf{AS}^\star)$. Two-layer straight-line extraction: from an accepting final proof, extract the $R_{\mathrm{final}}$ witness (boundaries $d$ and per-segment proofs); for each $i<m$ extract an $R_{\mathrm{seg}}$ witness from proof $i$, giving states $seg\,i\,\cdot$ and descriptors. Each segment obligation $\widehat{\varphi}_{\mathrm{step}}(\mathrm{memFreePred},seg\,i\,j,seg\,i\,(j{+}1),\mathsf{steps}\,j)$ is repackaged as $\mathsf{stepRel}(seg\,i\,j,seg\,i\,(j{+}1))$ by $\exists$-introduction on the extracted descriptor. `chain_flatten` (§2) then glues the $m$ committed sub-chains into one valid $m N_{\mathrm{seg}}$-step trace from $\mathsf{S0}$ to $\mathsf{ST}$. $\square$
 
 ---
 
@@ -303,5 +306,5 @@ are all *hypotheses*, discharged by no concrete scheme here. A concrete
 
 **What is not yet connected** (open increments):
 1. **Full-memory trace fold.** `step_mem_extract` is a single-step lemma; the fold reconstructing $\mathsf{mem}_0\dots\mathsf{mem}_T$ and strengthening `cte`'s conclusion from committed states to real memory is Stage 3.2/3.3.
-2. **Bus ↔ two-step link.** `Bus.lean`'s $\mathsf{stepBus}/\mathsf{StepAux}$ and `Memory.lean`'s $\mathrm{regPart}/\mathsf{MemStep}$ are parallel; unifying them is open.
+2. **Bus ↔ two-step link.** `Bus.lean`'s $\mathsf{stepBus}/\mathsf{StepAux}$ and `Memory.lean`'s $\mathrm{memFreePred}/\mathsf{MemStep}$ are parallel; unifying them is open.
 3. **Recursion tree.** $R_{\mathrm{final}}$ is a flat $m$-way merge, not the whitepaper's `convert`/`combine`/`embed` tower.

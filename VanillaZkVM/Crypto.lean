@@ -76,6 +76,13 @@ structure VectorCommitment where
   openProof : (Index → Value) → Index → OpenProof
   verify : Com → Index → Value → OpenProof → Prop
 
+/-- **Commitment completeness** (perfect): an *honest* opening always verifies.
+Provides the honest opening that position- and punctured-binding compare an
+adversarial opening against. -/
+def Complete (VC : VectorCommitment) : Prop :=
+  ∀ (m : VC.Index → VC.Value) (i : VC.Index),
+    VC.verify (VC.commit m) i (m i) (VC.openProof m i)
+
 /-- **Position-binding** (perfect): no commitment admits two accepted openings of
 different values at the same position. -/
 def PositionBinding (VC : VectorCommitment) : Prop :=
@@ -90,6 +97,18 @@ def PuncturedBinding (VC : VectorCommitment) : Prop :=
     VC.verify C addr v pi → VC.verify C' addr v' pi →
     VC.verify C i u rho → VC.verify C' i u' rho' →
     i ≠ addr → u = u'
+
+/-- A commitment is injective on memories, given completeness and position
+binding: if two memories commit to the same value, they are equal. (The `funext`
++ position-binding argument used throughout memory extraction.) -/
+theorem mem_eq_of_commit_eq {VC : VectorCommitment}
+    (hComplete : Complete VC) (hpos : PositionBinding VC)
+    {m₁ m₂ : VC.Index → VC.Value} (h : VC.commit m₁ = VC.commit m₂) : m₂ = m₁ := by
+  funext i
+  have h₂ : VC.verify (VC.commit m₁) i (m₂ i) (VC.openProof m₂ i) := by
+    rw [h]; exact hComplete m₂ i
+  exact (hpos (VC.commit m₁) i (m₁ i) (m₂ i) (VC.openProof m₁ i) (VC.openProof m₂ i)
+    (hComplete m₁ i) h₂).symm
 
 /-! ## Collision-resistant (bus) commitment -/
 

@@ -66,8 +66,8 @@ structure System where
   Nseg : ℕ
   m : ℕ
   /-- Memory-free register/program-counter part of each classified step; the full
-  committed step is `stepC regPart` (from `Memory`). -/
-  regPart : RegPart
+  committed step is `stepC memFreePred` (from `Memory`). -/
+  memFreePred : MemFreePredicate
   SegProof : Type
   segVerify : SegStmt VC → SegProof → Prop
   FinalProof : Type
@@ -78,12 +78,12 @@ namespace System
 variable (sys : System)
 
 /-- The binary committed-step relation the abstract ZkVM sees: a step holds iff
-some `MemStep` descriptor certifies it under `stepC sys.regPart`. The descriptors
+some `MemStep` descriptor certifies it under `stepC sys.memFreePred`. The descriptors
 themselves are retained in `SegWitness.steps`, where memory extractability
 (`Memory.step_mem_extract`) consumes them; the flattened abstract trace only
 needs this binary relation. -/
 def stepRel (Ŝ₁ Ŝ₂ : CommittedVMState sys.VC) : Prop :=
-  ∃ w : MemStep sys.VC, stepC sys.regPart Ŝ₁ Ŝ₂ w
+  ∃ w : MemStep sys.VC, stepC sys.memFreePred Ŝ₁ Ŝ₂ w
 
 /-- Segment relation `RSeg`: a chain of `Nseg` committed steps from `Sin` to
 `Sout`, each certified by its explicit `MemStep` descriptor. -/
@@ -94,7 +94,7 @@ def RSeg : Relation where
     w.states 0 = st.Sin ∧
     w.states sys.Nseg = st.Sout ∧
     ∀ j, j < sys.Nseg →
-      stepC sys.regPart (w.states j) (w.states (j + 1)) (w.steps j)
+      stepC sys.memFreePred (w.states j) (w.states (j + 1)) (w.steps j)
 
 /-- The segment argument system `Π_seg`. -/
 def ASSeg : ArgumentSystem sys.RSeg where
