@@ -301,7 +301,7 @@ and collision-resistance properties of the two commitments, and $\mathsf{Complet
 are all *hypotheses*, discharged by no concrete scheme here. A concrete
 `VectorCommitment`/`HashCommitment` instance deriving them is out of scope.
 
-**What is not yet connected** (open increments, see `mem-plan.md` and `plan.md`):
+**What is not yet connected** (open increments):
 1. **Full-memory trace fold.** `step_mem_extract` is a single-step lemma; the fold reconstructing $\mathsf{mem}_0\dots\mathsf{mem}_T$ and strengthening `cte`'s conclusion from committed states to real memory is Stage 3.2/3.3.
 2. **Bus ↔ two-step link.** `Bus.lean`'s $\mathsf{stepBus}/\mathsf{StepAux}$ and `Memory.lean`'s $\mathrm{regPart}/\mathsf{MemStep}$ are parallel; unifying them is open.
 3. **Recursion tree.** $R_{\mathrm{final}}$ is a flat $m$-way merge, not the whitepaper's `convert`/`combine`/`embed` tower.

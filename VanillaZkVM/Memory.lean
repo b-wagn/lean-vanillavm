@@ -4,10 +4,9 @@ import VanillaZkVM.Zkvm
 # Memory extractability (Stages 0–2)
 
 This file adds the **memory-only slice** of the whitepaper's memory-extractability
-argument, following `VanillaZkVM/mem-plan.md`. It keeps the *existing*
-`VectorCommitment` (no specialized memory-commitment structure) and finally
-*consumes* `PositionBinding` and `PuncturedBinding`, which were declared but unused
-in `Crypto.lean`.
+argument. It keeps the *existing* `VectorCommitment` (no specialized
+memory-commitment structure) and finally *consumes* `PositionBinding` and
+`PuncturedBinding`, which were declared but unused in `Crypto.lean`.
 
 * **Stage 0 — Model plumbing:** `FullVMState`, `Complete`, `CommitInv`.
 * **Stage 1 — Concrete predicates:** the `MemStep` descriptor, the committed
