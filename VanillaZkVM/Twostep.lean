@@ -1,4 +1,4 @@
-import VanillaZkVM.Zkvm
+import VanillaZkVM.Memory
 
 /-!
 # A minimal "two-step" zkVM, instantiating the abstract system
@@ -8,8 +8,10 @@ argument non-trivial — composing straight-line extraction across SNARK layers,
 and committed-memory states — while dropping the bus, the four inner circuits,
 the chips, and the binary `convert`/`combine`/`embed` tower.
 
-* Segment layer `RSeg`: a chain of `Nseg` committed steps `Sin → Sout` under an
-  assumed committed step predicate `stepC`. Operations are not deferred to a bus.
+* Segment layer `RSeg`: a chain of `Nseg` committed steps `Sin → Sout` under the
+  classified committed step predicate `stepC` (from `Memory`). Each step carries
+  its explicit `MemStep` descriptor, including the opening used by a read/write.
+  Operations are not deferred to a bus.
 * Final layer `RFinal`: a single SNARK merging `m` segment proofs whose boundary
   states chain `S0 → ST`.
 
@@ -18,10 +20,13 @@ We then instantiate the abstract `ZkVM` (`State` = committed states,
 plus a two-layer extraction. The committed trace is produced with `concatTrace`;
 its validity rests on `chain_flatten`.
 
-Simplifications carried over: the CTE target is a committed-memory trace (so
-`Com_mem`'s binding is a declared component but not yet consumed — full-memory
-reconstruction is the next increment), and traces are `ℕ`-indexed with `< bound`
-conditions (uniform with `Rstar`, and it makes concatenation pure `ℕ`-arithmetic).
+Simplifications carried over: the CTE target is a committed-memory trace whose
+binary step is the existential projection `stepRel` of the classified `stepC` —
+the per-step `MemStep` descriptors are retained in the segment witnesses (where
+`Memory.step_mem_extract` consumes `Com_mem`'s binding), but full-memory
+reconstruction and folding those descriptors through the flattened trace are the
+next increment. Traces are `ℕ`-indexed with `< bound` conditions (uniform with
+`Rstar`, and it makes concatenation pure `ℕ`-arithmetic).
 -/
 
 namespace VanillaZkVM
@@ -34,10 +39,13 @@ structure SegStmt (VC : VectorCommitment) where
   Sin : CommittedVMState VC
   Sout : CommittedVMState VC
 
-/-- Segment witness: the intermediate committed states, `ℕ`-indexed (only the
-first `Nseg + 1` matter). -/
+/-- Segment witness: the intermediate committed states and one explicit
+`MemStep` descriptor per transition, both `ℕ`-indexed (only the first `Nseg + 1`
+states and `Nseg` steps matter). Read/write descriptors carry the openings that
+memory extraction must expose. -/
 structure SegWitness (VC : VectorCommitment) where
   states : ℕ → CommittedVMState VC
+  steps : ℕ → MemStep VC
 
 /-- Final statement: the committed boundary states of the whole execution. -/
 structure FinalStmt (VC : VectorCommitment) where
@@ -57,8 +65,9 @@ structure System where
   VC : VectorCommitment
   Nseg : ℕ
   m : ℕ
-  /-- Committed step predicate `φ̂_step` (assumed to exist). -/
-  stepC : CommittedVMState VC → CommittedVMState VC → Prop
+  /-- Memory-free register/program-counter part of each classified step; the full
+  committed step is `stepC regPart` (from `Memory`). -/
+  regPart : RegPart
   SegProof : Type
   segVerify : SegStmt VC → SegProof → Prop
   FinalProof : Type
@@ -68,15 +77,24 @@ namespace System
 
 variable (sys : System)
 
+/-- The binary committed-step relation the abstract ZkVM sees: a step holds iff
+some `MemStep` descriptor certifies it under `stepC sys.regPart`. The descriptors
+themselves are retained in `SegWitness.steps`, where memory extractability
+(`Memory.step_mem_extract`) consumes them; the flattened abstract trace only
+needs this binary relation. -/
+def stepRel (Ŝ₁ Ŝ₂ : CommittedVMState sys.VC) : Prop :=
+  ∃ w : MemStep sys.VC, stepC sys.regPart Ŝ₁ Ŝ₂ w
+
 /-- Segment relation `RSeg`: a chain of `Nseg` committed steps from `Sin` to
-`Sout`. -/
+`Sout`, each certified by its explicit `MemStep` descriptor. -/
 def RSeg : Relation where
   Stmt := SegStmt sys.VC
   Wit := SegWitness sys.VC
   rel := fun st w =>
     w.states 0 = st.Sin ∧
     w.states sys.Nseg = st.Sout ∧
-    ∀ j, j < sys.Nseg → sys.stepC (w.states j) (w.states (j + 1))
+    ∀ j, j < sys.Nseg →
+      stepC sys.regPart (w.states j) (w.states (j + 1)) (w.steps j)
 
 /-- The segment argument system `Π_seg`. -/
 def ASSeg : ArgumentSystem sys.RSeg where
@@ -103,7 +121,7 @@ def ASFinal : ArgumentSystem sys.RFinal where
 `T = m * Nseg`, boundary statements, and the final verifier. -/
 def toZkVM : ZkVM where
   State := CommittedVMState sys.VC
-  step := sys.stepC
+  step := sys.stepRel
   T := sys.m * sys.Nseg
   Stmt := FinalStmt sys.VC
   initial := FinalStmt.S0
@@ -141,12 +159,16 @@ theorem cte (hNseg : 0 < sys.Nseg)
     fun i hi => (hEs _ _ (hbver i hi)).1
   have hlast : ∀ i, i < sys.m → seg i sys.Nseg = d (i + 1) :=
     fun i hi => (hEs _ _ (hbver i hi)).2.1
+  -- Each committed step is certified by its extracted `MemStep` descriptor; the
+  -- abstract trace only needs the existential projection `stepRel`.
   have hstep : ∀ i, i < sys.m → ∀ j, j < sys.Nseg →
-      sys.stepC (seg i j) (seg i (j + 1)) :=
-    fun i hi j hj => (hEs _ _ (hbver i hi)).2.2 j hj
+      sys.stepRel (seg i j) (seg i (j + 1)) :=
+    fun i hi j hj =>
+      ⟨(Es.extract ⟨d i, d (i + 1)⟩ ((Ef.extract x p).proofs i)).steps j,
+       (hEs _ _ (hbver i hi)).2.2 j hj⟩
   -- Concatenate.
   obtain ⟨e0, eT, estep⟩ :=
-    chain_flatten sys.stepC sys.Nseg sys.m hNseg d seg h0 hlast hstep
+    chain_flatten sys.stepRel sys.Nseg sys.m hNseg d seg h0 hlast hstep
   refine ⟨?_, ?_, ?_⟩
   · show concatTrace sys.Nseg d seg sys.m 0 = x.S0
     rw [e0]; exact hb0
