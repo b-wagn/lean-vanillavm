@@ -45,7 +45,8 @@ structure Relation where
 
 /-- A non-interactive argument system for a relation `R`, given by its proof type
 and verifier. `verify` is morally a Boolean polynomial-time algorithm; we phrase
-acceptance as a `Prop`, reading `verify x p` as "`Verify(x, p) = 1`". -/
+acceptance as a `Prop`, reading `verify x p` as "`Verify(x, p) = 1`". Note that
+we don't specify a prover, as we just care about soundness and not completeness. -/
 structure ArgumentSystem (R : Relation) where
   Proof : Type
   verify : R.Stmt → Proof → Prop
