@@ -245,6 +245,62 @@ theorem cteReduction_correct (hNseg : 0 < sys.Nseg)
   · intro k hk
     exact estep k hk
 
+/-! ### Design note — de-duplicating `cte` (not yet applied)
+
+`cte` (above) and `cteReduction_correct` currently prove correctness *twice* via
+the same `chain_flatten` argument, differing only in the form of their soundness
+hypotheses:
+
+* `cte` assumes `KnowledgeSound sys.ASSeg` / `KnowledgeSound sys.ASFinal`
+  (the extractor is existentially hidden);
+* `cteReduction_correct` assumes the `System`'s explicit extractor *fields*
+  `segExtract` / `finalExtract` are sound (the extractor is named).
+
+Option 2 folds the first into the second, so the extraction proof is written
+once. Two facts make this work:
+
+1. **Extractor-validity is the stronger hypothesis.** The field `finalExtract`
+   is itself a witness for the existential, so
+   ```lean
+   -- extractor-validity  ⟹  KnowledgeSound
+   theorem knowledgeSound_final
+       (hfinal : ∀ x p, sys.finalVerify x p →
+           sys.RFinal.rel x (sys.finalExtract.run (x, p))) :
+       KnowledgeSound sys.ASFinal :=
+     ⟨⟨fun x p => sys.finalExtract.run (x, p)⟩, hfinal⟩
+   -- (and symmetrically for `segExtract` / `ASSeg`).
+   ```
+
+2. **`CTE` is a one-liner from `cteReduction_correct`.** `sys.toZkVM.CTE`
+   unfolds to "∃ trace-extractor, ∀ accepting proof, `TraceValid`", and the
+   explicit reduction *is* that extractor:
+   ```lean
+   -- the consolidated headline result, replacing `cte`'s proof body
+   theorem cte' (hNseg : 0 < sys.Nseg)
+       (hfinal : ∀ x p, sys.finalVerify x p →
+           sys.RFinal.rel x (sys.finalExtract.run (x, p)))
+       (hseg : ∀ st pf, sys.segVerify st pf →
+           sys.RSeg.rel st (sys.segExtract.run (st, pf))) :
+       sys.toZkVM.CTE :=
+     ⟨fun x p => (cteReduction sys).run (x, p),
+      fun x p hp => cteReduction_correct sys hNseg hfinal hseg x p hp⟩
+   ```
+   No `chain_flatten` re-run: all of it lives in `cteReduction_correct`.
+
+Consequences of adopting option 2:
+
+* The single extraction proof lives in `cteReduction_correct`; `cte` becomes the
+  corollary `cte'` above (three lines, no tactic block).
+* The hypotheses shift from `KnowledgeSound …` to explicit extractor-validity.
+  This is *strictly stronger* (fact 1 recovers the `KnowledgeSound` form if the classic
+  statement is still wanted), and it is exactly what the cost theorem
+  `cteReduction_cost` already needs — so both the correctness and the exact-cost
+  results then rest on one uniform hypothesis about the same named extractors.
+* `cteReduction_cost` stays untouched and separate: it is unconditional (no
+  soundness / `verify` hypotheses), so it must not be bundled with correctness.
+
+This note only *describes* the refactor; the theorems above are left as-is. -/
+
 end System
 end TwoStep
 end VanillaZkVM
