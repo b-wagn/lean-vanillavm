@@ -1,4 +1,5 @@
 import VanillaZkVM.Zkvm
+import VanillaZkVM.Cost
 
 /-!
 # A minimal "two-step" zkVM, instantiating the abstract system
@@ -52,7 +53,13 @@ structure FinalWitness (VC : VectorCommitment) (SegProof : Type) where
 /-! ## The toy system -/
 
 /-- The toy system: an assumed committed step predicate, a memory commitment
-scheme, and the two layers' proof types with their verifiers. -/
+scheme, and the two layers' proof types with their verifiers.
+
+Cost-friendly augmentation: each layer additionally carries a **cost-annotated
+straight-line extractor** (`Alg`, from `Cost.lean`). This makes the two-layer
+trace extractor a first-class, named object whose running time can be stated
+*exactly* (see Part 2). The verifiers/relations are unchanged, so the existing
+`cte` theorem is unaffected. -/
 structure System where
   VC : VectorCommitment
   Nseg : ℕ
@@ -63,6 +70,10 @@ structure System where
   segVerify : SegStmt VC → SegProof → Prop
   FinalProof : Type
   finalVerify : FinalStmt VC → FinalProof → Prop
+  /-- Cost-annotated straight-line extractor for the segment argument system. -/
+  segExtract : Alg (SegStmt VC × SegProof) (SegWitness VC)
+  /-- Cost-annotated straight-line extractor for the final argument system. -/
+  finalExtract : Alg (FinalStmt VC × FinalProof) (FinalWitness VC SegProof)
 
 namespace System
 
