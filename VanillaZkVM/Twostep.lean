@@ -166,6 +166,85 @@ theorem cte (hNseg : 0 < sys.Nseg)
   · intro k hk
     exact estep k hk
 
+/-! ## Part 2 — the explicit reduction and its exact cost
+
+`cte` proves CTE from *existential* knowledge soundness. Here we package the same
+two-layer straight-line extraction as an **explicit** cost-annotated algorithm
+`cteReduction`, built from the `System`'s extractors, prove it is a correct trace
+extractor, and read off its **exact** running time — one `finalExtract` plus one
+`segExtract` per segment, no hidden constants. -/
+
+/-- Assemble the committed trace from the final boundary and the per-segment
+witnesses (pure index arithmetic; cost `0`). -/
+def buildTrace :
+    Alg (FinalWitness sys.VC sys.SegProof × (ℕ → SegWitness sys.VC))
+        (ℕ → CommittedVMState sys.VC) :=
+  ⟨fun ws => concatTrace sys.Nseg ws.1.boundary (fun i j => (ws.2 i).states j) sys.m,
+   fun _ => 0⟩
+
+/-- The explicit two-layer CTE trace-extractor: run `finalExtract` once, run
+`segExtract` on each of the `m` segments (via `Alg.share`/`Alg.seqRange`), then
+concatenate. Same trace as `cte`'s anonymous extractor, now a named `Alg`. -/
+def cteReduction : Alg (FinalStmt sys.VC × sys.FinalProof) (ℕ → CommittedVMState sys.VC) :=
+  (buildTrace sys).comp
+    (Alg.share sys.finalExtract
+      (⟨id, fun _ => 0⟩ : Alg (FinalWitness sys.VC sys.SegProof)
+                              (FinalWitness sys.VC sys.SegProof))
+      (Alg.seqRange sys.m
+        (fun (wf : FinalWitness sys.VC sys.SegProof) i =>
+          (⟨wf.boundary i, wf.boundary (i + 1)⟩, wf.proofs i))
+        sys.segExtract))
+
+/-- **Exact cost of the CTE reduction:** one `finalExtract`, plus one `segExtract`
+per segment. The `O(m)` sum is the honest straight-line cost — no hidden factor. -/
+theorem cteReduction_cost (x : FinalStmt sys.VC) (p : sys.FinalProof) :
+    (cteReduction sys).cost (x, p)
+      = sys.finalExtract.cost (x, p)
+        + ∑ i ∈ Finset.range sys.m,
+            sys.segExtract.cost
+              (⟨(sys.finalExtract.run (x, p)).boundary i,
+                (sys.finalExtract.run (x, p)).boundary (i + 1)⟩,
+               (sys.finalExtract.run (x, p)).proofs i) := by
+  simp only [cteReduction, buildTrace, Alg.comp, Alg.share, Alg.seqRange, Nat.add_zero]
+
+/-- **Correctness of the CTE reduction.** Given soundness of the two extractors
+and non-empty segments, `cteReduction.run` is a valid correct-trace extractor: on
+every accepting final proof it produces a `TraceValid` committed trace. -/
+theorem cteReduction_correct (hNseg : 0 < sys.Nseg)
+    (hfinal : ∀ x p, sys.finalVerify x p →
+        sys.RFinal.rel x (sys.finalExtract.run (x, p)))
+    (hseg : ∀ st pf, sys.segVerify st pf →
+        sys.RSeg.rel st (sys.segExtract.run (st, pf)))
+    (x : FinalStmt sys.VC) (p : sys.FinalProof) (hp : sys.finalVerify x p) :
+    sys.toZkVM.TraceValid x ((cteReduction sys).run (x, p)) := by
+  obtain ⟨hb0, hbm, hbver⟩ := hfinal x p hp
+  have hrun : (cteReduction sys).run (x, p)
+        = concatTrace sys.Nseg (sys.finalExtract.run (x, p)).boundary
+            (fun i j => (sys.segExtract.run
+              (⟨(sys.finalExtract.run (x, p)).boundary i,
+                (sys.finalExtract.run (x, p)).boundary (i + 1)⟩,
+               (sys.finalExtract.run (x, p)).proofs i)).states j) sys.m := rfl
+  rw [hrun]
+  set d := (sys.finalExtract.run (x, p)).boundary with hd
+  set seg := (fun i j => (sys.segExtract.run
+      (⟨d i, d (i + 1)⟩, (sys.finalExtract.run (x, p)).proofs i)).states j) with hs
+  have h0 : ∀ i, i < sys.m → seg i 0 = d i :=
+    fun i hi => (hseg _ _ (hbver i hi)).1
+  have hlast : ∀ i, i < sys.m → seg i sys.Nseg = d (i + 1) :=
+    fun i hi => (hseg _ _ (hbver i hi)).2.1
+  have hstep : ∀ i, i < sys.m → ∀ j, j < sys.Nseg →
+      sys.stepC (seg i j) (seg i (j + 1)) :=
+    fun i hi j hj => (hseg _ _ (hbver i hi)).2.2 j hj
+  obtain ⟨e0, eT, estep⟩ :=
+    chain_flatten sys.stepC sys.Nseg sys.m hNseg d seg h0 hlast hstep
+  refine ⟨?_, ?_, ?_⟩
+  · show concatTrace sys.Nseg d seg sys.m 0 = x.S0
+    rw [e0]; exact hb0
+  · show concatTrace sys.Nseg d seg sys.m (sys.m * sys.Nseg) = x.ST
+    rw [eT]; exact hbm
+  · intro k hk
+    exact estep k hk
+
 end System
 end TwoStep
 end VanillaZkVM
