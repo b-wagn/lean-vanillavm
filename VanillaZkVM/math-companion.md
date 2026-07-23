@@ -50,15 +50,23 @@ $$
 \mathsf{PB}(\mathsf{VC}) \;:=\; \forall C,i,v,v',\pi,\pi',\quad \mathsf{Vf}(C,i,v,\pi)\wedge \mathsf{Vf}(C,i,v',\pi') \;\Rightarrow\; v=v'.
 $$
 
-**Punctured binding.**  With one shared opening $\pi$ accepted at position $a$ under two commitments $C, C'$, they agree at every other position:
+**Update binding.**  A shared opening $\pi$ that opens an *honest* commitment
+$\mathsf{cm}(m)$ at position $a$ (necessarily to $m(a)$) and opens some $C'$ at
+$a$ to $x$ forces $C'$ to be the honest commitment of the point-update of $m$ at
+$a$ to $x$. The updated vector $m'$ is given pointwise, so no decidable equality
+on the index type is required:
 $$
-\mathsf{PuB}(\mathsf{VC}) \;:=\; \forall\, C,C',a,v,v',\pi,\ i,u,u',\rho,\rho',\quad
+\mathsf{UB}(\mathsf{VC}) \;:=\; \forall\, m,m',a,x,C',\pi,\quad
 \begin{aligned}
-&\mathsf{Vf}(C,a,v,\pi)\wedge \mathsf{Vf}(C',a,v',\pi)\ \wedge\\
-&\mathsf{Vf}(C,i,u,\rho)\wedge \mathsf{Vf}(C',i,u',\rho')\ \wedge\ i\neq a
+&m'(a)=x\ \wedge\ \bigl(\forall j\neq a,\ m'(j)=m(j)\bigr)\ \wedge\\
+&\mathsf{Vf}(\mathsf{cm}(m),a,m(a),\pi)\wedge \mathsf{Vf}(C',a,x,\pi)
 \end{aligned}
-\;\Rightarrow\; u=u'.
+\;\Rightarrow\; C'=\mathsf{cm}(m').
 $$
+Unlike position/(the former) punctured binding, this is not a non-equivocation
+property: it pins the *whole* co-opened root to an actual `commit` output, which
+is what discharging the commitment invariant across a write requires. See
+`update-binding.md`.
 
 **Commitment completeness.**
 $$
@@ -76,7 +84,7 @@ $$
 $$
 *Proof.* Fix $i$. The honest opening gives $\mathsf{Vf}(\mathsf{cm}(m_1),i,m_2(i),\mathsf{op}(m_2,i))$ after rewriting by the hypothesis, and $\mathsf{Vf}(\mathsf{cm}(m_1),i,m_1(i),\mathsf{op}(m_1,i))$ directly; $\mathsf{PB}$ forces $m_1(i)=m_2(i)$; `funext`. $\square$
 
-On this branch, unlike `main`, $\mathsf{PB}$ and $\mathsf{PuB}$ are no longer inert:
+On this branch, unlike `main`, $\mathsf{PB}$ and $\mathsf{UB}$ are no longer inert:
 `mem_eq_of_commit_eq` (here) and `step_mem_extract` (§3) consume them.
 
 ---
@@ -132,7 +140,7 @@ $$
 
 ## 3. Memory extractability (`Memory.lean`)
 
-This is the mathematical heart of the branch. The binding notions $\mathsf{PB}$/$\mathsf{PuB}$ do their main work here (the generic injectivity lemma `mem_eq_of_commit_eq` is in §1).
+This is the mathematical heart of the branch. The binding notions $\mathsf{PB}$/$\mathsf{UB}$ do their main work here (the generic injectivity lemma `mem_eq_of_commit_eq` is in §1).
 
 ### Definitions
 
@@ -184,7 +192,7 @@ and $\varphi_{\mathrm{step}}$ analogously with $\varphi_{\mathrm{read}}/\varphi_
 $$
 \boxed{\ 
 \begin{array}{c}
-\mathsf{Complete}(\mathsf{VC})\ \wedge\ \mathsf{PB}(\mathsf{VC})\ \wedge\ \mathsf{PuB}(\mathsf{VC})\ \wedge\\[2pt]
+\mathsf{Complete}(\mathsf{VC})\ \wedge\ \mathsf{PB}(\mathsf{VC})\ \wedge\ \mathsf{UB}(\mathsf{VC})\ \wedge\\[2pt]
 \mathsf{CommitInv}(\hat S_1,S_1)\ \wedge\ \mathsf{CommitInv}(\hat S_2,S_2)\ \wedge\ \widehat{\varphi}_{\mathrm{step}}(\mathrm{memFreePred},\hat S_1,\hat S_2,w)\\[4pt]
 \Longrightarrow\quad \varphi_{\mathrm{step}}(\mathrm{memFreePred},S_1,S_2,w)
 \end{array}
@@ -194,7 +202,7 @@ $$
 The register part transfers by rewriting $\mathsf{pc}/\mathsf{regs}$ through $\mathsf{CommitInv}$ in all cases.
 - **$\mathsf{other}$:** memory equality $S_2.\mathsf{mem}=S_1.\mathsf{mem}$ from $\hat S_1.\widehat{\mathsf{mem}}=\hat S_2.\widehat{\mathsf{mem}}$, i.e. $\mathsf{cm}(S_1.\mathsf{mem})=\mathsf{cm}(S_2.\mathsf{mem})$, via `mem_eq_of_commit_eq`.
 - **$\mathsf{read}(a,v,\pi)$:** For $S_1.\mathsf{mem}(a)=v$: the descriptor's $\pi$ verifies $\mathsf{cm}(S_1.\mathsf{mem})$ at $a$ to $v$ (rewrite $\hat S_1.\widehat{\mathsf{mem}}$), the honest opening verifies it to $S_1.\mathsf{mem}(a)$; $\mathsf{PB}$ equates them. For $S_2.\mathsf{mem}=S_1.\mathsf{mem}$: `mem_eq_of_commit_eq`.
-- **$\mathsf{write}(a,v,v_{\mathrm{old}},\pi)$:** At $a$: $\pi$ verifies $\mathsf{cm}(S_2.\mathsf{mem})$ at $a$ to $v$ vs. the honest opening to $S_2.\mathsf{mem}(a)$; $\mathsf{PB}$ gives $S_2.\mathsf{mem}(a)=v$. Off $a$ ($j\neq a$): the *same* $\pi$ opens $\mathsf{cm}(S_1.\mathsf{mem})$ (to $v_{\mathrm{old}}$) and $\mathsf{cm}(S_2.\mathsf{mem})$ (to $v$) at $a$; $\mathsf{PuB}$ with the honest openings at $j$ forces $S_1.\mathsf{mem}(j)=S_2.\mathsf{mem}(j)$. $\square$
+- **$\mathsf{write}(a,v,v_{\mathrm{old}},\pi)$:** At $a$: $\pi$ verifies $\mathsf{cm}(S_2.\mathsf{mem})$ at $a$ to $v$ vs. the honest opening to $S_2.\mathsf{mem}(a)$; $\mathsf{PB}$ gives $S_2.\mathsf{mem}(a)=v$. Off $a$: $\mathsf{PB}$ first pins $S_1.\mathsf{mem}(a)=v_{\mathrm{old}}$, so the *same* $\pi$ opens the honest $\mathsf{cm}(S_1.\mathsf{mem})$ at $a$ (to $S_1.\mathsf{mem}(a)$) and opens $\mathsf{cm}(S_2.\mathsf{mem})$ at $a$ to $v$; $\mathsf{UB}$ then forces $\mathsf{cm}(S_2.\mathsf{mem})=\mathsf{cm}\bigl(S_1.\mathsf{mem}[a\mapsto v]\bigr)$, and injectivity (`mem_eq_of_commit_eq`) gives $S_2.\mathsf{mem}(j)=S_1.\mathsf{mem}(j)$ for $j\neq a$. $\square$
 
 ---
 
@@ -290,13 +298,18 @@ $$
 | `cte_iff_knowledgeSound` | — (structural) | $\mathsf{CTE}(V)\iff\mathsf{KS}(\mathsf{AS}^\star)$ |
 | `chain_flatten` | $0<N_{\mathrm{seg}}$, per-segment validity | one valid $mN_{\mathrm{seg}}$-step trace |
 | `mem_eq_of_commit_eq` | $\mathsf{Complete},\mathsf{PB}$ | commitment injective on memories |
-| **`step_mem_extract`** | $\mathsf{Complete},\mathsf{PB},\mathsf{PuB}$, $\mathsf{CommitInv}$ | committed step $\Rightarrow$ full-memory step |
+| **`step_mem_extract`** | $\mathsf{Complete},\mathsf{PB},\mathsf{UB}$, $\mathsf{CommitInv}$ | committed step $\Rightarrow$ full-memory step |
+| **`commit_update`** | $\mathsf{Complete},\mathsf{PB},\mathsf{UB}$ | honest pre-root + shared write path $\Rightarrow C'=\mathsf{cm}(\text{updated mem})$ |
+| **`commitInv_write`** | $\mathsf{Complete},\mathsf{PB},\mathsf{UB}$, $\mathsf{CommitInv}$ (pre) | $\mathsf{CommitInv}$ on the reconstructed write post-state |
 | `cte` (TwoStep) | $0<N_{\mathrm{seg}}$, $\mathsf{KS}(\mathsf{AS}_{\mathrm{seg}}),\mathsf{KS}(\mathsf{AS}_{\mathrm{final}})$ | $\mathsf{CTE}(\mathsf{toZkVM})$ |
 | `segment_extract` (Bus) | $\mathsf{CR}(H)$, $\mathsf{KS}$ of 4 inner + segment | $\mathsf{KS}(\mathsf{AS}_{\mathrm{seg\text{-}trace}})$ |
 
-**Axiom footprint.** `#print axioms` reports `step_mem_extract : [Quot.sound]` and
-`cte : [propext, Quot.sound]` — standard Lean axioms only, no `sorryAx`, not even
-`Classical.choice`. The development is complete relative to its stated hypotheses.
+**Axiom footprint.** `#print axioms` reports
+`step_mem_extract : [propext, Classical.choice, Quot.sound]` — the `classical`
+that names the point-updated pre-memory in the write case — and
+`cte : [propext, Quot.sound]`: standard Lean axioms only, no `sorryAx`. The two
+write-reconstruction lemmas `commit_update` and `commitInv_write` depend on **no
+axioms** at all. The development is complete relative to its stated hypotheses.
 
 **What is assumed, not proven** (matching the whitepaper's idealizations):
 knowledge-soundness of every argument system ($\mathsf{KS}(\cdots)$), the binding
@@ -305,6 +318,6 @@ are all *hypotheses*, discharged by no concrete scheme here. A concrete
 `VectorCommitment`/`HashCommitment` instance deriving them is out of scope.
 
 **What is not yet connected** (open increments):
-1. **Full-memory trace fold.** `step_mem_extract` is a single-step lemma; the fold reconstructing $\mathsf{mem}_0\dots\mathsf{mem}_T$ and strengthening `cte`'s conclusion from committed states to real memory is Stage 3.2/3.3.
+1. **Full-memory trace fold.** `step_mem_extract` is a single-step lemma and `commitInv_write` discharges the commitment invariant at each write; folding them along the extracted trace to strengthen `cte`'s conclusion from committed states to real memory is the remaining step.
 2. **Bus ↔ two-step link.** `Bus.lean`'s $\mathsf{stepBus}/\mathsf{StepAux}$ and `Memory.lean`'s $\mathrm{memFreePred}/\mathsf{MemStep}$ are parallel; unifying them is open.
 3. **Recursion tree.** $R_{\mathrm{final}}$ is a flat $m$-way merge, not the whitepaper's `convert`/`combine`/`embed` tower.

@@ -1,20 +1,27 @@
 import VanillaZkVM.Zkvm
 
 /-!
-# Memory extractability (Stages 0–2)
+# Memory extractability
 
-This file adds the **memory-only slice** of the whitepaper's memory-extractability
+This file is the **memory-only slice** of the whitepaper's memory-extractability
 argument. It keeps the *existing* `VectorCommitment` (no specialized
-memory-commitment structure) and finally *consumes* `PositionBinding` and
-`PuncturedBinding`, which were declared but unused in `Crypto.lean`.
+memory-commitment structure) and *consumes* `PositionBinding` and
+`UpdateBinding`, which were declared but unused in `Crypto.lean`.
 
-* **Stage 0 — Model plumbing:** `FullVMState` and `CommitInv` (`Complete` and
-  `mem_eq_of_commit_eq` now live in `Crypto.lean`).
-* **Stage 1 — Concrete predicates:** the `MemStep` descriptor, the committed
+`UpdateBinding` replaces the earlier `PuncturedBinding`: establishing the
+commitment invariant across a write requires concluding a reconstructed post-root
+is an actual `commit` output, which the non-equivocation binding notions cannot
+give. See `update-binding.md`.
+
+* **Model plumbing:** `FullVMState` and `CommitInv` (`Complete` and
+  `mem_eq_of_commit_eq` live in `Crypto.lean`).
+* **Concrete predicates:** the `MemStep` descriptor, the committed
   (`readC`/`writeC`) and full-memory (`readF`/`writeF`) op predicates, and the
   classified steps `stepC`/`stepF`.
-* **Stage 2 — The heart:** `step_mem_extract`, the per-step lemma turning a
-  committed step into a full-memory step.
+* **Per-step extractability:** `step_mem_extract`, turning a committed step into a
+  full-memory step (given the commitment invariant on both endpoints).
+* **Write reconstruction:** `commit_update` and `commitInv_write`, which
+  *establish* the commitment invariant across a write.
 
 In the perfect/probability-free style of `Crypto.lean`, "except with probability
 `Adv`" collapses to "always", so the two binding hypotheses are consumed as plain
@@ -23,7 +30,7 @@ implications.
 
 namespace VanillaZkVM
 
-/-! ## Stage 0 — Model plumbing -/
+/-! ## Model plumbing -/
 
 /-- Full VM state over the commitment's *native* index/value types: memory is the
 total map `VC.Index → VC.Value`. The original `VMState = VMStateWith (Addr → Byte)`
@@ -36,7 +43,7 @@ sides live over `VC.Index → VC.Value`, so this typechecks with no casts. -/
 def CommitInv {VC : VectorCommitment} (Ŝ : CommittedVMState VC) (S : FullVMState VC) : Prop :=
   Ŝ.pc = S.pc ∧ Ŝ.regs = S.regs ∧ Ŝ.mem = VC.commit S.mem
 
-/-! ## Stage 1 — Concrete committed + full-memory predicates -/
+/-! ## Concrete committed + full-memory predicates -/
 
 /-- The memory-free part of an op predicate: a relation on the non-memory state
 `(pc₁, regs₁, pc₂, regs₂)`. Tying `addr`/`v` back to `regs 0`/`regs 1` is a side
@@ -96,18 +103,20 @@ def stepF (memFreePred : MemFreePredicate) (S₁ S₂ : FullVMState VC) : MemSte
   | .write addr v _vOld _π => writeF memFreePred addr v S₁ S₂
   | .other => memFreePred S₁.pc S₁.regs S₂.pc S₂.regs ∧ S₂.mem = S₁.mem
 
-/-! ## Stage 2 — The per-step memory-extractability lemma (the heart) -/
+/-! ## The per-step memory-extractability lemma -/
 
-/-- **Memory extractability, one step.** Position-binding + punctured-binding +
+/-- **Memory extractability, one step.** Position-binding + update binding +
 completeness of `VC` lift a committed step to a full-memory step: given the
 commitment invariant on both endpoints and a committed step, the corresponding
 full-memory step holds for the *real* predicate.
 
-This is the first place `PositionBinding` and `PuncturedBinding` are consumed.
-The proof mirrors the paper's Step A, minus probabilities: `addr`, `v`, `vOld`,
-`π` are the typed fields of the descriptor, so nothing casts. -/
+This is the first place `PositionBinding` and `UpdateBinding` are consumed. The
+proof mirrors the paper's Step A, minus probabilities: `addr`, `v`, `vOld`, `π`
+are the typed fields of the descriptor, so nothing casts. The write case names
+the point-updated pre-memory via `classical` (there is no `DecidableEq` on the
+abstract `VC.Index`). -/
 theorem step_mem_extract
-    (hComplete : Complete VC) (hpos : PositionBinding VC) (hpunc : PuncturedBinding VC)
+    (hComplete : Complete VC) (hpos : PositionBinding VC) (hupd : UpdateBinding VC)
     (memFreePred : MemFreePredicate)
     (S₁ S₂ : FullVMState VC) (Ŝ₁ Ŝ₂ : CommittedVMState VC) (w : MemStep VC)
     (h1 : CommitInv Ŝ₁ S₁) (h2 : CommitInv Ŝ₂ S₂)
@@ -134,20 +143,33 @@ theorem step_mem_extract
     simp only [stepC, writeC] at hstep
     simp only [stepF, writeF]
     obtain ⟨hreg, hv1, hv2⟩ := hstep
-    refine ⟨?_, ?_, ?_⟩
+    classical
+    -- Move the two openings onto the honest commitments.
+    rw [hmem1] at hv1  -- hv1 : VC.verify (VC.commit S₁.mem) addr vOld π
+    rw [hmem2] at hv2  -- hv2 : VC.verify (VC.commit S₂.mem) addr v π
+    -- Position binding at `addr` on each endpoint.
+    have haddr1 : S₁.mem addr = vOld :=
+      hpos (VC.commit S₁.mem) addr (S₁.mem addr) vOld (VC.openProof S₁.mem addr) π
+        (hComplete S₁.mem addr) hv1
+    have haddr2 : S₂.mem addr = v :=
+      hpos (VC.commit S₂.mem) addr (S₂.mem addr) v (VC.openProof S₂.mem addr) π
+        (hComplete S₂.mem addr) hv2
+    -- The shared path opens the honest pre-commitment to `S₁.mem addr`.
+    have hopen1 : VC.verify (VC.commit S₁.mem) addr (S₁.mem addr) π := by
+      rw [haddr1]; exact hv1
+    -- Update binding pins the post-root to `commit` of the point-update of `S₁.mem`;
+    -- injectivity of `commit` then identifies `S₂.mem` with that point-update.
+    have key : VC.commit S₂.mem
+        = VC.commit (fun k => if k = addr then v else S₁.mem k) :=
+      hupd S₁.mem (fun k => if k = addr then v else S₁.mem k) addr v
+        (VC.commit S₂.mem) π (if_pos rfl) (fun k hk => if_neg hk) hopen1 hv2
+    have hfun : (fun k => if k = addr then v else S₁.mem k) = S₂.mem :=
+      mem_eq_of_commit_eq hComplete hpos key
+    refine ⟨?_, haddr2, ?_⟩
     · rw [hpc1, hreg1, hpc2, hreg2] at hreg; exact hreg
-    · -- At `addr`: the new value verifies against the honest opening, via position binding.
-      have hadv : VC.verify (VC.commit S₂.mem) addr v π := by rw [← hmem2]; exact hv2
-      exact hpos (VC.commit S₂.mem) addr (S₂.mem addr) v (VC.openProof S₂.mem addr) π
-        (hComplete S₂.mem addr) hadv
-    · -- Off `addr`: the same `π` opens both commitments at `addr`, so punctured
-      -- binding pins every other position.
-      intro j hj
-      have hC1 : VC.verify (VC.commit S₁.mem) addr vOld π := by rw [← hmem1]; exact hv1
-      have hC2 : VC.verify (VC.commit S₂.mem) addr v π := by rw [← hmem2]; exact hv2
-      exact (hpunc (VC.commit S₁.mem) (VC.commit S₂.mem) addr vOld v π j
-        (S₁.mem j) (S₂.mem j) (VC.openProof S₁.mem j) (VC.openProof S₂.mem j)
-        hC1 hC2 (hComplete S₁.mem j) (hComplete S₂.mem j) hj).symm
+    · intro j hj
+      have hj2 : S₂.mem j = (if j = addr then v else S₁.mem j) := (congrFun hfun j).symm
+      rw [hj2, if_neg hj]
   | other =>
     simp only [stepC] at hstep
     simp only [stepF]
@@ -156,5 +178,56 @@ theorem step_mem_extract
     · rw [hpc1, hreg1, hpc2, hreg2] at hreg; exact hreg
     · apply mem_eq_of_commit_eq hComplete hpos
       rw [← hmem1, ← hmem2]; exact hmemEq
+
+/-! ## The commitment invariant across a write
+
+`step_mem_extract` consumes `CommitInv` on both endpoints; the two lemmas here
+*establish* it across a write. From `CommitInv` on the pre-state and a committed
+write step, the post-state whose memory is `S₁.mem` point-updated at `addr` again
+satisfies `CommitInv`. This is where update binding is essential: position binding
+constrains only what a root opens to, and cannot show a committed root is an
+actual `commit` output. Both lemmas are constructive (no `Classical.choice`), as
+the post-memory is supplied rather than reconstructed. -/
+
+/-- **Write reconstruction, memory part.** From an honest pre-root
+`VC.commit mem₁`, a shared write path `π` opening it at `addr` (to `vOld`) and
+opening a post-root `Ĉ₂` at `addr` to the new value `v`, together with the
+point-updated post-memory `mem₂` (`mem₂ addr = v` and `mem₂ = mem₁` off `addr`),
+update binding forces `Ĉ₂ = VC.commit mem₂`. -/
+theorem commit_update
+    (hComplete : Complete VC) (hpos : PositionBinding VC) (hupd : UpdateBinding VC)
+    (mem₁ mem₂ : VC.Index → VC.Value) (Ĉ₂ : VC.Com)
+    (addr : VC.Index) (v vOld : VC.Value) (π : VC.OpenProof)
+    (h2addr : mem₂ addr = v) (h2off : ∀ j, j ≠ addr → mem₂ j = mem₁ j)
+    (hv1 : VC.verify (VC.commit mem₁) addr vOld π)
+    (hv2 : VC.verify Ĉ₂ addr v π) :
+    Ĉ₂ = VC.commit mem₂ := by
+  have haddr1 : mem₁ addr = vOld :=
+    hpos (VC.commit mem₁) addr (mem₁ addr) vOld (VC.openProof mem₁ addr) π
+      (hComplete mem₁ addr) hv1
+  have hopen1 : VC.verify (VC.commit mem₁) addr (mem₁ addr) π := by rw [haddr1]; exact hv1
+  exact hupd mem₁ mem₂ addr v Ĉ₂ π h2addr h2off hopen1 hv2
+
+/-- **Write reconstruction.** Given `CommitInv` on the pre-state, a committed
+write step, and the reconstructed post-state `S₂` (same `pc`/`regs` as the
+committed post-state `Ŝ₂`, memory `S₁.mem` point-updated at `addr` to `v`), the
+commitment invariant holds on the post-state. Update binding supplies the memory
+part; the register part is carried by hypothesis. -/
+theorem commitInv_write
+    (hComplete : Complete VC) (hpos : PositionBinding VC) (hupd : UpdateBinding VC)
+    (memFreePred : MemFreePredicate)
+    (S₁ S₂ : FullVMState VC) (Ŝ₁ Ŝ₂ : CommittedVMState VC)
+    (addr : VC.Index) (v vOld : VC.Value) (π : VC.OpenProof)
+    (h1 : CommitInv Ŝ₁ S₁)
+    (hpc : Ŝ₂.pc = S₂.pc) (hreg : Ŝ₂.regs = S₂.regs)
+    (h2addr : S₂.mem addr = v) (h2off : ∀ j, j ≠ addr → S₂.mem j = S₁.mem j)
+    (hstep : writeC memFreePred Ŝ₁ Ŝ₂ addr v vOld π) :
+    CommitInv Ŝ₂ S₂ := by
+  obtain ⟨_, _, hmem1⟩ := h1
+  simp only [writeC] at hstep
+  obtain ⟨_, hv1, hv2⟩ := hstep
+  rw [hmem1] at hv1
+  exact ⟨hpc, hreg,
+    commit_update hComplete hpos hupd S₁.mem S₂.mem Ŝ₂.mem addr v vOld π h2addr h2off hv1 hv2⟩
 
 end VanillaZkVM
