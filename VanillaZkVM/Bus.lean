@@ -179,6 +179,27 @@ def ASSegmentTrace : ArgumentSystem sys.RSegmentTrace where
 
 /-! ## Segment extraction -/
 
+/-- **Trust base for the bus-delegated segment layer** — the single surface
+collecting every unproven cryptographic assumption `segment_extract` relies on.
+Every field is an idealized/heuristic property (perfect knowledge soundness /
+collision resistance; see `Crypto.lean`). Bundling them here makes the layer's
+entire trust base one greppable object instead of a scattered hypothesis list.
+Note this system *does* use a bus, so collision-resistance appears (contrast
+`TwoStep.System.Assumptions`, which has neither a bus nor inner circuits). -/
+structure Assumptions (sys : System) : Prop where
+  /-- Collision-resistance of the bus hash commitment `Com_bus`. -/
+  busCR : CollisionResistant sys.H
+  /-- Knowledge soundness of the `inner-step` circuit `Π_(0,step)`. -/
+  ksInnerStep : KnowledgeSound sys.ASInnerStep
+  /-- Knowledge soundness of the `inner-keccak` circuit `Π_(0,keccak)`. -/
+  ksInnerKeccak : KnowledgeSound sys.ASInnerKeccak
+  /-- Knowledge soundness of the `inner-poseidon` circuit `Π_(0,poseidon)`. -/
+  ksInnerPoseidon : KnowledgeSound sys.ASInnerPoseidon
+  /-- Knowledge soundness of the `inner-range` circuit `Π_(0,range)`. -/
+  ksInnerRange : KnowledgeSound sys.ASInnerRange
+  /-- Knowledge soundness of the `segment` SNARK `Π_1`. -/
+  ksSegment : KnowledgeSound sys.ASSegment
+
 /-- **Segment extraction.** Knowledge-soundness of the segment and four inner
 argument systems, together with collision-resistance of the bus commitment,
 makes the segment verifier knowledge-sound for a trace satisfying the complete
@@ -188,14 +209,9 @@ The extractor first obtains the four inner proofs from `RSegment`, then extracts
 their witnesses. All four extracted buses hash to the same `busCom`; `hbus`
 identifies them, allowing the three chip predicates to be transported to the
 `inner-step` bus. -/
-theorem segment_extract
-    (hbus : CollisionResistant sys.H)
-    (hstep : KnowledgeSound sys.ASInnerStep)
-    (hkeccak : KnowledgeSound sys.ASInnerKeccak)
-    (hposeidon : KnowledgeSound sys.ASInnerPoseidon)
-    (hrange : KnowledgeSound sys.ASInnerRange)
-    (hsegment : KnowledgeSound sys.ASSegment) :
+theorem segment_extract (h : sys.Assumptions) :
     KnowledgeSound sys.ASSegmentTrace := by
+  obtain ⟨hbus, hstep, hkeccak, hposeidon, hrange, hsegment⟩ := h
   obtain ⟨E₁, hE₁⟩ := hsegment
   obtain ⟨Estep, hEstep⟩ := hstep
   obtain ⟨Ekeccak, hEkeccak⟩ := hkeccak

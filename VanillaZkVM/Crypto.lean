@@ -63,6 +63,23 @@ def KnowledgeSound {R : Relation} (AS : ArgumentSystem R) : Prop :=
   ∃ E : Extractor R AS, ∀ (x : R.Stmt) (p : AS.Proof),
     AS.verify x p → R.rel x (E.extract x p)
 
+/-- The **trivial argument system** for `R`: a "proof" is literally a witness, and
+`verify x w` just checks membership `(x; w) ∈ R`. This is the honest degenerate
+argument — no succinctness, no hiding. This is used only to guarantee satisfiability of
+`KnowledgeSound` below. -/
+def trivialAS (R : Relation) : ArgumentSystem R where
+  Proof := R.Wit
+  verify := fun x w => R.rel x w
+
+/-- **Non-vacuity of `KnowledgeSound`.** `KnowledgeSound` is the an idealized
+assumption. Here we discharge the  worry — that it might be unsatisfiable,
+making every `KnowledgeSound … → …` theorem vacuously true — by exhibiting a model:
+`trivialAS` is knowledge-sound, with the identity extractor.
+This is a consistency floor, not a security guarantee: it
+shows the assumption is not `False`, not that any real (succinct) SNARK meets it. -/
+theorem knowledgeSound_trivialAS (R : Relation) : KnowledgeSound (trivialAS R) :=
+  ⟨⟨fun _ w => w⟩, fun _ _ h => h⟩
+
 /-! ## Vector commitments and their binding notions -/
 
 /-- A vector commitment scheme `Com = (Commit, Open, Verify)`. A vector is a

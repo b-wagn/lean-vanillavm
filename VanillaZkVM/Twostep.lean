@@ -111,15 +111,27 @@ def toZkVM : ZkVM where
   Proof := sys.FinalProof
   verify := sys.finalVerify
 
+/-- **Trust base for the two-step zkVM** — the single surface collecting the
+unproven assumptions `cte` relies on. This toy system uses no bus, so its trust
+base is exactly the two SNARKs' knowledge soundness: no collision-resistance and
+no inner circuits (contrast `Bus.System.Assumptions`). Both fields are
+idealized/heuristic; see `Crypto.lean`. The well-formedness side condition
+`0 < Nseg` is *not* part of the trust base and stays a separate argument to
+`cte`. -/
+structure Assumptions (sys : System) : Prop where
+  /-- Knowledge soundness of the segment SNARK `Π_seg`. -/
+  ksSeg : KnowledgeSound sys.ASSeg
+  /-- Knowledge soundness of the final merging SNARK `Π_final`. -/
+  ksFinal : KnowledgeSound sys.ASFinal
+
 /-- **CTE for the two-step VM.** If both SNARKs are knowledge-sound (and segments
 are non-empty), the instantiated system is correct-trace extractable. The trace
 extractor runs the two-layer straight-line extraction — `RFinal` witness, then an
 `RSeg` witness per segment — and concatenates the resulting committed sub-chains.
 Validity of the concatenation is `chain_flatten`. -/
-theorem cte (hNseg : 0 < sys.Nseg)
-    (hseg : KnowledgeSound sys.ASSeg)
-    (hfinal : KnowledgeSound sys.ASFinal) :
+theorem cte (hNseg : 0 < sys.Nseg) (h : sys.Assumptions) :
     sys.toZkVM.CTE := by
+  obtain ⟨hseg, hfinal⟩ := h
   rw [ZkVM.cte_iff_knowledgeSound]
   obtain ⟨Ef, hEf⟩ := hfinal
   obtain ⟨Es, hEs⟩ := hseg
