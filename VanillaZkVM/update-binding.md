@@ -102,8 +102,28 @@ version the proof actually uses, and it *subsumes* punctured binding's role here
 
 ## Relation to `cte`
 
-`TwoStep.System.cte` currently proves correct-trace extractability at the
-committed-state level. Strengthening its conclusion to full memory is a matter of
-folding `commitInv_write` (and `step_mem_extract`) along the extracted trace; the
-load-bearing per-write obligation is now discharged, so what is left is the
-mechanical induction over the trace.
+`TwoStep.System.cte` proves correct-trace extractability at the committed-state
+level (`CTE toZkVM`). **`TwoStep.System.cte_full` now strengthens it to full
+memory**, stated as a concrete instance of the same abstract definition:
+`cte_full : sys.toZkVMFull.CTE`, where `toZkVMFull` is the two-step VM over
+full-memory states (`step = ∃ w, stepF …`, statement carries full boundary
+states, verifier commits them). So the full-memory guarantee reuses `CTE`
+verbatim rather than a bespoke conclusion, and the per-state commitment invariant
+lives inside the proof, not the statement.
+
+The fold is packaged as `TwoStep.System.traceValid_full`, stated purely in ZkVM
+terms — `sys.toZkVM.TraceValid ⟨…⟩ Ŝ → sys.toZkVMFull.TraceValid x (reconstruct…)`
+— and living right after `toZkVMFull`. It seeds the invariant (which holds
+definitionally, since the committed initial state *is* `commit` of the full one),
+runs the generic `trace_mem_extract`, and matches the terminal by injectivity of
+`commit`. `cte_full` is then a thin wrapper: run `cte`'s committed extractor,
+feed its `TraceValid` to `traceValid_full`. The supporting chain is:
+
+```
+commit_update → commitInv_write → commitInv_step → trace_mem_extract → traceValid_full → cte_full
+```
+
+with `step_mem_extract` lifting each committed step to a full-memory step inside
+`trace_mem_extract`. This is the theorem-level connection between `Memory.lean`
+(generic per-step + fold) and `Twostep.lean` (the ZkVM-phrased `traceValid_full`
+and `cte_full`).

@@ -230,4 +230,101 @@ theorem commitInv_write
   exact ⟨hpc, hreg,
     commit_update hComplete hpos hupd S₁.mem S₂.mem Ŝ₂.mem addr v vOld π h2addr h2off hv1 hv2⟩
 
+/-! ## Folding the per-step lemmas along a committed trace
+
+`step_mem_extract` and `commitInv_write` are single-step. `trace_mem_extract`
+folds them along a whole committed trace: it reconstructs the full-memory trace
+from an initial full state, carries the commitment invariant across every step,
+and lifts each committed step to a full-memory step. A concrete system composes
+this to strengthen a committed-trace extractability statement to full memory
+(see `TwoStep.System.cte_full`). -/
+
+open Classical in
+/-- Reconstruct the full-memory post-state from the full pre-state `S`, the
+committed post-state `Ŝ'` (source of `pc`/`regs`), and the step descriptor:
+memory is unchanged on reads and non-memory steps, point-updated on a write. -/
+noncomputable def stepReconstruct (S : FullVMState VC) (Ŝ' : CommittedVMState VC) :
+    MemStep VC → FullVMState VC
+  | .read _ _ _       => ⟨Ŝ'.pc, Ŝ'.regs, S.mem⟩
+  | .other            => ⟨Ŝ'.pc, Ŝ'.regs, S.mem⟩
+  | .write addr v _ _ => ⟨Ŝ'.pc, Ŝ'.regs, fun j => if j = addr then v else S.mem j⟩
+
+/-- The reconstructed full-memory trace: start at `S₀`, then at step `k` apply
+`stepReconstruct` with the committed trace's next state and the `k`-th descriptor. -/
+noncomputable def reconstructTrace (Ŝ : ℕ → CommittedVMState VC) (w : ℕ → MemStep VC)
+    (S₀ : FullVMState VC) : ℕ → FullVMState VC
+  | 0       => S₀
+  | (k + 1) => stepReconstruct (reconstructTrace Ŝ w S₀ k) (Ŝ (k + 1)) (w k)
+
+/-- One fold step: across any committed step, the commitment invariant passes
+from the pre-state to the reconstructed post-state. Reads/non-memory steps keep
+memory (and the invariant) unchanged; writes invoke `commitInv_write`. -/
+theorem commitInv_step
+    (hComplete : Complete VC) (hpos : PositionBinding VC) (hupd : UpdateBinding VC)
+    (memFreePred : MemFreePredicate)
+    (S : FullVMState VC) (Ŝ Ŝ' : CommittedVMState VC) (w : MemStep VC)
+    (h : CommitInv Ŝ S) (hs : stepC memFreePred Ŝ Ŝ' w) :
+    CommitInv Ŝ' (stepReconstruct S Ŝ' w) := by
+  cases w with
+  | read addr v π =>
+    obtain ⟨-, -, hmem⟩ := h
+    simp only [stepC, readC] at hs
+    obtain ⟨-, hmemEq, -⟩ := hs
+    exact ⟨rfl, rfl, by show Ŝ'.mem = VC.commit S.mem; rw [← hmemEq]; exact hmem⟩
+  | other =>
+    obtain ⟨-, -, hmem⟩ := h
+    simp only [stepC] at hs
+    obtain ⟨-, hmemEq⟩ := hs
+    exact ⟨rfl, rfl, by show Ŝ'.mem = VC.commit S.mem; rw [← hmemEq]; exact hmem⟩
+  | write addr v vOld π =>
+    simp only [stepC] at hs
+    exact commitInv_write hComplete hpos hupd memFreePred S
+      (stepReconstruct S Ŝ' (.write addr v vOld π)) Ŝ Ŝ' addr v vOld π
+      h rfl rfl (by simp [stepReconstruct]) (fun j hj => by simp [stepReconstruct, hj]) hs
+
+/-- **Trace fold.** Given a committed trace `Ŝ`, its per-step descriptors `w`
+(each certifying a committed step), and an initial full state `S₀` matching
+`Ŝ 0` under the commitment invariant, the reconstructed full-memory trace
+`reconstructTrace Ŝ w S₀` (i) satisfies the commitment invariant at every state
+and (ii) realizes every committed step as a full-memory step. This is the
+whole-trace form of memory extractability. -/
+theorem trace_mem_extract
+    (hComplete : Complete VC) (hpos : PositionBinding VC) (hupd : UpdateBinding VC)
+    (memFreePred : MemFreePredicate) (T : ℕ)
+    (Ŝ : ℕ → CommittedVMState VC) (w : ℕ → MemStep VC) (S₀ : FullVMState VC)
+    (hseed : CommitInv (Ŝ 0) S₀)
+    (hstep : ∀ k, k < T → stepC memFreePred (Ŝ k) (Ŝ (k + 1)) (w k)) :
+    (∀ k, k ≤ T → CommitInv (Ŝ k) (reconstructTrace Ŝ w S₀ k)) ∧
+    (∀ k, k < T → stepF memFreePred (reconstructTrace Ŝ w S₀ k)
+                     (reconstructTrace Ŝ w S₀ (k + 1)) (w k)) := by
+  have hinv : ∀ k, k ≤ T → CommitInv (Ŝ k) (reconstructTrace Ŝ w S₀ k) := by
+    intro k
+    induction k with
+    | zero => intro _; exact hseed
+    | succ n ih =>
+      intro hn
+      show CommitInv (Ŝ (n + 1))
+        (stepReconstruct (reconstructTrace Ŝ w S₀ n) (Ŝ (n + 1)) (w n))
+      exact commitInv_step hComplete hpos hupd memFreePred
+        (reconstructTrace Ŝ w S₀ n) (Ŝ n) (Ŝ (n + 1)) (w n) (ih (by omega)) (hstep n (by omega))
+  refine ⟨hinv, ?_⟩
+  intro k hk
+  exact step_mem_extract hComplete hpos hupd memFreePred
+    (reconstructTrace Ŝ w S₀ k) (reconstructTrace Ŝ w S₀ (k + 1)) (Ŝ k) (Ŝ (k + 1)) (w k)
+    (hinv k (by omega)) (hinv (k + 1) (by omega)) (hstep k hk)
+
+open Classical in
+/-- Pick a step descriptor for each transition of a committed trace: where a
+committed step exists, choose a witnessing descriptor; otherwise a dummy. This
+lets a caller that only knows the *existential* step relation (`∃ w, stepC …`,
+the shape of an abstract `ZkVM.step`) still drive `reconstructTrace`. -/
+noncomputable def chooseDescr (memFreePred : MemFreePredicate)
+    (Ŝ : ℕ → CommittedVMState VC) : ℕ → MemStep VC :=
+  fun k => if h : ∃ w, stepC memFreePred (Ŝ k) (Ŝ (k + 1)) w then h.choose else MemStep.other
+
+theorem chooseDescr_spec (memFreePred : MemFreePredicate) (Ŝ : ℕ → CommittedVMState VC)
+    (k : ℕ) (h : ∃ w, stepC memFreePred (Ŝ k) (Ŝ (k + 1)) w) :
+    stepC memFreePred (Ŝ k) (Ŝ (k + 1)) (chooseDescr memFreePred Ŝ k) := by
+  simp only [chooseDescr]; rw [dif_pos h]; exact h.choose_spec
+
 end VanillaZkVM

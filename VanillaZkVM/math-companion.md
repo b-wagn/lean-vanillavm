@@ -256,13 +256,42 @@ $$
 
 **Instantiation.** $\mathsf{toZkVM} := (\ \mathsf{State}=\hat S,\ \mathsf{step}=\mathsf{stepRel},\ T=m\cdot N_{\mathrm{seg}},\ \mathsf{Stmt}=\mathsf{FinalStmt},\ \mathsf{initial}=\mathsf{S0},\ \mathsf{terminal}=\mathsf{ST},\ \mathsf{Proof}=\mathsf{FinalProof},\ \mathsf{verify}=\mathsf{finalVerify}\ )$.
 
-### Theorem
+**Full-memory instantiation.** $\mathsf{toZkVMFull}$ is the same VM over
+*full-memory* states: $\mathsf{State}=S$ (full),
+$\mathsf{step}(S_1,S_2)=\exists w,\ \varphi_{\mathrm{step}}(\mathrm{memFreePred},S_1,S_2,w)$,
+$T=m\cdot N_{\mathrm{seg}}$, $\mathsf{Stmt}=\mathsf{FinalStmtFull}$ (full boundary
+states), $\mathsf{initial}=\mathsf{S0}$, $\mathsf{terminal}=\mathsf{ST}$, and
+$\mathsf{verify}(x,p)=\mathsf{finalVerify}(\langle\mathsf{toCommitted}\,x.\mathsf{S0},\ \mathsf{toCommitted}\,x.\mathsf{ST}\rangle,p)$,
+where $\mathsf{toCommitted}\,S=\langle S.\mathsf{pc},S.\mathsf{regs},\mathsf{cm}(S.\mathsf{mem})\rangle$.
+
+### Theorems
 
 **CTE for the two-step VM** (`cte`).
 $$
 \boxed{\ 0<N_{\mathrm{seg}}\ \wedge\ \mathsf{KS}(\mathsf{AS}_{\mathrm{seg}})\ \wedge\ \mathsf{KS}(\mathsf{AS}_{\mathrm{final}})\ \Longrightarrow\ \mathsf{CTE}(\mathsf{toZkVM})\ }
 $$
 *Proof.* By the keystone (§2) it suffices to show $\mathsf{KS}(\mathsf{AS}^\star)$. Two-layer straight-line extraction: from an accepting final proof, extract the $R_{\mathrm{final}}$ witness (boundaries $d$ and per-segment proofs); for each $i<m$ extract an $R_{\mathrm{seg}}$ witness from proof $i$, giving states $seg\,i\,\cdot$ and descriptors. Each segment obligation $\widehat{\varphi}_{\mathrm{step}}(\mathrm{memFreePred},seg\,i\,j,seg\,i\,(j{+}1),\mathsf{steps}\,j)$ is repackaged as $\mathsf{stepRel}(seg\,i\,j,seg\,i\,(j{+}1))$ by $\exists$-introduction on the extracted descriptor. `chain_flatten` (§2) then glues the $m$ committed sub-chains into one valid $m N_{\mathrm{seg}}$-step trace from $\mathsf{S0}$ to $\mathsf{ST}$. $\square$
+
+**Full-memory CTE** (`cte_full`) — *the bridge to §3*, stated as a concrete
+instance of the abstract CTE (§2):
+$$
+\boxed{\ 0<N_{\mathrm{seg}}\ \wedge\ \mathsf{KS}(\mathsf{AS}_{\mathrm{seg}})\ \wedge\ \mathsf{KS}(\mathsf{AS}_{\mathrm{final}})\ \wedge\ \mathsf{Complete}\ \wedge\ \mathsf{PB}\ \wedge\ \mathsf{UB}\ \Longrightarrow\ \mathsf{CTE}(\mathsf{toZkVMFull})\ }
+$$
+i.e. the two-step VM is correct-trace extractable *over full-memory states*: the
+extractor turns every accepting final proof into a valid full-memory trace (right
+full boundaries, and $\exists w,\ \varphi_{\mathrm{step}}(\dots,w)$ at every step).
+The per-state commitment invariant is now internal to the proof, not part of the
+statement.
+The fold is factored as `traceValid_full` (stated in ZkVM terms:
+$\mathsf{toZkVM.TraceValid} \Rightarrow \mathsf{toZkVMFull.TraceValid}$), so
+`cte_full` is a thin wrapper.
+*Proof.* From `cte`, obtain the committed extractor $E$. The full extractor
+commits $x$'s boundaries, runs $E$ to get a committed trace $\hat S$, and returns
+its reconstruction. Correctness is `traceValid_full` applied to $\hat S$'s
+committed `TraceValid`: it seeds $\mathsf{CommitInv}(\hat S(0),x.\mathsf{S0})$
+definitionally (the committed initial state *is* $\mathsf{cm}$ of $x.\mathsf{S0}$),
+runs the generic fold `trace_mem_extract` (§3), and forces the terminal to equal
+$x.\mathsf{ST}$ via injectivity of $\mathsf{cm}$ (`mem_eq_of_commit_eq`). $\square$
 
 ---
 
@@ -317,7 +346,10 @@ $$
 | **`step_mem_extract`** | $\mathsf{Complete},\mathsf{PB},\mathsf{UB}$, $\mathsf{CommitInv}$ | committed step $\Rightarrow$ full-memory step |
 | **`commit_update`** | $\mathsf{Complete},\mathsf{PB},\mathsf{UB}$ | honest pre-root + shared write path $\Rightarrow C'=\mathsf{cm}(\text{updated mem})$ |
 | **`commitInv_write`** | $\mathsf{Complete},\mathsf{PB},\mathsf{UB}$, $\mathsf{CommitInv}$ (pre) | $\mathsf{CommitInv}$ on the reconstructed write post-state |
-| `cte` (TwoStep) | $0<N_{\mathrm{seg}}$, $\mathsf{KS}(\mathsf{AS}_{\mathrm{seg}}),\mathsf{KS}(\mathsf{AS}_{\mathrm{final}})$ | $\mathsf{CTE}(\mathsf{toZkVM})$ |
+| **`trace_mem_extract`** | $\mathsf{Complete},\mathsf{PB},\mathsf{UB}$, committed trace + descriptors + $\mathsf{CommitInv}$ seed | full-memory trace: $\mathsf{CommitInv}$ everywhere + $\mathsf{stepF}$ every step |
+| `cte` (TwoStep) | $0<N_{\mathrm{seg}}$, $\mathsf{KS}(\mathsf{AS}_{\mathrm{seg}}),\mathsf{KS}(\mathsf{AS}_{\mathrm{final}})$ | $\mathsf{CTE}(\mathsf{toZkVM})$ (committed trace) |
+| **`traceValid_full`** (TwoStep) | $\mathsf{Complete},\mathsf{PB},\mathsf{UB}$, a `toZkVM`-valid committed trace | a `toZkVMFull`-valid full-memory trace |
+| **`cte_full`** (TwoStep) | `cte` hyps $+\ \mathsf{Complete},\mathsf{PB},\mathsf{UB}$ | $\mathsf{CTE}(\mathsf{toZkVMFull})$ (full-memory CTE) |
 | `segment_extract` (Bus) | $\mathsf{CR}(H)$, $\mathsf{KS}$ of 4 inner + segment | $\mathsf{KS}(\mathsf{AS}_{\mathrm{seg\text{-}trace}})$ |
 
 **Axiom footprint.** `#print axioms` reports
@@ -325,7 +357,10 @@ $$
 that names the point-updated pre-memory in the write case — and
 `cte : [propext, Quot.sound]`: standard Lean axioms only, no `sorryAx`. The two
 write-reconstruction lemmas `commit_update` and `commitInv_write` depend on **no
-axioms** at all. The development is complete relative to its stated hypotheses.
+axioms** at all; the trace-level `trace_mem_extract` and `cte_full` report
+`[propext, Classical.choice, Quot.sound]` (choice enters via the reconstructed
+memory and the per-step descriptor selection). The development is complete
+relative to its stated hypotheses.
 
 **What is assumed, not proven** (matching the whitepaper's idealizations):
 knowledge-soundness of every argument system ($\mathsf{KS}(\cdots)$), the binding
@@ -333,7 +368,13 @@ and collision-resistance properties of the two commitments, and $\mathsf{Complet
 are all *hypotheses*, discharged by no concrete scheme here. A concrete
 `VectorCommitment`/`HashCommitment` instance deriving them is out of scope.
 
+**Full-memory trace fold — now connected.** `trace_mem_extract` (§3) folds
+`step_mem_extract` and `commitInv_write` along a committed trace, and `cte_full`
+(§4) applies it (via the ZkVM-phrased `traceValid_full`) to `cte`'s output, proving
+`CTE(toZkVMFull)` — the two-step VM's correct-trace extractability *over
+full-memory states*, a concrete instance of the abstract `CTE`. This closes the
+former gap between `Twostep` and `Memory`.
+
 **What is not yet connected:**
-1. **Full-memory trace fold.** `step_mem_extract` is a single-step lemma and `commitInv_write` discharges the commitment invariant at each write; folding them along the extracted trace to strengthen `cte`'s conclusion from committed states to real memory is the remaining step.
-2. **Bus ↔ two-step link.** `Bus.lean`'s $\mathsf{stepBus}/\mathsf{StepAux}$ and `Memory.lean`'s $\mathrm{memFreePred}/\mathsf{MemStep}$ are parallel; unifying them is open.
-3. **Recursion tree.** $R_{\mathrm{final}}$ is a flat $m$-way merge, not the whitepaper's `convert`/`combine`/`embed` tower.
+1. **Bus ↔ two-step link.** `Bus.lean`'s $\mathsf{stepBus}/\mathsf{StepAux}$ and `Memory.lean`'s $\mathrm{memFreePred}/\mathsf{MemStep}$ are parallel; unifying them is open.
+2. **Recursion tree.** $R_{\mathrm{final}}$ is a flat $m$-way merge, not the whitepaper's `convert`/`combine`/`embed` tower.
