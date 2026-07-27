@@ -28,6 +28,8 @@ kernel-checked committed-to-full-memory reconstruction layer:
 * a definitionally connected Bus step and an end-to-end theorem from an
   accepting segment proof to a reconstructed full-memory segment trace.
 
-See [`docs/MEMORY_RECONSTRUCTION.md`](docs/MEMORY_RECONSTRUCTION.md). This layer
-is not yet integrated with the recursive/final extractor or a concrete
+See [`docs/MEMORY_RECONSTRUCTION.md`](docs/MEMORY_RECONSTRUCTION.md) for this
+branch's proof contract and [`docs/README.md`](docs/README.md) for the complete
+AI-assisted planning, review, and threat-analysis document set. This layer is
+not yet integrated with the recursive/final extractor or a concrete
 program/ISA, and it remains qualitative rather than computational.
