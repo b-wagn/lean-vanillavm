@@ -186,7 +186,7 @@ $$
 and $\varphi_{\mathrm{step}}$ analogously with $\varphi_{\mathrm{read}}/\varphi_{\mathrm{write}}$ and, for $\mathsf{other}$, $\varrho\wedge S_2.\mathsf{mem}=S_1.\mathsf{mem}$.
 (In Lean, $\widehat{\varphi}_{\mathrm{step}}=\mathsf{stepC}$, $\varphi_{\mathrm{step}}=\mathsf{stepF}$.)
 
-### Theorem
+### Theorems
 
 **Memory extractability, one step** (`step_mem_extract`) — *the core proposition*.
 $$
@@ -203,6 +203,22 @@ The register part transfers by rewriting $\mathsf{pc}/\mathsf{regs}$ through $\m
 - **$\mathsf{other}$:** memory equality $S_2.\mathsf{mem}=S_1.\mathsf{mem}$ from $\hat S_1.\widehat{\mathsf{mem}}=\hat S_2.\widehat{\mathsf{mem}}$, i.e. $\mathsf{cm}(S_1.\mathsf{mem})=\mathsf{cm}(S_2.\mathsf{mem})$, via `mem_eq_of_commit_eq`.
 - **$\mathsf{read}(a,v,\pi)$:** For $S_1.\mathsf{mem}(a)=v$: the descriptor's $\pi$ verifies $\mathsf{cm}(S_1.\mathsf{mem})$ at $a$ to $v$ (rewrite $\hat S_1.\widehat{\mathsf{mem}}$), the honest opening verifies it to $S_1.\mathsf{mem}(a)$; $\mathsf{PB}$ equates them. For $S_2.\mathsf{mem}=S_1.\mathsf{mem}$: `mem_eq_of_commit_eq`.
 - **$\mathsf{write}(a,v,v_{\mathrm{old}},\pi)$:** At $a$: $\pi$ verifies $\mathsf{cm}(S_2.\mathsf{mem})$ at $a$ to $v$ vs. the honest opening to $S_2.\mathsf{mem}(a)$; $\mathsf{PB}$ gives $S_2.\mathsf{mem}(a)=v$. Off $a$: $\mathsf{PB}$ first pins $S_1.\mathsf{mem}(a)=v_{\mathrm{old}}$, so the *same* $\pi$ opens the honest $\mathsf{cm}(S_1.\mathsf{mem})$ at $a$ (to $S_1.\mathsf{mem}(a)$) and opens $\mathsf{cm}(S_2.\mathsf{mem})$ at $a$ to $v$; $\mathsf{UB}$ then forces $\mathsf{cm}(S_2.\mathsf{mem})=\mathsf{cm}\bigl(S_1.\mathsf{mem}[a\mapsto v]\bigr)$, and injectivity (`mem_eq_of_commit_eq`) gives $S_2.\mathsf{mem}(j)=S_1.\mathsf{mem}(j)$ for $j\neq a$. $\square$
+
+The step lemma *assumes* $\mathsf{CommitInv}$ on both endpoints. Establishing it
+across a write is the role of update binding; the next two lemmas do exactly that.
+
+**Write reconstruction, memory part** (`commit_update`).
+$$
+\begin{array}{c}
+\mathsf{Complete}(\mathsf{VC})\ \wedge\ \mathsf{PB}(\mathsf{VC})\ \wedge\ \mathsf{UB}(\mathsf{VC})\ \wedge\ m_2(a)=x\ \wedge\ \bigl(\forall j\neq a,\ m_2(j)=m_1(j)\bigr)\ \wedge\\[2pt]
+\mathsf{Vf}(\mathsf{cm}(m_1),a,v_{\mathrm{old}},\pi)\ \wedge\ \mathsf{Vf}(C',a,x,\pi)
+\quad\Longrightarrow\quad C'=\mathsf{cm}(m_2)
+\end{array}
+$$
+*Proof.* $\mathsf{PB}$ against the honest opening gives $m_1(a)=v_{\mathrm{old}}$, so $\pi$ opens $\mathsf{cm}(m_1)$ at $a$ to $m_1(a)$; then $\mathsf{UB}$ applied with the point-updated $m_2$ yields $C'=\mathsf{cm}(m_2)$. Depends on no axioms. $\square$
+
+**Write reconstruction** (`commitInv_write`). If $\mathsf{CommitInv}(\hat S_1,S_1)$ holds, $\hat S_2$ has the reconstructed registers and memory ($\hat S_2.\mathsf{pc}=S_2.\mathsf{pc}$, $\hat S_2.\mathsf{regs}=S_2.\mathsf{regs}$, $S_2.\mathsf{mem}(a)=v$, $S_2.\mathsf{mem}=S_1.\mathsf{mem}$ off $a$), and $\mathsf{writeC}(\mathrm{memFreePred},\hat S_1,\hat S_2,a,v,v_{\mathrm{old}},\pi)$, then $\mathsf{CommitInv}(\hat S_2,S_2)$.
+*Proof.* Registers by hypothesis; the memory part $\hat S_2.\widehat{\mathsf{mem}}=\mathsf{cm}(S_2.\mathsf{mem})$ is `commit_update` with $m_1:=S_1.\mathsf{mem}$, $m_2:=S_2.\mathsf{mem}$, $C':=\hat S_2.\widehat{\mathsf{mem}}$. Depends on no axioms. $\square$
 
 ---
 
@@ -317,7 +333,7 @@ and collision-resistance properties of the two commitments, and $\mathsf{Complet
 are all *hypotheses*, discharged by no concrete scheme here. A concrete
 `VectorCommitment`/`HashCommitment` instance deriving them is out of scope.
 
-**What is not yet connected** (open increments):
+**What is not yet connected:**
 1. **Full-memory trace fold.** `step_mem_extract` is a single-step lemma and `commitInv_write` discharges the commitment invariant at each write; folding them along the extracted trace to strengthen `cte`'s conclusion from committed states to real memory is the remaining step.
 2. **Bus ↔ two-step link.** `Bus.lean`'s $\mathsf{stepBus}/\mathsf{StepAux}$ and `Memory.lean`'s $\mathrm{memFreePred}/\mathsf{MemStep}$ are parallel; unifying them is open.
 3. **Recursion tree.** $R_{\mathrm{final}}$ is a flat $m$-way merge, not the whitepaper's `convert`/`combine`/`embed` tower.
