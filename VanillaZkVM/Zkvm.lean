@@ -37,6 +37,17 @@ structure VMStateWith (Mem : Type) where
   regs : ℕ → Word
   mem : Mem
 
+/-- Extensional equality for VM states. -/
+@[ext]
+theorem VMStateWith.ext {Mem : Type} {left right : VMStateWith Mem}
+    (hpc : left.pc = right.pc)
+    (hregs : left.regs = right.regs)
+    (hmem : left.mem = right.mem) :
+    left = right := by
+  cases left
+  cases right
+  simp_all
+
 /-- Full VM state `S = (pc, regs, mem)` with explicit byte-addressed memory. -/
 abbrev VMState : Type := VMStateWith (Addr → Byte)
 

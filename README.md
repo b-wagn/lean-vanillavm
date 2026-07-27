@@ -15,5 +15,21 @@ We are of course aware that this if far from being cryptographically accurate, a
 
 ## Notes and Disclaimers
 Things that are not done at all:
-* extraction of non-committed memory
 * actual recursion; so far it is just a two step proof: (1) prove each segment (2) merge these proofs
+
+The `yl-memory-reconstruction` branch additionally contains a standalone,
+kernel-checked committed-to-full-memory reconstruction layer:
+
+* a named one-step reduction returning success or explicit position/update
+  binding failures;
+* a formal version of the verifier-ignored append-bit counterexample;
+* a trace fold maintaining the commitment invariant and proving exact full
+  initial/final boundaries;
+* a definitionally connected Bus step and an end-to-end theorem from an
+  accepting segment proof to a reconstructed full-memory segment trace.
+
+See [`docs/MEMORY_RECONSTRUCTION.md`](docs/MEMORY_RECONSTRUCTION.md) for this
+branch's proof contract and [`docs/README.md`](docs/README.md) for the complete
+AI-assisted planning, review, and threat-analysis document set. This layer is
+not yet integrated with the recursive/final extractor or a concrete
+program/ISA, and it remains qualitative rather than computational.

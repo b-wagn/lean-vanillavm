@@ -1,4 +1,4 @@
-import VanillaZkVM.Zkvm
+import VanillaZkVM.Memory
 
 /-!
 # Bus-delegated segment extraction
@@ -17,8 +17,10 @@ therefore makes all four buses equal, so their predicates combine into a single
 valid segment trace.
 
 As in the rest of the development, cryptographic security is perfect and
-probability-free. The bus contents and operation predicates remain abstract;
-only the proposition-level extraction argument is modeled here.
+probability-free. The concrete program/ISA semantics remain abstract, but they
+are now exposed as `coreStep` and definitionally joined to a classified
+read/write/other memory step. Thus `stepBus` cannot float independently from
+the memory semantics consumed by trace reconstruction.
 -/
 
 namespace VanillaZkVM
@@ -58,15 +60,30 @@ structure SegmentWitness (H : HashCommitment) (InnerStepProof InnerKeccakProof
 
 /-! ## The bus-delegated segment system -/
 
-/-- The leaf and segment layers needed for bus delegation. `stepBus` is the
-committed-memory predicate `φ̂_step,bus`; the other three predicates validate all
-entries of their type in the bus. -/
+/-- The leaf and segment layers needed for bus delegation.
+
+`code`, `opcode`, and `operation` specify the fixed program, the instruction
+selected by `aux`, and its PC/register semantics. `coreStep bus aux`
+definitionally checks instruction fetch (`code[pc] = opcode aux`) before that
+operation predicate. `memStep aux` retains the instruction's authenticated
+read/write/other descriptor. Their conjunction is not an extra refinement
+hypothesis: `System.stepBus` below is definitionally the corresponding
+committed-memory step. The other three predicates validate all entries of their
+type in the common bus.
+
+`Nseg_pos` makes zero-length segments unrepresentable in this system
+configuration. -/
 structure System where
   VC : VectorCommitment
   H : HashCommitment
   Nseg : ℕ
+  Nseg_pos : 0 < Nseg
   StepAux : Type
-  stepBus : CommittedVMState VC → CommittedVMState VC → H.Domain → StepAux → Prop
+  memStep : StepAux → MemStep VC
+  Opcode : Type
+  code : Word → Opcode
+  opcode : StepAux → Opcode
+  operation : H.Domain → StepAux → MemFreePredicate
   keccak : H.Domain → Prop
   poseidon : H.Domain → Prop
   range : H.Domain → Prop
@@ -84,6 +101,25 @@ structure System where
 namespace System
 
 variable (sys : System)
+
+/-! ## Definitionally connected step semantics -/
+
+/-- PC/register/program semantics of the instruction selected by `aux`.
+Instruction fetch is an explicit conjunct rather than an external semantic
+adequacy hypothesis. A concrete VanillaVM instance must still supply and review
+the actual `operation` predicates. -/
+def coreStep (bus : sys.H.Domain) (aux : sys.StepAux) :
+    MemFreePredicate :=
+  fun prePc preRegs postPc postRegs =>
+    sys.code prePc = sys.opcode aux ∧
+    sys.operation bus aux prePc preRegs postPc postRegs
+
+/-- The inline/bus step checked by the inner-step circuit. This definition is
+the bridge into `Memory.lean`: every accepted leaf step exposes exactly the
+memory descriptor and core predicate used by reconstruction. -/
+def stepBus (S₁ S₂ : CommittedVMState sys.VC) (bus : sys.H.Domain)
+    (aux : sys.StepAux) : Prop :=
+  VanillaZkVM.stepC (sys.coreStep bus aux) S₁ S₂ (sys.memStep aux)
 
 /-! ## Inner and segment relations -/
 
