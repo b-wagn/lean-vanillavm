@@ -8,7 +8,7 @@ Scheme-independent definitions the whole development rests on:
 * `Relation` — a statement/witness relation.
 * `ArgumentSystem` — a non-interactive argument (verifier only; see below).
 * `Extractor` + `KnowledgeSound` — straight-line knowledge soundness.
-* `VectorCommitment` with `PositionBinding` and `PuncturedBinding`.
+* `VectorCommitment` with `PositionBinding` and `UpdateBinding`.
 * `HashCommitment` with `CollisionResistant` (for the bus commitment).
 
 ## Soundness is modeled as *perfect straight-line extraction* (no probabilities)
@@ -94,20 +94,49 @@ structure VectorCommitment where
   openProof : (Index → Value) → Index → OpenProof
   verify : Com → Index → Value → OpenProof → Prop
 
+/-- **Commitment completeness** (perfect): an *honest* opening always verifies.
+Provides the honest opening that position- and punctured-binding compare an
+adversarial opening against. -/
+def Complete (VC : VectorCommitment) : Prop :=
+  ∀ (m : VC.Index → VC.Value) (i : VC.Index),
+    VC.verify (VC.commit m) i (m i) (VC.openProof m i)
+
 /-- **Position-binding** (perfect): no commitment admits two accepted openings of
 different values at the same position. -/
 def PositionBinding (VC : VectorCommitment) : Prop :=
   ∀ (C : VC.Com) (i : VC.Index) (v v' : VC.Value) (pi pi' : VC.OpenProof),
     VC.verify C i v pi → VC.verify C i v' pi' → v = v'
 
-/-- **Punctured-binding** (perfect): if a single opening `pi` is accepted at
-`addr` under both `C` and `C'`, then `C` and `C'` agree at every other position. -/
-def PuncturedBinding (VC : VectorCommitment) : Prop :=
-  ∀ (C C' : VC.Com) (addr : VC.Index) (v v' : VC.Value) (pi : VC.OpenProof)
-    (i : VC.Index) (u u' : VC.Value) (rho rho' : VC.OpenProof),
-    VC.verify C addr v pi → VC.verify C' addr v' pi →
-    VC.verify C i u rho → VC.verify C' i u' rho' →
-    i ≠ addr → u = u'
+/-- **Update-binding** (perfect): a single opening `π` that opens an *honest*
+commitment `commit m` at `addr` (necessarily to `m addr`) and also opens some
+`C'` at `addr` to `x` forces `C'` to be the honest commitment of `m` point-updated
+at `addr` to `x`. The updated vector `m'` is described pointwise (`m' addr = x`,
+and `m' j = m j` off `addr`), so no `DecidableEq VC.Index` is required;
+classically `m'` is unique.
+
+This is the property that pins a *reconstructed* post-write root to an actual
+output of `commit`. Position- and (the former) punctured-binding only bound what
+a root can be *opened to* (non-equivocation); they do **not** force a committed
+root to lie in the image of `commit`, which is exactly what full-memory
+reconstruction needs. See `update-binding.md` for the motivation. -/
+def UpdateBinding (VC : VectorCommitment) : Prop :=
+  ∀ (m m' : VC.Index → VC.Value) (addr : VC.Index) (x : VC.Value)
+    (C' : VC.Com) (π : VC.OpenProof),
+    m' addr = x → (∀ j, j ≠ addr → m' j = m j) →
+    VC.verify (VC.commit m) addr (m addr) π → VC.verify C' addr x π →
+    C' = VC.commit m'
+
+/-- A commitment is injective on memories, given completeness and position
+binding: if two memories commit to the same value, they are equal. (The `funext`
++ position-binding argument used throughout memory extraction.) -/
+theorem mem_eq_of_commit_eq {VC : VectorCommitment}
+    (hComplete : Complete VC) (hpos : PositionBinding VC)
+    {m₁ m₂ : VC.Index → VC.Value} (h : VC.commit m₁ = VC.commit m₂) : m₂ = m₁ := by
+  funext i
+  have h₂ : VC.verify (VC.commit m₁) i (m₂ i) (VC.openProof m₂ i) := by
+    rw [h]; exact hComplete m₂ i
+  exact (hpos (VC.commit m₁) i (m₁ i) (m₂ i) (VC.openProof m₁ i) (VC.openProof m₂ i)
+    (hComplete m₁ i) h₂).symm
 
 /-! ## Collision-resistant (bus) commitment -/
 
