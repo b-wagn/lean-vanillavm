@@ -28,14 +28,23 @@ jobs:
             | sh -s -- -y --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
 
+      # Cache the toolchain + the built oleans (Mathlib's dominate). Keyed on the
+      # toolchain and dependency manifest so a bump correctly invalidates it; the
+      # local VanillaZkVM/* oleans still rebuild from the restored Mathlib cache.
+      - name: Cache Lean toolchain and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.elan
+            .lake
+          key: lean-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
+
       - name: Fetch Mathlib build cache
         run: lake exe cache get
 
       - name: Build (everything compiles — no-sorry/no-behavioural-change gate)
         run: lake build
 
-      - name: CORRESPONDENCE row-elaboration check (I1)
-        run: python3 scripts/ci_checks.py --check-correspondence
-
-      - name: Axiom hygiene check (I7)
-        run: python3 scripts/ci_checks.py --check-axioms
+      # One invocation loads Mathlib once and runs both audits (I1 + I7).
+      - name: Audit — CORRESPONDENCE elaboration (I1) + axiom hygiene (I7)
+        run: python3 scripts/ci_checks.py --check-correspondence --check-axioms
