@@ -1,4 +1,5 @@
 import VanillaZkVM.Zkvm
+import VanillaZkVM.Trace
 
 /-!
 # A minimal "two-step" zkVM, instantiating the abstract system

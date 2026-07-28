@@ -1,0 +1,41 @@
+name: CI
+
+# Issue 0 gate (docs/PLAN.md): `lake build` + `#print axioms` (I7) + a
+# CORRESPONDENCE row-elaboration check (I1). No behavioural change is allowed to
+# break these; every PR into main-temp must pass them.
+
+on:
+  push:
+    branches: [main, main-temp]
+  pull_request:
+    branches: [main, main-temp]
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install elan (Lean toolchain manager)
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+            | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Fetch Mathlib build cache
+        run: lake exe cache get
+
+      - name: Build (everything compiles — no-sorry/no-behavioural-change gate)
+        run: lake build
+
+      - name: CORRESPONDENCE row-elaboration check (I1)
+        run: python3 scripts/ci_checks.py --check-correspondence
+
+      - name: Axiom hygiene check (I7)
+        run: python3 scripts/ci_checks.py --check-axioms
