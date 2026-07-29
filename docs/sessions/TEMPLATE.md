@@ -19,7 +19,7 @@ work resumable (finality pattern; CONVENTIONS.md §8).
 
 ## Axiom / `sorry` ledger diff
 - `#print axioms <headline>` before: <axioms> / after: <axioms>.
-- `sorry`/`admit` added: <none, or the tracked allowlist with justification (I7)>.
+- `sorry`/`sorryAx`/`admit` added: none (I7 has no current allowlist).
 
 ## CORRESPONDENCE rows touched
 - <row(s) added/changed and their new status>.

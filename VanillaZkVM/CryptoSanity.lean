@@ -6,8 +6,10 @@ import VanillaZkVM.Crypto
 Non-vacuity witnesses (`docs/INVARIANTS.md` I6) for the definitions in
 `Crypto.lean`, kept out of the definitions file so the kernel is definitions only.
 
-## Main results
+## Main definitions
 * `trivialAS` — the honest degenerate argument system for any relation.
+
+## Main results
 * `knowledgeSound_trivialAS` — it is knowledge-sound, so `KnowledgeSound` is
   satisfiable (not `False`).
 -/

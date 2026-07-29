@@ -1,7 +1,11 @@
 # Vanilla zkVM whitepaper — structural digest for Lean formalization
 
-Source: `zkvm-whitepaper/sampleVM/{ch00..ch05}.tex`, `macros.tex`. Notation
-follows the paper's macros: `pc, regs, mem` (state components), `code`
+Source: the canonical files `sampleVM/ch00-overview.tex`,
+`ch01-execution-model.tex`, `ch02-segmentation.tex`,
+`ch03-correct-execution.tex`, `ch04-proof-architecture.tex`,
+`ch05-security.tex`, and `macros.tex`, at the revision pinned in
+`docs/PAPER_REVISION.md`. Notation follows the paper's macros:
+`pc, regs, mem` (state components), `code`
 (program), `φ_op` (operation predicates), `B` (bus), `Ŝ` (committed state),
 `Com` (commitment), `R*`, `R_{0,*}`, `R_1..R_4` (relations), `Π_i` (SNARKs).
 

@@ -42,12 +42,19 @@ jobs:
       - name: Fetch Mathlib build cache
         run: lake exe cache get
 
-      - name: Build (everything compiles — no-sorry/no-behavioural-change gate)
+      - name: Build default target
         run: lake build
 
-      # One invocation loads Mathlib once and runs all audits (I1 + I7).
+      # The audit explicitly builds every discovered project module, including
+      # files outside the umbrella import closure. One subsequent Lean invocation
+      # loads Mathlib once and runs all semantic audits (I1 + I7).
       # --check-hygiene is the repo-wide "no sorry / no new axiom" gate; `lake build`
       # does NOT enforce it (sorry is a warning, an `axiom` decl compiles), and
       # --check-axioms only pins the listed headline theorems.
       - name: Audit — CORRESPONDENCE (I1) + headline axioms + repo-wide hygiene (I7)
-        run: python3 scripts/ci_checks.py --check-correspondence --check-axioms --check-hygiene
+        run: >-
+          python3 scripts/ci_checks.py
+          --self-test
+          --check-correspondence
+          --check-axioms
+          --check-hygiene

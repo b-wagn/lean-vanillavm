@@ -57,8 +57,10 @@ structure Relation where
 
 /-- A non-interactive argument system for a relation `R`, given by its proof type
 and verifier. `verify` is morally a Boolean polynomial-time algorithm; we phrase
-acceptance as a `Prop`, reading `verify x p` as "`Verify(x, p) = 1`". Note that
-we don't specify a prover, as we just care about soundness and not completeness. -/
+acceptance as a `Prop`, reading `verify x p` as "`Verify(x, p) = 1`".
+
+Paper: `def:zkvm` writes each system as `Π = (Prove, Verify)`. Lean deliberately
+omits `Prove`, which plays no role in the soundness statements formalized here. -/
 structure ArgumentSystem (R : Relation) where
   Proof : Type
   verify : R.Stmt → Proof → Prop
@@ -70,7 +72,10 @@ structure Extractor (R : Relation) (AS : ArgumentSystem R) where
 
 /-- `AS` is **knowledge-sound** (perfect straight-line extraction) if there is a
 single universal extractor `E` such that whenever a proof verifies for a
-statement, `E` recovers a valid witness. -/
+statement, `E` recovers a valid witness.
+
+Paper: `def:extractable` / `eq:extractable`. Lean deliberately takes the
+perfect, probability-free specialization required by I8. -/
 def KnowledgeSound {R : Relation} (AS : ArgumentSystem R) : Prop :=
   ∃ E : Extractor R AS, ∀ (x : R.Stmt) (p : AS.Proof),
     AS.verify x p → R.rel x (E.extract x p)
@@ -83,6 +88,8 @@ to change. Do not depend on the exact current shape. -/
 /-- A vector commitment scheme `Com = (Commit, Open, Verify)`. A vector is a
 total map `Index → Value`. `verify C i v p` checks that position `i` of the
 committed vector holds value `v` under commitment `C`.
+
+Paper: `def:binding` (commit/open/verify interface).
 
 **Provisional** (I4): the binding notions below are expected to change. -/
 structure VectorCommitment where
@@ -97,6 +104,8 @@ structure VectorCommitment where
 /-- **Position-binding** (perfect): no commitment admits two accepted openings of
 different values at the same position.
 
+Paper: `def:binding`.
+
 **Provisional** (I4). -/
 def PositionBinding (VC : VectorCommitment) : Prop :=
   ∀ (C : VC.Com) (i : VC.Index) (v v' : VC.Value) (pi pi' : VC.OpenProof),
@@ -105,8 +114,9 @@ def PositionBinding (VC : VectorCommitment) : Prop :=
 /-- **Punctured-binding** (perfect): if a single opening `pi` is accepted at
 `addr` under both `C` and `C'`, then `C` and `C'` agree at every other position.
 
-**Provisional (insufficient)** (I4): this notion is known to be too weak and is
-replaced by `UpdateBinding` in Issue 1. Do not build on it. -/
+**Provisional (insufficient)** (I4): this notion does not force a candidate
+post-commitment to be the honest commitment of the updated memory, so it cannot
+support inductive memory reconstruction. Do not build on it. -/
 def PuncturedBinding (VC : VectorCommitment) : Prop :=
   ∀ (C C' : VC.Com) (addr : VC.Index) (v v' : VC.Value) (pi : VC.OpenProof)
     (i : VC.Index) (u u' : VC.Value) (rho rho' : VC.OpenProof),
@@ -118,6 +128,8 @@ def PuncturedBinding (VC : VectorCommitment) : Prop :=
 
 /-- A hash-style commitment `hash : Domain → Digest`.
 
+Paper: `def:bus-cr`.
+
 **Provisional** (I4): may gain a keyed/algorithmic variant. -/
 structure HashCommitment where
   Domain : Type
@@ -125,6 +137,9 @@ structure HashCommitment where
   hash : Domain → Digest
 
 /-- **Collision-resistance** (perfect): the commitment map is injective.
+
+Paper: `def:bus-cr`. Lean deliberately uses the probability-free
+specialization required by I8.
 
 **Provisional** (I4): may gain a keyed/algorithmic variant. -/
 def CollisionResistant (H : HashCommitment) : Prop :=

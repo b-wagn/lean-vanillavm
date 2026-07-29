@@ -4,8 +4,9 @@ This file is binding for every branch merged into `main-temp`. Each issue in [`P
 requires you to follow it. It distills (a) the house style already visible in
 `VanillaZkVM/*.lean`, (b) conventions inherited from VCVio and `finality` (our colleagues'
 libraries — see `docs/vcvio-analysis.md`, `docs/finality-analysis.md`), and (c) the Hicks meeting
-(`docs/hicks-digest.md`). Rules that are *constitutional* live in [`INVARIANTS.md`](INVARIANTS.md);
-this file is the day-to-day operational layer.
+(whose adopted decisions are recorded in `INVARIANTS.md` and `PLAN.md`). Rules that are
+*constitutional* live in [`INVARIANTS.md`](INVARIANTS.md); this file is the day-to-day operational
+layer.
 
 ---
 
@@ -47,6 +48,10 @@ this file is the day-to-day operational layer.
 - **Derive, don't re-state.** New VM = instance of `ZkVM`. New relation = built via `Relation`. New
   security property = phrased with the frozen predicates. If you find yourself copying the shape of
   `KnowledgeSound`/`CTE`, stop — you almost certainly want to instantiate, not fork.
+- **One canonical step chain.** `ZkVM.step` is `stepPlain`. Committed-memory and bus-deferred
+  predicates connect through `StepInterface`; their concrete declarations live only in the modules
+  assigned by `docs/STEP_INTERFACES.md`. Do not introduce a parallel public binary "step" relation
+  in a convenience module.
 - **Anti-duplication protocol (Hicks trick):** before writing a new helper, search for an existing
   one (`Grep`, and read the docstrings in `Crypto.lean`/`Zkvm.lean`). If an agent produces a
   duplicate, the fix is: point it at the canonical definition, and have it add/extend a short
@@ -106,9 +111,10 @@ a file** for pickup.
 
 ## 6. Review process (per-task; NOT fully delegatable)
 
-Every PR gets a human review whose core is **not delegatable to an agent** (Hicks: the reviewer
-must be a cryptographer who understands the notions). Each issue in `PLAN.md` names its specific
-reviewer and the specific judgement they must make. The standing checklist:
+Every PR gets appropriate human review whose core is **not delegatable to an agent** (the reviewer
+must understand the notions). Issues in `PLAN.md` name a specific reviewer and judgement where the
+project has assigned one. Issue 0 has no special Benedikt/George joint-ratification gate as of the
+scope decision on 2026-07-29; ordinary collaborator review still applies. The standing checklist:
 
 1. **Definition audit (the 80%).** Read every *new public definition* and the *headline theorem
    statement*. Confirm the abstraction is the *right* one — e.g. "is this really update-binding?",
@@ -120,8 +126,8 @@ reviewer and the specific judgement they must make. The standing checklist:
    to *attempt* to derive `False` from the assumption bundle as a probe.
 3. **Surface & redundancy (I5/I10).** Confirm the new public surface is minimal and justified, and
    that nothing duplicates a frozen/abstract notion.
-4. **Axioms (I7).** `#print axioms <headline>` shows only the permitted set; `sorry`s are on the
-   tracked allowlist.
+4. **Axioms (I7).** `#print axioms <headline>` shows only the permitted set; the repo-wide hygiene
+   gate reports no `sorry`, direct `sorryAx`, `admit`, `native_decide`, or new `axiom`.
 5. **Legibility.** Docstrings cite the paper; names match paper vocabulary; proofs comment *why* at
    branch points.
 

@@ -56,4 +56,18 @@ guard; when a guard becomes a CI check, note that.
 
 - **Axiom set is fixed at `{propext, Classical.choice, Quot.sound}`.** No `native_decide`,
   no new `axiom`, no untracked `sorry`.
-  **Guard:** `#print axioms` gate in CI (INVARIANTS.md I7).
+  **Guard:** headline `#print axioms` plus the repo-wide source/module hygiene gate in CI
+  (INVARIANTS.md I7).
+
+- **The default Lake target is not the whole source tree.** A new `.lean` file that is not
+  imported by `VanillaZkVM.lean` is ignored by bare `lake build`; the umbrella file itself is
+  also missed by a `VanillaZkVM/**/*.lean`-only source glob. Either gap can hide an anonymous
+  `sorry` or direct `sorryAx`.
+  **Guard:** `scripts/ci_checks.py` inventories the umbrella plus every submodule, explicitly
+  builds/imports each discovered module, and self-tests the enumeration.
+
+- **A hygiene scanner must lex non-code, not merely delete comments.** Deleting comments
+  shifts diagnostic line numbers, and scanning string literals makes harmless prose such as
+  `"sorry"` fail CI.
+  **Guard:** the CI lexer blanks nested comments and strings while preserving newlines;
+  `--self-test` exercises both behavior and direct-`sorryAx` detection.

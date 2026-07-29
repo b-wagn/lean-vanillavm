@@ -9,7 +9,9 @@ compare **paper ↔ companion ↔ Lean** without reading proof internals. The co
 Every later issue appends its layer to this file. This first section is **Issue 0**: the
 frozen kernel (`docs/INVARIANTS.md` I4).
 
-Paper: `zkvm-whitepaper/sampleVM/{ch01..ch05}.tex`. Anchors below cite chapters/labels.
+Paper: the canonical `zkvm-whitepaper/sampleVM/ch01-execution-model.tex` through
+`ch05-security.tex` at `a0f5e0b63395a2fddce3f949c4de1df9264a174b`; see
+`docs/PAPER_REVISION.md`. Anchors below cite chapters/labels.
 
 ---
 
@@ -55,10 +57,15 @@ commitment).
 *Lean:* `VMStateWith Mem`, `VMState`, `CommittedVMState VC`.
 
 **Abstract zkVM.** `V = (State, step, T, Stmt, initial, terminal, Proof, verify)` where
-`step ⊆ State × State`, `T ∈ ℕ` is a fixed step count (independent of any security
-parameter), `initial, terminal : Stmt → State` are the boundary projections, and
-`verify : Stmt × Proof → {0,1}` is the final verifier.
+`step ⊆ State × State`, `T ∈ ℕ` is fixed within this zkVM instance,
+`initial, terminal : Stmt → State` are the boundary projections, and
+`verify : Stmt × Proof → {0,1}` is the final verifier. The Lean model has no
+security parameter; the paper's family may choose a polynomially bounded `T`
+as a system parameter for each security parameter.
 *Lean:* `ZkVM`.
+
+The fixed `T` follows the pinned correction to `def:cte`: program code and `T`
+are system parameters, while the adversary selects boundary states and a proof.
 
 **Trace validity.** A candidate trace `tr : ℕ → State` is valid for statement `x` iff
 
@@ -69,6 +76,12 @@ parameter), `initial, terminal : Stmt → State` are the boundary projections, a
 **Correct-execution relation `R*`** (ch03). Statements are boundary claims `x`,
 witnesses are traces `tr`, and `(x ; tr) ∈ R*` iff `tr` is valid for `x`.
 *Lean:* `ZkVM.Rstar`. The final argument system viewed over `R*` is `ASstar`.
+
+This is the abstract trace-validity skeleton only. It neither requires `Stmt` to
+contain full-memory boundary states nor constrains `verify` to commit them as in
+the concrete verification algorithm immediately following `eq:relation-star`.
+The full Vanilla VM instance must supply that boundary/verifier package in
+Issue 7; hence the current correspondence row is faithful but incomplete.
 
 **Correct-trace extractability `CTE`** (`def:cte`, ch05). `V` is CTE iff there is a
 trace-extractor `E : Stmt × Proof → (ℕ → State)` such that
@@ -85,6 +98,49 @@ Both sides are "∃ extractor, ∀ accepting `(x, π)`, output is a valid trace"
 is structural repackaging (bare function ↔ `Extractor` record). This is the equivalence
 concrete systems use: instantiate `ZkVM`, prove `KnowledgeSound ASstar`, conclude `CTE`.
 *Lean:* `ZkVM.cte_iff_knowledgeSound`.
+
+---
+
+## 0.3 Step-interface contract
+
+The plain execution predicate is not duplicated:
+
+    stepPlain(S₁,S₂) := V.step(S₁,S₂).
+
+A `StepInterface V` supplies a committed-state type `CState`, a representation
+predicate `Rep ⊆ CState × V.State`, and
+
+    stepCommitted : CState × CState → Prop.
+
+Issue 5 later supplies a bus-evidence type `BEvidence` packaging the unified
+per-step bus/chip data and
+
+    stepWithBus : CState × CState × BEvidence → Prop.
+
+The **memory bridge** (`StepInterface.MemoryBridge`) is
+
+    Rep(Ĉ₁,S₁) ∧ stepCommitted(Ĉ₁,Ĉ₂)
+      ⟹ ∃ S₂. Rep(Ĉ₂,S₂) ∧ V.step(S₁,S₂).
+
+The existential construction of `S₂` is what lets Issue 1 preserve the
+commitment invariant inductively. Assuming `Rep(Ĉ₂,S₂)` as a premise would prove
+only a conditional one-step refinement and would not reconstruct a trace.
+
+The **bus bridge** (`StepInterface.BusBridge stepWithBus`) is
+
+    stepWithBus(Ĉ₁,Ĉ₂,b) ⟹ stepCommitted(Ĉ₁,Ĉ₂).
+
+Issue 5 may first prove an extract-or-collision statement and obtain this
+implication as the collision-resistant corollary.
+
+These are Lean-only coordination propositions whose concrete instances target
+`prop:memory-extractability` and `lem:segment`; they are not additional paper
+claims.
+
+**Non-vacuity.** `ZkvmSanity.lean` gives an accepting one-step Boolean toggle
+zkVM whose committed/plain representation is equality and which satisfies CTE
+and both bridge propositions. This is only a consistency floor, not a model of
+the Vanilla ISA or its cryptography.
 
 ---
 

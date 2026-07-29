@@ -6,6 +6,10 @@ The goal is to formalize **correct-trace extractability (CTE)** — that an acce
 an extractor recover a full, valid execution trace — for a recursive zkVM with committed memory and
 a bus, reducing security to explicit cryptographic hardness assumptions.
 
+The exact paper source used for review is pinned in
+[`docs/PAPER_REVISION.md`](docs/PAPER_REVISION.md); this matters because the default paper branch and
+its corrected `proof` revision currently differ on whether the step count `T` is adversary-chosen.
+
 > **Status: WIP.** The current core is small, clean, and axiom-clean, but idealized (see
 > [Idealization](#idealization)). The path from here to the full theorem is [`docs/PLAN.md`](docs/PLAN.md).
 
@@ -21,17 +25,21 @@ Everything you need is in `docs/`, in this reading order:
    the per-issue review requirements.
 3. [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) — how we write Lean, use agents, and review.
 4. [`docs/CORRESPONDENCE.md`](docs/CORRESPONDENCE.md) — the Lean ↔ paper matrix (the audit surface).
-5. Background digests (generated, for reference): [`docs/hicks-digest.md`](docs/hicks-digest.md)
-   (Alex Hicks's advice), [`docs/paper-digest.md`](docs/paper-digest.md) (the whole proof structure),
+5. [`docs/PAPER_REVISION.md`](docs/PAPER_REVISION.md) and
+   [`docs/STEP_INTERFACES.md`](docs/STEP_INTERFACES.md) — the exact paper pin and the
+   plain/committed/bus step contract.
+6. Background digests (generated, for reference): [`docs/paper-digest.md`](docs/paper-digest.md)
+   (the whole proof structure),
    [`docs/branch-analysis.md`](docs/branch-analysis.md) (what's in every git branch),
    [`docs/vcvio-analysis.md`](docs/vcvio-analysis.md), [`docs/finality-analysis.md`](docs/finality-analysis.md)
    (conventions/skills inherited from our colleagues' libraries).
 
 The single most important idea, from the Hicks meeting: **the definitions are 80% of the value.**
-The *kernel* — `KnowledgeSound`, `CTE`, the abstract `ZkVM`, `cte_iff_knowledgeSound` — is frozen and
-heavily reviewed; everything else just has to type-check and be non-vacuous. The commitment binding
-layer is deliberately **not** frozen (it is still changing — `PuncturedBinding` is being retired in
-favour of `UpdateBinding`); see `docs/INVARIANTS.md` I4.
+The *kernel* — `KnowledgeSound`, `CTE`, the abstract `ZkVM`, `cte_iff_knowledgeSound` — is small and
+explicitly frozen under I4. Dmitry signed the current paper-facing rows on 2026-07-29; any later
+signature change follows I4's re-review process. The commitment binding layer is deliberately
+**not** frozen (it is still changing — `PuncturedBinding` is being retired in favour of
+`UpdateBinding`).
 
 **Roles.** Implementers: **Yavor, Dmitry, Jessica** (assigned to the code they already wrote —
 memory, recursion/cost, and reductions respectively). **Benedikt reviews only** for now (on
@@ -41,14 +49,19 @@ issue. See `docs/PLAN.md`.
 
 ---
 
-## Current architecture (what exists on `main-temp`)
+## Current architecture
 
-Four files, ~750 lines, `lake build`-green, axiom set `{propext, Quot.sound}`:
+The umbrella module imports the following focused modules. The branch is `lake build`-green and CI
+permits only `{propext, Classical.choice, Quot.sound}`:
 
 | File | Contents |
 |---|---|
-| `VanillaZkVM/Crypto.lean` | **Frozen kernel** `Relation`, `ArgumentSystem`, `Extractor`, `KnowledgeSound` (+ `trivialAS` consistency floor); **provisional** commitment layer `VectorCommitment` with `PositionBinding`/`PuncturedBinding` (the latter insufficient — being replaced by `UpdateBinding`), `HashCommitment` with `CollisionResistant`. All *perfect* (probability-free). |
-| `VanillaZkVM/Zkvm.lean` | **Frozen kernel.** Abstract `ZkVM`, `TraceValid`, `R* = Rstar`, `CTE`, and the keystone `cte_iff_knowledgeSound`. Plus the reusable `concatTrace` / `chain_flatten` glue lemma. |
+| `VanillaZkVM/Crypto.lean` | Definitions only: frozen `Relation`, `ArgumentSystem`, `Extractor`, `KnowledgeSound`; provisional commitment/binding notions. |
+| `VanillaZkVM/CryptoSanity.lean` | I6 consistency floor for `KnowledgeSound` (`trivialAS`). |
+| `VanillaZkVM/Zkvm.lean` | Frozen abstract `ZkVM`, `TraceValid`, `Rstar`, `CTE`, and `cte_iff_knowledgeSound`. |
+| `VanillaZkVM/Step.lean` | Frozen committed-step interface and the memory/bus bridge propositions; `ZkVM.step` remains the plain predicate. |
+| `VanillaZkVM/ZkvmSanity.lean` | Private accepting one-step model witnessing CTE and bridge satisfiability. |
+| `VanillaZkVM/Trace.lean` | Reusable `concatTrace` / `chain_flatten` glue. |
 | `VanillaZkVM/Twostep.lean` | A minimal 2-layer VM (`RSeg → RFinal`) instantiating `ZkVM`, with `Assumptions{ksSeg,ksFinal}` and theorem `cte`. Toy — no memory extraction, no bus. |
 | `VanillaZkVM/Bus.lean` | ⚠ **Yavor's playground prototype — NOT ground truth.** A first cut of the leaf/segment layer (four inner circuits, `RSegment`, `segment_extract`). It is *reference only*; the real segment/bus layer is (re)built in Issue 5. |
 
