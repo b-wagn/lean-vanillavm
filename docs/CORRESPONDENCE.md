@@ -24,20 +24,26 @@ change (see notes below the table).
 
 | Paper label | Lean declaration | Tier | Status | Fidelity | Complete | Reviewer |
 |---|---|---|---|---|---|---|
-| Argument system Π=(Prove,Verify) | `VanillaZkVM.ArgumentSystem` | frozen | proved | — | — | _unreviewed_ |
-| Knowledge soundness (`def:extractable`) | `VanillaZkVM.KnowledgeSound` | frozen | proved | — | — | _unreviewed_ |
-| — (consistency floor for KS) | `VanillaZkVM.knowledgeSound_trivialAS` | frozen | proved (n/a) | — | — | _unreviewed_ |
-| VM state S=(pc,regs,mem) (ch01) | `VanillaZkVM.VMStateWith` / `VMState` | frozen | proved | — | — | _unreviewed_ |
-| Committed state Ŝ (ch02) | `VanillaZkVM.CommittedVMState` | frozen | proved | — | — | _unreviewed_ |
-| Correct-execution relation R* (ch03) | `VanillaZkVM.ZkVM.Rstar` | frozen | proved | — | — | _unreviewed_ |
-| Correct-trace extractability (`def:cte`) | `VanillaZkVM.ZkVM.CTE` | frozen | proved | — | — | _unreviewed_ |
-| CTE ⇔ KS (`rem:cte-ks`) | `VanillaZkVM.ZkVM.cte_iff_knowledgeSound` | frozen | proved | — | — | _unreviewed_ |
-| Merkle memory commitment `Com_mem` (ch02) | `VanillaZkVM.VectorCommitment` | provisional | proved | — | — | _unreviewed_ |
-| Position binding (`def:binding`) | `VanillaZkVM.PositionBinding` | provisional | proved | — | — | _unreviewed_ |
+| Argument system Π=(Prove,Verify) | `VanillaZkVM.ArgumentSystem` | frozen | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Knowledge soundness (`def:extractable`) | `VanillaZkVM.KnowledgeSound` | frozen | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| — (consistency floor for KS) | `VanillaZkVM.knowledgeSound_trivialAS` | frozen | proved (n/a) | ✓ | n/a | Dmitry 2026-07-29 |
+| VM state S=(pc,regs,mem) (ch01) | `VanillaZkVM.VMStateWith` / `VMState` | frozen | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Committed state Ŝ (ch02) | `VanillaZkVM.CommittedVMState` | frozen | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Correct-execution relation R* (ch03) | `VanillaZkVM.ZkVM.Rstar` | frozen | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Correct-trace extractability (`def:cte`) | `VanillaZkVM.ZkVM.CTE` | frozen | proved | ✓ | ✗ (see †) | Dmitry 2026-07-29 |
+| CTE ⇔ KS (`rem:cte-ks`) | `VanillaZkVM.ZkVM.cte_iff_knowledgeSound` | frozen | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Merkle memory commitment `Com_mem` (ch02) | `VanillaZkVM.VectorCommitment` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Position binding (`def:binding`) | `VanillaZkVM.PositionBinding` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 | ~~Punctured binding~~ **INSUFFICIENT — retire** | `VanillaZkVM.PuncturedBinding` | deprecated | to be removed | — | — | Issue 1 |
 | Update binding (`def:binding`) — replaces punctured | _planned — Issue 1_ (`UpdateBinding`) | provisional | planned | — | — | — |
-| Bus commitment `Com_bus` | `VanillaZkVM.HashCommitment` | frozen | proved | — | — | _unreviewed_ |
-| Collision resistance (`Adv^cr`) | `VanillaZkVM.CollisionResistant` | provisional | proved | — | — | _unreviewed_ |
+| Bus commitment `Com_bus` | `VanillaZkVM.HashCommitment` | frozen | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Collision resistance (`Adv^cr`) | `VanillaZkVM.CollisionResistant` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+
+> **† `CTE` completeness is deliberately left unsigned.** `ZkVM.CTE` is *faithful* to
+> `def:cte` (fidelity ✓), but it is not signed off as covering the paper definition in full: the
+> paper's `def:cte` is **too verbose** and should probably itself be **refactored**. Until that
+> refactor happens, claiming completeness against the current paper text would be signing off on a
+> statement we expect to restate. Re-open this row once `def:cte` is tightened.
 
 > **Note (I4).** `PuncturedBinding` is known to be insufficient and is replaced by `UpdateBinding`
 > in Issue 1. The whole `VectorCommitment` binding layer and `CollisionResistant` are *provisional*

@@ -45,6 +45,9 @@ jobs:
       - name: Build (everything compiles — no-sorry/no-behavioural-change gate)
         run: lake build
 
-      # One invocation loads Mathlib once and runs both audits (I1 + I7).
-      - name: Audit — CORRESPONDENCE elaboration (I1) + axiom hygiene (I7)
-        run: python3 scripts/ci_checks.py --check-correspondence --check-axioms
+      # One invocation loads Mathlib once and runs all audits (I1 + I7).
+      # --check-hygiene is the repo-wide "no sorry / no new axiom" gate; `lake build`
+      # does NOT enforce it (sorry is a warning, an `axiom` decl compiles), and
+      # --check-axioms only pins the listed headline theorems.
+      - name: Audit — CORRESPONDENCE (I1) + headline axioms + repo-wide hygiene (I7)
+        run: python3 scripts/ci_checks.py --check-correspondence --check-axioms --check-hygiene

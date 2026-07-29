@@ -19,7 +19,26 @@ single `lake env lean` invocation, so Mathlib is loaded once):
   --check-axioms           Every headline theorem depends only on the permitted
                            axiom set {propext, Classical.choice, Quot.sound}, and on
                            no `sorryAx` (I7). We generate `#print axioms` lines and
-                           parse the output.
+                           parse the output. NOTE this pins only the *listed*
+                           theorems' footprints — it is not the repo-wide promise;
+                           that is `--check-hygiene`.
+
+  --check-hygiene          The repo-wide I7 promise: **no** `sorry` and **no**
+                           non-permitted axiom anywhere in the project's own
+                           modules. Two independent layers, because `lake build`
+                           enforces neither (`sorry` is only a *warning* and an
+                           `axiom` declaration compiles fine, so a stray
+                           `axiom bad : False` or a `sorry` in any theorem not
+                           reachable from HEADLINE_THEOREMS passes both `lake build`
+                           and `--check-axioms`):
+                             1. A Lean metaprogram walks every constant declared in
+                                the project's modules and fails if it *is* a
+                                non-permitted axiom or if `collectAxioms` reports
+                                `sorryAx`/a non-permitted axiom.
+                             2. A source scan of `VanillaZkVM/**.lean` (comments
+                                stripped) rejecting `sorry`/`admit`/`native_decide`
+                                and any `axiom` declaration — this also catches an
+                                *unused* axiom regardless of reachability.
 
 Later issues extend HEADLINE_THEOREMS as they add headline results.
 """
@@ -49,6 +68,101 @@ HEADLINE_THEOREMS = [
 # A Lean identifier: dotted, letters/digits/_/'  (no braces, no spaces).
 IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_.']*$")
 CODESPAN = re.compile(r"`([^`]+)`")
+
+# Project source scanned by the hygiene source layer.
+LEAN_SRC_DIR = REPO / "VanillaZkVM"
+# Tokens that must never appear in project source (I7). `axiom` is included
+# because the permitted axioms come from core/Mathlib — we never declare our own.
+FORBIDDEN_TOKENS = [
+    (re.compile(r"\bsorry\b"), "sorry"),
+    (re.compile(r"\badmit\b"), "admit"),
+    (re.compile(r"\bnative_decide\b"), "native_decide"),
+    (re.compile(r"^\s*(?:@\[[^\]]*\]\s*)*axiom\b"), "axiom declaration"),
+]
+
+# Walks every constant *declared in the project's own modules* and fails on a
+# non-permitted axiom or a `sorryAx`. Scoped in a section so its `open`s cannot
+# perturb the `#check`/`#print axioms` lines that share this compilation.
+LEAN_HYGIENE = """
+section CIHygieneCheck
+open Lean Elab Command
+
+run_cmd do
+  let env ← getEnv
+  let permitted : Array Name := #[`propext, `Classical.choice, `Quot.sound]
+  let mut problems : Array String := #[]
+  let mut scanned := 0
+  for i in [0 : env.header.moduleNames.size] do
+    let mod := env.header.moduleNames[i]!
+    if mod == `VanillaZkVM || (`VanillaZkVM).isPrefixOf mod then
+      let data := env.header.moduleData[i]!
+      for n in data.constNames do
+        scanned := scanned + 1
+        match env.find? n with
+        | some (.axiomInfo _) =>
+            if !permitted.contains n then
+              problems := problems.push s!"  {mod}: declares axiom {n}"
+        | _ => pure ()
+        for a in ← liftCoreM (Lean.collectAxioms n) do
+          if !permitted.contains a then
+            problems := problems.push s!"  {mod}: {n} depends on {a}"
+  IO.println s!"Hygiene: scanned {scanned} declarations across project modules."
+  if problems.isEmpty then
+    IO.println "OK: no sorry and no non-permitted axiom in any project module."
+  else
+    IO.println s!"FAIL: {problems.size} hygiene violation(s):"
+    for p in problems do IO.println p
+    throwError "repo-wide axiom/sorry hygiene check failed (I7)"
+
+end CIHygieneCheck
+"""
+
+
+def _strip_lean_comments(src: str) -> str:
+    """Drop `--` line comments and (nestable) `/- … -/` blocks, so a `sorry`
+    mentioned in prose or a docstring is not mistaken for a real one."""
+    out: list[str] = []
+    i, n, depth = 0, len(src), 0
+    while i < n:
+        two = src[i:i + 2]
+        if depth:
+            if two == "/-":
+                depth += 1; i += 2; continue
+            if two == "-/":
+                depth -= 1; i += 2; continue
+            i += 1; continue
+        if two == "/-":
+            depth += 1; i += 2; continue
+        if two == "--":
+            j = src.find("\n", i)
+            i = n if j < 0 else j
+            continue
+        out.append(src[i]); i += 1
+    return "".join(out)
+
+
+def check_hygiene_source() -> int:
+    """Source layer: reject forbidden tokens in project `.lean` files."""
+    problems: list[str] = []
+    files = sorted(LEAN_SRC_DIR.rglob("*.lean"))
+    if not files:
+        print(f"ERROR: no .lean files found under {LEAN_SRC_DIR}", file=sys.stderr)
+        return 1
+    for path in files:
+        stripped = _strip_lean_comments(path.read_text(encoding="utf-8"))
+        for lineno, line in enumerate(stripped.splitlines(), start=1):
+            for pattern, label in FORBIDDEN_TOKENS:
+                if pattern.search(line):
+                    rel = path.relative_to(REPO).as_posix()
+                    problems.append(f"  {rel}:{lineno}: {label} — {line.strip()[:70]}")
+    if problems:
+        print(f"FAIL: {len(problems)} forbidden token(s) in project source (I7):",
+              file=sys.stderr)
+        for p in problems:
+            print(p, file=sys.stderr)
+        return 1
+    print(f"OK: no forbidden tokens in {len(files)} project source file(s).")
+    return 0
 
 
 def _fail(msg: str, res: subprocess.CompletedProcess) -> int:
@@ -165,9 +279,12 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check-correspondence", action="store_true")
     ap.add_argument("--check-axioms", action="store_true")
+    ap.add_argument("--check-hygiene", action="store_true")
     args = ap.parse_args()
-    if not (args.check_correspondence or args.check_axioms):
-        ap.error("pass --check-correspondence and/or --check-axioms")
+    if not (args.check_correspondence or args.check_axioms or args.check_hygiene):
+        ap.error("pass --check-correspondence, --check-axioms and/or --check-hygiene")
+
+    rc_src = check_hygiene_source() if args.check_hygiene else 0
 
     body = "import VanillaZkVM\nopen VanillaZkVM\n"
     names: list[str] = []
@@ -187,19 +304,28 @@ def main() -> int:
         body += "".join(f"#check @{n}\n" for n in names)
     if args.check_axioms:
         body += "".join(f"#print axioms {t}\n" for t in HEADLINE_THEOREMS)
+    if args.check_hygiene:
+        body += LEAN_HYGIENE
 
     res = run_lean(body)
-    # An elaboration error (a renamed/removed audited declaration or headline
-    # theorem) is a non-zero exit; both checks share this single compile.
+    # A non-zero exit means either an elaboration error (a renamed/removed audited
+    # declaration or headline theorem) or the hygiene metaprogram's `throwError`.
+    # All checks share this single compile, so distinguish by the marker it prints.
     if res.returncode != 0:
-        return _fail("FAIL: a checked declaration/theorem did not elaborate.", res)
+        combined = res.stdout + res.stderr
+        why = ("FAIL: repo-wide axiom/sorry hygiene violation (I7)."
+               if "hygiene violation" in combined
+               else "FAIL: a checked declaration/theorem did not elaborate.")
+        return _fail(why, res)
 
-    rc = 0
+    rc = rc_src
     if args.check_correspondence:
         print("OK: all audited CORRESPONDENCE declarations elaborate.")
     if args.check_axioms:
         print(res.stdout.strip())
         rc |= eval_axioms(res.stdout)
+    elif args.check_hygiene:
+        print(res.stdout.strip())
     return rc
 
 
