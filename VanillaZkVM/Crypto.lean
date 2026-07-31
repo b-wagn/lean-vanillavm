@@ -46,7 +46,16 @@ has a prover too, but it plays no role in soundness, so we omit it.
 
 namespace VanillaZkVM
 
-/-! ## Frozen kernel (I4) — relations and argument systems -/
+/-! ## Frozen kernel (I4) — relations and argument systems:
+
+      Relation              -- statements, witnesses, membership
+         ▲  R
+      ArgumentSystem R      -- proof type + verifier for `R`
+         ▲  AS
+      Extractor R AS        -- From R.Stmt and AS.Proof, we get R.Wit
+         ▲  ∃ E
+      KnowledgeSound AS     -- every accepting proof for AS extracts
+-/
 
 /-- A relation `R ⊆ Stmt × Wit`, given by its statement and witness types and a
 membership predicate. We write `R.rel x w` for "`(x; w) ∈ R`". -/
