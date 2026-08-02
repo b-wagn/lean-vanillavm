@@ -5,8 +5,8 @@ to a formalized main security theorem for the full vanilla VM (`thm:main`). It s
 free-form task list in `benedikt-plan.md` (which it folds in) and is the authoritative scope (I2).
 
 **How to read an issue.** Each has: *Goal · Depends on · Assigned · Reuse · New public surface ·
-Deliverables · Math companion · Review requirement (human, not delegatable) · Skills & conventions ·
-Paper anchor.* Everything is written on a branch per issue and merged into `main-temp`
+Deliverables · Math companion · Review requirement (where assigned; human, not delegatable) ·
+Skills & conventions · Paper anchor.* Everything is written on a branch per issue and merged into `main-temp`
 (`CONVENTIONS.md` §4).
 
 **Collaborators & roles.**
@@ -63,31 +63,43 @@ in lockstep. This is a hard deliverable, not optional.
   kernel is the stable heart Hicks says to polish; the commitment layer is explicitly left
   provisional (see below).
 - **Depends on.** — (first).
-- **Assigned.** Dmitry (kernel interfaces) + Yavor (scaffolding & docs). *Review: Benedikt + George.*
+- **Assigned.** Dmitry (kernel interfaces) + Yavor (scaffolding & docs).
 - **Reuse.** Current `main-temp` `Crypto.lean`/`Zkvm.lean` (refactor, don't rewrite). No branch code.
 - **Frozen kernel (I4).** `Relation`, `ArgumentSystem`, `Extractor`, `KnowledgeSound`; abstract
-  `ZkVM`, `TraceValid`, `Rstar`, `CTE`, `cte_iff_knowledgeSound`.
+  `ZkVM`, `TraceValid`, `Rstar`, `CTE`, `cte_iff_knowledgeSound`; plus the Lean-only consistency
+  signatures `StepInterface`, `StepInterface.MemoryBridge`, and `StepInterface.BusBridge`.
   **Provisional (NOT frozen — expected to change):** `VectorCommitment`'s binding predicates —
   `PuncturedBinding` is known to be **insufficient** and will be **replaced by `UpdateBinding`**
   (Issue 1); a `Complete` invariant may move into `Crypto`; and `CollisionResistant` may gain a
   keyed/algorithmic variant (Jessica's `cr-algorithmic`). These live in `Crypto.lean` but are
   marked provisional in their docstrings and are free to change without a constitutional amendment.
-- **New public surface.** None new — this issue *reduces* surface. Output is the frozen kernel list
-  in `CORRESPONDENCE.md#core` plus the provisional-vs-frozen split.
+- **New public surface (3 source declarations).** `StepInterface` (whose three structure fields are
+  its committed-step API), `StepInterface.MemoryBridge`, and `StepInterface.BusBridge`. These are
+  the minimum coordination surface needed by Issues 1, 3, and 5; `ZkVM.step` is reused as the
+  canonical plain predicate rather than duplicated. All other changes reorganize existing
+  declarations or add private validation examples.
 - **Deliverables.** (a) `Crypto.lean` = definitions only, kernel vs provisional clearly separated;
   proofs/instances moved out. (b) `docs/` scaffolding ratified: `INVARIANTS.md`, `CORRESPONDENCE.md`,
   `CONVENTIONS.md`, `docs/sessions/TEMPLATE.md`, `docs/LESSONS_LEARNED.md`,
   `SKILLS/adversarial-review.md` ported from finality. (c) CI: `lake build` + `#print axioms` +
-  a `CORRESPONDENCE` row-elaboration check.
+  a `CORRESPONDENCE` row-elaboration check and repo-wide I7 hygiene check. (d) Freeze the step
+  contract in `Step.lean` / `docs/STEP_INTERFACES.md`: `ZkVM.step` is the plain predicate,
+  `stepCommitted` is the memory-layer predicate, and `stepWithBus` feeds it through the bus bridge;
+  concrete bodies belong to Issues 1, 3, and 5.
 - **Math companion.** Establish `VanillaZkVM/math-companion.md` with the kernel definitions written
   out on paper; every later issue appends to it.
-- **Review requirement (human — Benedikt + George).** Read the *entire* frozen kernel and jointly
-  ratify that these are the right abstractions — the single most important review in the project
-  (I3). Confirm `KnowledgeSound` and `CTE` are stated the way a cryptographer would want, and that
-  `cte_iff_knowledgeSound` is non-vacuous. Sign the kernel rows in `CORRESPONDENCE.md`.
+- **Review requirement.** Ordinary collaborator PR review; there is no additional joint
+  Benedikt/George ratification gate for Issue 0. Dmitry signed the paper-facing core rows on
+  2026-07-29. Independent re-derivation and rolling audits remain Issue 9.
 - **Skills & conventions.** `/simplify` on the refactor; `/security-review` on the definitions.
-  `CONVENTIONS.md` §1–2. No behavioural change — `lake build` identical before/after.
-- **Paper anchor.** ch03 (`R*`), ch05 (`def:extractable`, `def:cte`, `rem:cte-ks`).
+  `CONVENTIONS.md` §1–2. No existing declaration changes behavior; validation and interface
+  scaffolding may be additive.
+- **Paper anchor.** The revision pinned in `docs/PAPER_REVISION.md`: ch03 (`R*`), ch05
+  (`def:extractable`, `def:cte`, `rem:cte-ks`).
+- **Scope amendment (approved 2026-07-29, Dmitry).** Add exactly three public step-interface
+  declarations, close the discovered I7 enumeration/string-literal gaps, record the corrected
+  fixed-`T` CTE semantics (with the available paper commit pinned for PR confirmation), and drop the
+  previously stated Benedikt/George joint-review requirement.
 
 ## Issue 1 — Committed memory → `TwoStepWithMemory` (CTE from memory-commitment properties)
 - **Goal.** Make the two-step VM operate on *committed* memory and prove it CTE **assuming**
@@ -105,10 +117,12 @@ in lockstep. This is a hard deliverable, not optional.
   reference (identical Lean to pr5; skim `AXIOM_AUDIT.md`). **DROP `memory-recon`** (destructive,
   least complete). Re-apply hunks onto post-#4 `main-temp` (§4).
 - **New public surface (max ~5).** `UpdateBinding` (+ break witness), `FullVMState`/`CommitInv`,
-  `stepC`/`stepF` predicate pair, `step_mem_extract`, `trace_mem_extract`. `TwoStepWithMemory` is an
-  *instance* of the abstract `ZkVM` (I5). Deprecate/remove `PuncturedBinding` in the same PR.
+  the concrete committed predicate underlying `StepInterface.stepCommitted`,
+  `step_mem_extract`, and `trace_mem_extract`. `TwoStepWithMemory` is an *instance* of the abstract
+  `ZkVM` (I5). Deprecate/remove `PuncturedBinding` in the same PR.
 - **Deliverables.** Reconciled `Memory.lean` core, the `TwoStepWithMemory` instance, `cte_full`
-  (CTE over *full* memory), `MemorySanity`-style non-vacuity instances.
+  (CTE over *full* memory), `MemorySanity`-style non-vacuity instances, and a concrete proof of
+  `StepInterface.MemoryBridge`.
 - **Math companion.** Write the memory-extractability proposition and the read/write commitment
   equations into `math-companion.md` (Dmitry already drafted much of this on `memory-integration`).
 - **Review requirement (human — George).** Confirm `UpdateBinding` matches `def:binding` and is
@@ -156,7 +170,8 @@ in lockstep. This is a hard deliverable, not optional.
 - **New public surface (max ~4).** An `ISA` descriptor (the 5-class op set + per-op predicate split
   `φ_op`/`φ'_op`), the memory-free/memory-equation decomposition, and the disjunctive `stepPred`.
 - **Deliverables.** `ISA.lean`: the 5 op classes, `φ'_op`/`φ_op` split, `φ_read`/`φ_write` with their
-  memory equations, and `φ_step` as the disjunction; a lemma that non-memory ops don't mutate memory.
+  memory equations, and `φ_step` as the disjunction; a lemma that non-memory ops don't mutate
+  memory. The resulting `ISA.stepPlain` is used as the concrete `ZkVM.step`, not a parallel relation.
 - **Math companion.** Write the 5-class step predicate and the read/write memory equations.
 - **Review requirement (human — George).** Confirm the 5-class set is a faithful *representative*
   simplification of ch03 (fetch conjunct `code[pc]=op` present; `φ_step` neither stronger nor weaker
@@ -205,8 +220,8 @@ in lockstep. This is a hard deliverable, not optional.
   future cost combinators. Reuse `concatTrace`/`chain_flatten` from the kernel (do not duplicate).
 - **New public surface (max ~3).** A bus-backed segment relation + a `Bus`-backed VM as an *instance*
   of the abstract `ZkVM`, plus the lifting lemma (segment extraction ∘ concatenation).
-- **Deliverables.** The proper segment/bus layer, a `Bus`-backed VM instance, and the per-execution
-  lifting theorem threading per-segment `StepAux`.
+- **Deliverables.** The proper segment/bus layer, a proof of `StepInterface.BusBridge`, a
+  `Bus`-backed VM instance, and the per-execution lifting theorem threading per-segment `StepAux`.
 - **Math companion.** Write the bus, `φ̂_step` bus-deferral, and the per-execution lift.
 - **Review requirement (human — Benedikt).** Confirm the redone layer faithfully realizes
   `lem:segment` (bus unification / extract-or-collision), that per-segment buses are **not** claimed

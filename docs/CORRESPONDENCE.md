@@ -17,6 +17,15 @@ date.
 **Rule (I1, CI-checked):** every declaration formalizing a paper notion has a docstring citing the
 paper label AND a row here; the named Lean declaration must actually elaborate (`#check`).
 
+**Normative paper revision:** `a0f5e0b63395a2fddce3f949c4de1df9264a174b` on the whitepaper's
+`proof` branch; see [`PAPER_REVISION.md`](PAPER_REVISION.md). In particular, `code` and `T` are
+fixed system parameters in `def:cte`.
+
+This matrix remains **paper-item keyed**. Frozen Lean infrastructure that is not itself the
+selected formalization of a complete paper item (`Relation`, `Extractor`, the abstract `ZkVM`
+packaging, `TraceValid`, and the `StepInterface` coordination scaffold) belongs to I4 but does not
+receive an artificial row here.
+
 ## Core
 
 **Frozen kernel (I4)** — the stable heart. **Provisional** — the commitment layer, expected to
@@ -24,20 +33,33 @@ change (see notes below the table).
 
 | Paper label | Lean declaration | Tier | Status | Fidelity | Complete | Reviewer |
 |---|---|---|---|---|---|---|
-| Argument system Π=(Prove,Verify) | `VanillaZkVM.ArgumentSystem` | frozen | proved | — | — | _unreviewed_ |
-| Knowledge soundness (`def:extractable`) | `VanillaZkVM.KnowledgeSound` | frozen | proved | — | — | _unreviewed_ |
-| — (consistency floor for KS) | `VanillaZkVM.knowledgeSound_trivialAS` | frozen | proved (n/a) | — | — | _unreviewed_ |
-| VM state S=(pc,regs,mem) (ch01) | `VanillaZkVM.VMStateWith` / `VMState` | frozen | proved | — | — | _unreviewed_ |
-| Committed state Ŝ (ch02) | `VanillaZkVM.CommittedVMState` | frozen | proved | — | — | _unreviewed_ |
-| Correct-execution relation R* (ch03) | `VanillaZkVM.ZkVM.Rstar` | frozen | proved | — | — | _unreviewed_ |
-| Correct-trace extractability (`def:cte`) | `VanillaZkVM.ZkVM.CTE` | frozen | proved | — | — | _unreviewed_ |
-| CTE ⇔ KS (`rem:cte-ks`) | `VanillaZkVM.ZkVM.cte_iff_knowledgeSound` | frozen | proved | — | — | _unreviewed_ |
-| Merkle memory commitment `Com_mem` (ch02) | `VanillaZkVM.VectorCommitment` | provisional | proved | — | — | _unreviewed_ |
-| Position binding (`def:binding`) | `VanillaZkVM.PositionBinding` | provisional | proved | — | — | _unreviewed_ |
+| Argument system Π=(Prove,Verify) | `VanillaZkVM.ArgumentSystem` | frozen | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Knowledge soundness (`def:extractable`) | `VanillaZkVM.KnowledgeSound` | frozen | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| — (consistency floor for KS) | `VanillaZkVM.knowledgeSound_trivialAS` | scaffolding | proved (n/a) | n/a | n/a | Dmitry 2026-07-29 |
+| VM state S=(pc,regs,mem) (ch01) | `VanillaZkVM.VMStateWith` / `VMState` | support | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Committed state Ŝ (ch02) | `VanillaZkVM.CommittedVMState` | support | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Correct-execution relation R* (`eq:relation-star`) | `VanillaZkVM.ZkVM.Rstar` | frozen | proved | ✓ | ✗ (see ‡) | Dmitry 2026-07-29 |
+| Correct-trace extractability (`def:cte`) | `VanillaZkVM.ZkVM.CTE` | frozen | proved | ✓ | ✗ (see †) | Dmitry 2026-07-29 |
+| CTE ⇔ KS (`rem:cte-ks`) | `VanillaZkVM.ZkVM.cte_iff_knowledgeSound` | frozen | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Merkle memory commitment `Com_mem` (ch02) | `VanillaZkVM.VectorCommitment` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Position binding (`def:binding`) | `VanillaZkVM.PositionBinding` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 | ~~Punctured binding~~ **INSUFFICIENT — retire** | `VanillaZkVM.PuncturedBinding` | deprecated | to be removed | — | — | Issue 1 |
 | Update binding (`def:binding`) — replaces punctured | _planned — Issue 1_ (`UpdateBinding`) | provisional | planned | — | — | — |
-| Bus commitment `Com_bus` | `VanillaZkVM.HashCommitment` | frozen | proved | — | — | _unreviewed_ |
-| Collision resistance (`Adv^cr`) | `VanillaZkVM.CollisionResistant` | provisional | proved | — | — | _unreviewed_ |
+| Bus commitment `Com_bus` (`def:bus-cr`) | `VanillaZkVM.HashCommitment` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Collision resistance (`Adv^cr`) | `VanillaZkVM.CollisionResistant` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+
+> **‡ `Rstar` is an abstract relation skeleton, not yet the whole concrete `R*`.** Its witness is a
+> trace satisfying the selected `ZkVM.step` and boundary projections, but the current abstract
+> declaration neither requires statements to contain full-memory boundary states nor constrains
+> the verifier to commit those states as specified immediately after `eq:relation-star`. Issue 7
+> supplies that concrete boundary/verifier package in the full Vanilla VM instance. Fidelity to the
+> trace-validity component is signed; completeness is not.
+
+> **† `CTE` completeness is deliberately left unsigned.** `ZkVM.CTE` is *faithful* to
+> `def:cte` (fidelity ✓), but it is not signed off as covering the paper definition in full: the
+> paper's `def:cte` is **too verbose** and should probably itself be **refactored**. Until that
+> refactor happens, claiming completeness against the current paper text would be signing off on a
+> statement we expect to restate. Re-open this row once `def:cte` is tightened.
 
 > **Note (I4).** `PuncturedBinding` is known to be insufficient and is replaced by `UpdateBinding`
 > in Issue 1. The whole `VectorCommitment` binding layer and `CollisionResistant` are *provisional*
