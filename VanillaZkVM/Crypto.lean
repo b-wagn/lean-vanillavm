@@ -148,7 +148,8 @@ Paper: `def:binding`.
 
 **Provisional** (I4): supersedes the earlier, insufficient punctured-binding
 notion. The `MemorySanity.appendBitVC` model satisfies position binding yet fails
-this, witnessing that update binding is strictly stronger. -/
+this, witnessing that position binding does **not** imply update binding — it is a
+genuinely additional requirement, not derivable from position binding. -/
 def UpdateBinding (VC : VectorCommitment) : Prop :=
   ∀ (m m' : VC.Index → VC.Value) (addr : VC.Index) (x : VC.Value)
     (C' : VC.Com) (π : VC.OpenProof),

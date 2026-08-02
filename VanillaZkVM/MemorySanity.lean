@@ -1,5 +1,11 @@
 import VanillaZkVM.Crypto
 
+/- DK: This file contains exact models that satisfy our memory requirements. Without those
+it could have happened that the requirements were inconsistent and thus jointly be false,
+from which everything can be implied. We also prove that position binding does not imply
+update binding, i.e. the latter is not redundant.-/
+
+
 /-!
 # Memory-binding sanity models
 
@@ -11,9 +17,9 @@ layer (`docs/INVARIANTS.md` I6), kept out of the definitions-only `Crypto.lean`:
   `Memory` extractability hypotheses are jointly satisfiable.
 * `appendBitVC` appends a verifier-ignored bit to the commitment. It preserves
   completeness and position binding but **fails** update binding, witnessing that
-  update binding is *strictly stronger* than position binding (the formal version
-  of the counterexample motivating the retirement of the old punctured-binding
-  notion).
+  position binding does *not* imply update binding — update binding is a genuinely
+  additional requirement (the formal version of the counterexample motivating the
+  retirement of the old, equally insufficient punctured-binding notion).
 
 The break scaffolding (`UpdateBindingBreak`, `IsUpdateBindingBreak`,
 `UpdateBinding.not_isUpdateBindingBreak`) also lives here: it is a certified
@@ -121,15 +127,15 @@ theorem appendBitVC_positionBinding : PositionBinding appendBitVC := by
 /-! ## The separation: `appendBitVC` fails update binding -/
 
 /-- The all-zero memory used by the sanity checks. -/
-def zeroMemory : Bool → Bool := fun _ => false
+private def zeroMemory : Bool → Bool := fun _ => false
 
 /-- The result of genuinely changing address `false` in `zeroMemory`. -/
-def singleWriteMemory : Bool → Bool :=
+private def singleWriteMemory : Bool → Bool :=
   fun index => if index = false then true else false
 
 /-- The positive model accepts a genuine changed write with one shared
 authentication proof, and the pre/post commitments are distinct. -/
-theorem exactVC_accepts_changed_write :
+private theorem exactVC_accepts_changed_write :
     exactVC.commit zeroMemory ≠ exactVC.commit singleWriteMemory ∧
     exactVC.verify (exactVC.commit zeroMemory) false false
       (exactVC.openProof zeroMemory false) ∧
@@ -148,8 +154,11 @@ theorem exactVC_accepts_changed_write :
       fun j hj => by simp [singleWriteMemory, zeroMemory, hj]⟩
 
 /-- A valid update-binding failure: `(zeroMemory, true)` accepts the same opening
-as the honest root but is not any output of `appendBitVC.commit`. -/
-def appendBitBreak : UpdateBindingBreak appendBitVC where
+as the honest root but is not any output of `appendBitVC.commit`.
+
+File-private: the exported claim is `appendBitVC_not_updateBinding`; this record
+and `appendBitBreak_wins` are the data witnessing it. -/
+private def appendBitBreak : UpdateBindingBreak appendBitVC where
   preMemory := zeroMemory
   postMemory := zeroMemory
   index := false
@@ -157,7 +166,7 @@ def appendBitBreak : UpdateBindingBreak appendBitVC where
   postCommitment := (zeroMemory, true)
   proof := zeroMemory
 
-theorem appendBitBreak_wins :
+private theorem appendBitBreak_wins :
     IsUpdateBindingBreak appendBitVC appendBitBreak := by
   refine ⟨rfl, ?_, ⟨rfl, fun _ _ => rfl⟩,
     ⟨rfl, fun _ _ => rfl⟩, ?_⟩
@@ -167,10 +176,12 @@ theorem appendBitBreak_wins :
     have hbit : true = false := congrArg Prod.snd heq
     exact Bool.noConfusion hbit
 
-/-- **Update binding is strictly stronger than position binding.** `appendBitVC`
-satisfies completeness and position binding (above) yet is not update-binding —
-the certified break `appendBitBreak` wins. This is the non-vacuity witness that
-retiring punctured binding for `UpdateBinding` is a genuine strengthening. -/
+/-- **Position binding does not imply update binding.** `appendBitVC` satisfies
+completeness and position binding (above) yet is not update-binding — the
+certified break `appendBitBreak` wins. So update binding is a genuinely additional
+requirement, not derivable from position binding; this is the non-vacuity witness
+that retiring punctured binding for `UpdateBinding` demands a real property, not a
+notational rename. -/
 theorem appendBitVC_not_updateBinding :
     ¬UpdateBinding appendBitVC := by
   intro hupd
