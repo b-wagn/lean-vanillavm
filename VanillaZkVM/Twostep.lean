@@ -11,8 +11,8 @@ and committed-memory states — while dropping the bus, the four inner circuits,
 the chips, and the binary `convert`/`combine`/`embed` tower.
 
 * Segment layer `RSeg`: a chain of `Nseg` committed steps `Sin → Sout` under the
-  classified committed step predicate `stepC` (from `Memory`). Each step carries
-  its explicit `MemStep` descriptor, including the opening used by a read/write.
+  multi-option committed step predicate `stepC` (from `Memory`). Each step carries
+  its explicit `MemStep` witness, including the opening used by a read/write.
   Operations are not deferred to a bus.
 * Final layer `RFinal`: a single SNARK merging `m` segment proofs whose boundary
   states chain `S0 → ST`.
@@ -23,8 +23,8 @@ plus a two-layer extraction. The committed trace is produced with `concatTrace`;
 its validity rests on `chain_flatten` (both from `Trace`).
 
 The base `cte` target is a committed-memory trace whose binary step is the
-existential projection `stepRel` of the classified `stepC`, with the per-step
-`MemStep` descriptors retained in the segment witnesses. `cte_full` then folds
+existential projection `stepRel` of the multi-option `stepC`, with the per-step
+`MemStep` witnesses retained in the segment witnesses. `cte_full` then folds
 `Memory.trace_mem_extract` over that trace to obtain the *full-memory* statement:
 a full-memory trace satisfying the commitment invariant at every state and a
 genuine `stepF` at every step. Traces are `ℕ`-indexed with `< bound` conditions
@@ -42,8 +42,8 @@ structure SegStmt (VC : VectorCommitment) where
   Sout : CommittedVMState VC
 
 /-- Segment witness: the intermediate committed states and one explicit
-`MemStep` descriptor per transition, both `ℕ`-indexed (only the first `Nseg + 1`
-states and `Nseg` steps matter). Read/write descriptors carry the openings that
+`MemStep` witness per transition, both `ℕ`-indexed (only the first `Nseg + 1`
+states and `Nseg` steps matter). Read/write step witnesses carry the openings that
 memory extraction must expose. -/
 structure SegWitness (VC : VectorCommitment) where
   states : ℕ → CommittedVMState VC
@@ -78,8 +78,8 @@ structure System where
   VC : VectorCommitment
   Nseg : ℕ
   m : ℕ
-  /-- Memory-free register/program-counter part of each classified step; the full
-  committed step is `stepC memFreePred` (from `Memory`). -/
+  /-- Memory-free register/program-counter part shared by every step option; the
+  full committed step is `stepC memFreePred` (from `Memory`). -/
   memFreePred : MemFreePredicate
   SegProof : Type
   segVerify : SegStmt VC → SegProof → Prop
@@ -91,7 +91,7 @@ namespace System
 variable (sys : System)
 
 /-- The binary committed-step relation the abstract ZkVM sees: a step holds iff
-some `MemStep` descriptor certifies it under `stepC sys.memFreePred`. The descriptors
+some `MemStep` witness certifies it under `stepC sys.memFreePred`. The witnesses
 themselves are retained in `SegWitness.steps`, where memory extractability
 (`Memory.step_mem_extract`) consumes them; the flattened abstract trace only
 needs this binary relation. -/
@@ -99,7 +99,7 @@ def stepRel (Ŝ₁ Ŝ₂ : CommittedVMState sys.VC) : Prop :=
   ∃ w : MemStep sys.VC, stepC sys.memFreePred Ŝ₁ Ŝ₂ w
 
 /-- Segment relation `RSeg`: a chain of `Nseg` committed steps from `Sin` to
-`Sout`, each certified by its explicit `MemStep` descriptor. -/
+`Sout`, each certified by its explicit `MemStep` witness. -/
 def RSeg : Relation where
   Stmt := SegStmt sys.VC
   Wit := SegWitness sys.VC
@@ -173,7 +173,7 @@ structure Assumptions (sys : System) : Prop where
 /-- **The fold, in ZkVM terms** — a valid *committed* trace of `toZkVM` yields a
 valid *full-memory* trace of `toZkVMFull`. This is the `Memory ↔ Twostep` bridge
 stated purely with `TraceValid`/`step`: the reconstructed trace
-`reconstructTrace Ŝ (chooseDescr …) x.S0` is `toZkVMFull`-valid whenever `Ŝ` is
+`reconstructTrace Ŝ (chooseStepWitness …) x.S0` is `toZkVMFull`-valid whenever `Ŝ` is
 `toZkVM`-valid for the committed boundaries of `x`.
 
 The commitment invariant along the trace is established internally by the generic
@@ -186,23 +186,24 @@ theorem traceValid_full
     (x : FinalStmtFull sys.VC) (Ŝ : ℕ → CommittedVMState sys.VC)
     (hval : sys.toZkVM.TraceValid ⟨toCommitted x.S0, toCommitted x.ST⟩ Ŝ) :
     sys.toZkVMFull.TraceValid x
-      (reconstructTrace Ŝ (chooseDescr sys.memFreePred Ŝ) x.S0) := by
+      (reconstructTrace Ŝ (chooseStepWitness sys.memFreePred Ŝ) x.S0) := by
   obtain ⟨hstart, hend, hsteprel⟩ := hval
   have hstartc : Ŝ 0 = toCommitted x.S0 := hstart
   have hendc : Ŝ (sys.m * sys.Nseg) = toCommitted x.ST := hend
   -- the invariant seed holds definitionally (committed initial = commit of full initial)
   have hseed : CommitInv (Ŝ 0) x.S0 := by rw [hstartc]; exact ⟨rfl, rfl, rfl⟩
-  -- pick descriptors and run the generic fold
+  -- pick step witnesses and run the generic fold
   have hstepC : ∀ k, k < sys.m * sys.Nseg →
-      stepC sys.memFreePred (Ŝ k) (Ŝ (k + 1)) (chooseDescr sys.memFreePred Ŝ k) :=
-    fun k hk => chooseDescr_spec sys.memFreePred Ŝ k (hsteprel k hk)
+      stepC sys.memFreePred (Ŝ k) (Ŝ (k + 1)) (chooseStepWitness sys.memFreePred Ŝ k) :=
+    fun k hk => chooseStepWitness_spec sys.memFreePred Ŝ k (hsteprel k hk)
   obtain ⟨hinv, hstepF⟩ :=
     trace_mem_extract hComplete hpos hupd sys.memFreePred (sys.m * sys.Nseg) Ŝ
-      (chooseDescr sys.memFreePred Ŝ) x.S0 hseed hstepC
+      (chooseStepWitness sys.memFreePred Ŝ) x.S0 hseed hstepC
   refine ⟨rfl, ?_, ?_⟩
   · -- terminal state equals `x.ST`
-    show reconstructTrace Ŝ (chooseDescr sys.memFreePred Ŝ) x.S0 (sys.m * sys.Nseg) = x.ST
-    set ST' := reconstructTrace Ŝ (chooseDescr sys.memFreePred Ŝ) x.S0 (sys.m * sys.Nseg) with hST'
+    show reconstructTrace Ŝ (chooseStepWitness sys.memFreePred Ŝ) x.S0 (sys.m * sys.Nseg) = x.ST
+    set ST' := reconstructTrace Ŝ (chooseStepWitness sys.memFreePred Ŝ) x.S0 (sys.m * sys.Nseg)
+      with hST'
     have hci : CommitInv (Ŝ (sys.m * sys.Nseg)) ST' := hinv (sys.m * sys.Nseg) (le_refl _)
     rw [hendc] at hci
     simp only [toCommitted] at hci
@@ -244,7 +245,7 @@ theorem cte (hNseg : 0 < sys.Nseg) (h : sys.Assumptions) :
     fun i hi => (hEs _ _ (hbver i hi)).1
   have hlast : ∀ i, i < sys.m → seg i sys.Nseg = d (i + 1) :=
     fun i hi => (hEs _ _ (hbver i hi)).2.1
-  -- Each committed step is certified by its extracted `MemStep` descriptor; the
+  -- Each committed step is certified by its extracted `MemStep` witness; the
   -- abstract trace only needs the existential projection `stepRel`.
   have hstep : ∀ i, i < sys.m → ∀ j, j < sys.Nseg →
       sys.stepRel (seg i j) (seg i (j + 1)) :=
@@ -269,9 +270,10 @@ correct-trace extractable *over full-memory states* — the extractor turns ever
 accepting final proof into a valid full-memory trace (right boundaries, and a
 genuine `∃ w, stepF …` at every step).
 
-Proof: from `cte` get the committed extractor `E`; the full extractor commits
-`x`'s boundaries, runs `E`, and reconstructs the full trace. Correctness is then
-exactly `traceValid_full` applied to `E`'s committed `TraceValid`. -/
+Proof: `cte` supplies `E`, a trace extractor for `toZkVM`, so it returns committed
+traces. The trace extractor for `toZkVMFull` commits `x`'s boundaries, runs `E` on
+them, and reconstructs a full-memory trace from the committed one. Correctness is
+then exactly `traceValid_full` applied to `E`'s committed `TraceValid`. -/
 theorem cte_full (hNseg : 0 < sys.Nseg) (h : sys.Assumptions)
     (hComplete : Complete sys.VC) (hpos : PositionBinding sys.VC)
     (hupd : UpdateBinding sys.VC) :
@@ -279,7 +281,7 @@ theorem cte_full (hNseg : 0 < sys.Nseg) (h : sys.Assumptions)
   obtain ⟨E, hE⟩ := sys.cte hNseg h
   exact ⟨fun x p =>
       reconstructTrace (E ⟨toCommitted x.S0, toCommitted x.ST⟩ p)
-        (chooseDescr sys.memFreePred (E ⟨toCommitted x.S0, toCommitted x.ST⟩ p)) x.S0,
+        (chooseStepWitness sys.memFreePred (E ⟨toCommitted x.S0, toCommitted x.ST⟩ p)) x.S0,
     fun x p hp =>
       sys.traceValid_full hComplete hpos hupd x _
         (hE ⟨toCommitted x.S0, toCommitted x.ST⟩ p hp)⟩
@@ -306,7 +308,9 @@ assumptions, `sys.stepInterface` satisfies `StepInterface.MemoryBridge`: from a
 represented pre-state and a committed step, reconstruct a represented post-state
 that satisfies the canonical full-memory step. This is `Memory.step_mem_extract`
 (the step becomes a real `stepF`) composed with `Memory.commitInv_step` (the
-representation invariant is preserved), packaged into the Issue-0 contract. -/
+representation invariant is preserved), packaged into the Issue-0 contract.
+
+Paper: `rem:mem-inheritance` (feeding `prop:memory-extractability`). -/
 theorem memoryBridge
     (hComplete : Complete sys.VC) (hpos : PositionBinding sys.VC)
     (hupd : UpdateBinding sys.VC) :

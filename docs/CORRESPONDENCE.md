@@ -64,8 +64,9 @@ change (see notes below the table).
 > **Note (I4).** `UpdateBinding` (Issue 1) supersedes the retired punctured-binding notion, which
 > could not pin a reconstructed post-write root into the image of `commit`. The whole
 > `VectorCommitment` binding layer and `CollisionResistant` are *provisional* (may gain a
-> keyed/algorithmic variant); do not depend on their exact current shape. Update binding is strictly
-> stronger than position binding — witnessed by `MemorySanity.appendBitVC_not_updateBinding`.
+> keyed/algorithmic variant); do not depend on their exact current shape. Position binding does not
+> imply update binding — witnessed by `MemorySanity.appendBitVC_not_updateBinding` — so update
+> binding is a genuinely additional requirement, not derivable from position binding.
 
 ## Leaf / segment / bus (ch04) — ⚠ PROTOTYPE, NOT GROUND TRUTH
 
@@ -83,15 +84,20 @@ change (see notes below the table).
 
 ## Memory extractability (Issue 1)
 
+> **Scope note (faithful but partial).** These rows formalize the **perfect / probability-free,
+> memory-only slice** of `prop:memory-extractability` (no advantages, no bus). Fidelity/Complete are
+> left for George's Issue-1 audit; completeness against the full paper proposition is *not* claimed
+> here (the probability and bus layers are Issues 6/5).
+
 | Paper label | Lean declaration | Status | Fidelity | Complete | Reviewer |
 |---|---|---|---|---|---|
 | committed↔full commitment invariant | `VanillaZkVM.CommitInv` | proved | — | — | _unreviewed_ |
 | `commit` injective on memories | `VanillaZkVM.mem_eq_of_commit_eq` | proved | — | — | _unreviewed_ |
-| classified committed/full step (`φ̂_step`/`φ_step`, ch03) | `VanillaZkVM.stepC` / `stepF` | proved | — | — | _unreviewed_ |
+| multi-option committed/full step (`φ̂_step`/`φ_step`, ch03) | `VanillaZkVM.stepC` / `stepF` | proved | — | — | _unreviewed_ |
 | memory extractability, one step (`prop:memory-extractability`) | `VanillaZkVM.step_mem_extract` | proved | — | — | _unreviewed_ |
 | memory extractability, whole trace | `VanillaZkVM.trace_mem_extract` | proved | — | — | _unreviewed_ |
 | step-interface memory bridge (`rem:mem-inheritance`) | `VanillaZkVM.TwoStep.System.memoryBridge` | proved | — | — | _unreviewed_ |
-| update binding strictly stronger (separation witness, I6) | `VanillaZkVM.MemorySanity.appendBitVC_not_updateBinding` | proved | — | — | _unreviewed_ |
+| position binding ⇏ update binding (separation witness, I6) | `VanillaZkVM.MemorySanity.appendBitVC_not_updateBinding` | proved | — | — | _unreviewed_ |
 
 ## Two-step toy (intermediate)
 

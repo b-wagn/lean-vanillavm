@@ -177,8 +177,9 @@ point-updated at `addr` to `x`:
 
 Unlike position binding (which only bounds what a root *opens to*), this pins a
 *reconstructed* post-write root into the image of `commit` — the property full-memory
-reconstruction needs. It is strictly stronger than position binding: `appendBitVC`
-(`MemorySanity`) satisfies position binding but not this.
+reconstruction needs. Position binding does **not** imply it: `appendBitVC`
+(`MemorySanity`) satisfies position binding but not this, so update binding is a
+genuinely additional requirement (not derivable from position binding).
 *Lean:* `UpdateBinding`; separation witness `MemorySanity.appendBitVC_not_updateBinding`.
 
 **Hash commitment / collision resistance** (`Com_bus`, `Adv^cr`, ch02). `H = (Domain,
@@ -219,22 +220,22 @@ concrete deliverables the `StepInterface.MemoryBridge` proposition anticipated.
 memories: `commit m₁ = commit m₂ ⟹ m₁ = m₂`.
 *Lean:* `mem_eq_of_commit_eq`.
 
-### 1.2 The classified step predicates
+### 1.2 The multi-option step predicates
 
-A step carries an explicit descriptor `w ∈ MemStep = read(addr,v,π) | write(addr,v,vOld,π)
+A step carries an explicit witness `w ∈ MemStep = read(addr,v,π) | write(addr,v,vOld,π)
 | other`, exposing the openings memory extraction consumes. `φ̂_step`/`φ_step` are the
 committed/full step predicates, each a case split on `w`; the register/pc part is an
-opaque `memFreePred` shared by both.
+opaque `memFreePred` shared by every option.
 
 **Committed read** `φ̂_read`: register part holds, `Ŝ₁.mem = Ŝ₂.mem`, and `π` opens
 `Ŝ₁.mem` at `addr` to `v`. **Committed write** `φ̂_write`: register part holds, `π`
 opens the pre-root at `addr` to `vOld` and the post-root at `addr` to `v`.
-*Lean:* `readC`, `writeC`, `stepC`.
+*Lean:* `stepC` (assembled from the file-private `readC`, `writeC`).
 
 **Full read** `φ_read`: register part holds, `S₁.mem addr = v`, `S₂.mem = S₁.mem`.
 **Full write** `φ_write`: register part holds, `S₂.mem addr = v`, and `S₂.mem = S₁.mem`
 off `addr`.
-*Lean:* `readF`, `writeF`, `stepF`.
+*Lean:* `stepF` (assembled from the file-private `readF`, `writeF`).
 
 ### 1.3 Memory extractability (`prop:memory-extractability`)
 
@@ -247,12 +248,13 @@ post-root, injectivity identifies the post-memory.)
 **Invariant across a write.** From `CommitInv` on the pre-state and a committed write,
 the reconstructed post-state (memory point-updated at `addr`) satisfies `CommitInv` —
 update binding is essential here.
-*Lean:* `commit_update`, `commitInv_write`.
+*Lean:* `commitInv_step` (over the file-private `commit_update`, `commitInv_write`).
 
-**Whole trace.** Reconstruct a full trace from `S₀` and per-step descriptors; the
-invariant holds at every state and every committed step becomes a full step. Descriptors
-for an existential `∃w. φ̂_step` step are chosen classically.
-*Lean:* `trace_mem_extract` (with `stepReconstruct`, `reconstructTrace`, `chooseDescr`).
+**Whole trace.** Reconstruct a full trace from `S₀` and per-step witnesses; the
+invariant holds at every state and every committed step becomes a full step. Step
+witnesses for an existential `∃w. φ̂_step` step are chosen classically.
+*Lean:* `trace_mem_extract` (with `stepReconstruct`, `reconstructTrace`,
+`chooseStepWitness`).
 
 ### 1.4 Two-step VM over full memory
 
@@ -266,8 +268,9 @@ committed final SNARK.
 *Lean:* `TwoStep.System.cte`.
 
 **Full-memory CTE** (the Issue-1 headline). Additionally assuming completeness, position
-binding, and update binding of `Com_mem`, `toZkVMFull` is CTE: the extractor commits the
-boundaries, runs the committed extractor, and folds `trace_mem_extract`. The terminal
+binding, and update binding of `Com_mem`, `toZkVMFull` is CTE: its trace extractor commits
+the boundaries, runs `toZkVM`'s trace extractor on them, and folds `trace_mem_extract`
+over the resulting committed trace. The terminal
 state matches because the invariant at the last state plus injectivity pin its memory.
 *Lean:* `TwoStep.System.cte_full` (bridge lemma `traceValid_full`).
 
