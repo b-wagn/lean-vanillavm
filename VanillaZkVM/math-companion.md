@@ -147,13 +147,18 @@ the Vanilla ISA or its cryptography.
 ## Provisional (not frozen — commitment layer)
 
 Stated here for completeness but **expected to change** (I4); see the note in
-`docs/CORRESPONDENCE.md`. `PuncturedBinding` is known insufficient and is replaced by
-`UpdateBinding` in Issue 1.
+`docs/CORRESPONDENCE.md`. `UpdateBinding` supersedes the earlier punctured-binding
+notion, which was insufficient (Issue 1).
 
 **Vector commitment** (ch02, `Com_mem`). `VC = (Value, Index, Com, OpenProof, commit,
 openProof, verify)`; a vector is a total map `Index → Value`; `verify C i v π` checks
 position `i` of the committed vector holds `v`.
 *Lean:* `VectorCommitment`.
+
+**Completeness** (ch02). An honest opening always verifies:
+`verify (commit m) i (m i) (openProof m i)`. Provides the honest opening that the
+binding notions compare an adversarial opening against.
+*Lean:* `Complete`.
 
 **Position binding** (`def:binding`, ch02). No commitment admits two accepted openings
 of different values at the same position:
@@ -162,10 +167,19 @@ of different values at the same position:
 
 *Lean:* `PositionBinding`.
 
-**Punctured binding** (provisional, *insufficient* — retired in Issue 1). If one
-opening at `addr` is accepted under both `C` and `C'`, they agree at every other
-position.
-*Lean:* `PuncturedBinding`.
+**Update binding** (`def:binding`, ch02; Issue 1, replaces punctured binding). One
+opening `π` that opens an honest root `commit m` at `addr` (necessarily to `m addr`)
+and also opens some `C'` at `addr` to `x` forces `C'` to be the honest commitment of `m`
+point-updated at `addr` to `x`:
+
+    verify (commit m) addr (m addr) π  ∧  verify C' addr x π
+      ∧  m' addr = x  ∧  (∀ j ≠ addr. m' j = m j)   ⟹   C' = commit m'.
+
+Unlike position binding (which only bounds what a root *opens to*), this pins a
+*reconstructed* post-write root into the image of `commit` — the property full-memory
+reconstruction needs. It is strictly stronger than position binding: `appendBitVC`
+(`MemorySanity`) satisfies position binding but not this.
+*Lean:* `UpdateBinding`; separation witness `MemorySanity.appendBitVC_not_updateBinding`.
 
 **Hash commitment / collision resistance** (`Com_bus`, `Adv^cr`, ch02). `H = (Domain,
 Digest, hash)`; collision resistance (perfect) is injectivity of `hash`.
@@ -181,3 +195,83 @@ one length-`m·Nseg` trace; `chain_flatten` proves that if each segment is a val
 `Nseg`-step `step`-chain from `d(i)` to `d(i+1)`, the glued trace is a valid
 `m·Nseg`-step chain from `d(0)` to `d(m)`.
 *Lean:* `concatTrace`, `chain_flatten` (in `Trace.lean`).
+
+---
+
+## 1. Committed memory → full memory (Issue 1)
+
+Paper: `prop:memory-extractability` (ch05 §5.2); `φ̂_read`/`φ̂_write` and
+`φ_read`/`φ_write` (ch03); `Com_mem` (ch02). Realizes the memory side of the Issue-0
+step-interface contract (§0.3): `Memory.step_mem_extract`/`trace_mem_extract` are the
+concrete deliverables the `StepInterface.MemoryBridge` proposition anticipated.
+
+### 1.1 States and the commitment invariant
+
+**Full state** over the commitment's native types: `S = (pc, regs, mem)` with
+`mem : Index → Value`. **Committed state** `Ŝ = (pc, regs, mem̂)` with `mem̂ ∈ Com`.
+*Lean:* `FullVMState VC`, `CommittedVMState VC`.
+
+**Commitment invariant** `CommitInv Ŝ S`: `Ŝ.pc = S.pc`, `Ŝ.regs = S.regs`, and
+`Ŝ.mem = commit(S.mem)`. Ties a committed state to the full state it commits.
+*Lean:* `CommitInv`.
+
+**Commitment injectivity.** Completeness + position binding make `commit` injective on
+memories: `commit m₁ = commit m₂ ⟹ m₁ = m₂`.
+*Lean:* `mem_eq_of_commit_eq`.
+
+### 1.2 The classified step predicates
+
+A step carries an explicit descriptor `w ∈ MemStep = read(addr,v,π) | write(addr,v,vOld,π)
+| other`, exposing the openings memory extraction consumes. `φ̂_step`/`φ_step` are the
+committed/full step predicates, each a case split on `w`; the register/pc part is an
+opaque `memFreePred` shared by both.
+
+**Committed read** `φ̂_read`: register part holds, `Ŝ₁.mem = Ŝ₂.mem`, and `π` opens
+`Ŝ₁.mem` at `addr` to `v`. **Committed write** `φ̂_write`: register part holds, `π`
+opens the pre-root at `addr` to `vOld` and the post-root at `addr` to `v`.
+*Lean:* `readC`, `writeC`, `stepC`.
+
+**Full read** `φ_read`: register part holds, `S₁.mem addr = v`, `S₂.mem = S₁.mem`.
+**Full write** `φ_write`: register part holds, `S₂.mem addr = v`, and `S₂.mem = S₁.mem`
+off `addr`.
+*Lean:* `readF`, `writeF`, `stepF`.
+
+### 1.3 Memory extractability (`prop:memory-extractability`)
+
+**One step.** Given completeness, position binding, update binding, `CommitInv` on both
+endpoints, and a committed step `φ̂_step(Ŝ₁,Ŝ₂,w)`, the full step `φ_step(S₁,S₂,w)`
+holds. (Reads/others: position binding + injectivity. Writes: update binding pins the
+post-root, injectivity identifies the post-memory.)
+*Lean:* `step_mem_extract`.
+
+**Invariant across a write.** From `CommitInv` on the pre-state and a committed write,
+the reconstructed post-state (memory point-updated at `addr`) satisfies `CommitInv` —
+update binding is essential here.
+*Lean:* `commit_update`, `commitInv_write`.
+
+**Whole trace.** Reconstruct a full trace from `S₀` and per-step descriptors; the
+invariant holds at every state and every committed step becomes a full step. Descriptors
+for an existential `∃w. φ̂_step` step are chosen classically.
+*Lean:* `trace_mem_extract` (with `stepReconstruct`, `reconstructTrace`, `chooseDescr`).
+
+### 1.4 Two-step VM over full memory
+
+The two-step toy is instantiated twice: `toZkVM` over committed states (binary step
+`stepRel Ŝ₁ Ŝ₂ := ∃w. φ̂_step(Ŝ₁,Ŝ₂,w)`), and `toZkVMFull` over full states (step
+`∃w. φ_step`), whose verifier commits the full boundary states and defers to the
+committed final SNARK.
+
+**Committed CTE.** Under knowledge soundness of both SNARKs and `0 < Nseg`,
+`toZkVM` is CTE (two-layer extraction + `chain_flatten`).
+*Lean:* `TwoStep.System.cte`.
+
+**Full-memory CTE** (the Issue-1 headline). Additionally assuming completeness, position
+binding, and update binding of `Com_mem`, `toZkVMFull` is CTE: the extractor commits the
+boundaries, runs the committed extractor, and folds `trace_mem_extract`. The terminal
+state matches because the invariant at the last state plus injectivity pin its memory.
+*Lean:* `TwoStep.System.cte_full` (bridge lemma `traceValid_full`).
+
+**Step-interface instance.** The two-step VM instantiates the Issue-0 contract:
+`toZkVMFull` as the plain `ZkVM`, `CommitInv` as the representation, `stepRel` as the
+committed step. `MemoryBridge` is discharged by `step_mem_extract` ∘ `commitInv_step`.
+*Lean:* `TwoStep.System.stepInterface`, `TwoStep.System.memoryBridge`.

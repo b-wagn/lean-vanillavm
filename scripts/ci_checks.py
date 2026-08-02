@@ -73,6 +73,9 @@ HEADLINE_THEOREMS = [
     "VanillaZkVM.knowledgeSound_trivialAS",      # Issue 0 — non-vacuity floor
     "VanillaZkVM.chain_flatten",                 # Issue 0 — concatenation lemma
     "VanillaZkVM.TwoStep.System.cte",            # two-step toy CTE
+    "VanillaZkVM.trace_mem_extract",             # Issue 1 — memory extractability (whole trace)
+    "VanillaZkVM.TwoStep.System.cte_full",       # Issue 1 — two-step CTE over full memory
+    "VanillaZkVM.TwoStep.System.memoryBridge",   # Issue 1 — step-interface memory bridge
 ]
 
 # A Lean identifier: dotted, letters/digits/_/'  (no braces, no spaces).

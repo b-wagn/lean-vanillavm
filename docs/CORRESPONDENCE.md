@@ -43,8 +43,8 @@ change (see notes below the table).
 | CTE ⇔ KS (`rem:cte-ks`) | `VanillaZkVM.ZkVM.cte_iff_knowledgeSound` | frozen | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 | Merkle memory commitment `Com_mem` (ch02) | `VanillaZkVM.VectorCommitment` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 | Position binding (`def:binding`) | `VanillaZkVM.PositionBinding` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
-| ~~Punctured binding~~ **INSUFFICIENT — retire** | `VanillaZkVM.PuncturedBinding` | deprecated | to be removed | — | — | Issue 1 |
-| Update binding (`def:binding`) — replaces punctured | _planned — Issue 1_ (`UpdateBinding`) | provisional | planned | — | — | — |
+| Commitment completeness (`def:binding`) | `VanillaZkVM.Complete` | provisional | proved | — | — | _unreviewed_ |
+| Update binding (`def:binding`) — replaces punctured | `VanillaZkVM.UpdateBinding` | provisional | proved | — | — | _unreviewed_ |
 | Bus commitment `Com_bus` (`def:bus-cr`) | `VanillaZkVM.HashCommitment` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 | Collision resistance (`Adv^cr`) | `VanillaZkVM.CollisionResistant` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 
@@ -61,9 +61,11 @@ change (see notes below the table).
 > refactor happens, claiming completeness against the current paper text would be signing off on a
 > statement we expect to restate. Re-open this row once `def:cte` is tightened.
 
-> **Note (I4).** `PuncturedBinding` is known to be insufficient and is replaced by `UpdateBinding`
-> in Issue 1. The whole `VectorCommitment` binding layer and `CollisionResistant` are *provisional*
-> (may gain a keyed/algorithmic variant); do not depend on their exact current shape.
+> **Note (I4).** `UpdateBinding` (Issue 1) supersedes the retired punctured-binding notion, which
+> could not pin a reconstructed post-write root into the image of `commit`. The whole
+> `VectorCommitment` binding layer and `CollisionResistant` are *provisional* (may gain a
+> keyed/algorithmic variant); do not depend on their exact current shape. Update binding is strictly
+> stronger than position binding — witnessed by `MemorySanity.appendBitVC_not_updateBinding`.
 
 ## Leaf / segment / bus (ch04) — ⚠ PROTOTYPE, NOT GROUND TRUTH
 
@@ -79,19 +81,30 @@ change (see notes below the table).
 | segment extraction (`lem:segment`) | `Bus.System.segment_extract` | prototype | — | — | Issue 5 |
 | bus unification / extract-or-collision | _Issue 2 (shape) → Issue 5 (wired)_ | planned | — | — | — |
 
+## Memory extractability (Issue 1)
+
+| Paper label | Lean declaration | Status | Fidelity | Complete | Reviewer |
+|---|---|---|---|---|---|
+| committed↔full commitment invariant | `VanillaZkVM.CommitInv` | proved | — | — | _unreviewed_ |
+| `commit` injective on memories | `VanillaZkVM.mem_eq_of_commit_eq` | proved | — | — | _unreviewed_ |
+| classified committed/full step (`φ̂_step`/`φ_step`, ch03) | `VanillaZkVM.stepC` / `stepF` | proved | — | — | _unreviewed_ |
+| memory extractability, one step (`prop:memory-extractability`) | `VanillaZkVM.step_mem_extract` | proved | — | — | _unreviewed_ |
+| memory extractability, whole trace | `VanillaZkVM.trace_mem_extract` | proved | — | — | _unreviewed_ |
+| step-interface memory bridge (`rem:mem-inheritance`) | `VanillaZkVM.TwoStep.System.memoryBridge` | proved | — | — | _unreviewed_ |
+| update binding strictly stronger (separation witness, I6) | `VanillaZkVM.MemorySanity.appendBitVC_not_updateBinding` | proved | — | — | _unreviewed_ |
+
 ## Two-step toy (intermediate)
 
 | Paper label | Lean declaration | Status | Fidelity | Complete | Reviewer |
 |---|---|---|---|---|---|
 | segment/final toy relations | `TwoStep.System.RSeg` / `RFinal` | proved | — | — | _unreviewed_ |
-| toy CTE | `VanillaZkVM.TwoStep.System.cte` | proved | — | — | _unreviewed_ |
+| toy CTE (committed memory) | `VanillaZkVM.TwoStep.System.cte` | proved | — | — | _unreviewed_ |
+| toy CTE over full memory (`prop:memory-extractability` composed) | `VanillaZkVM.TwoStep.System.cte_full` | proved | — | — | _unreviewed_ |
 
 ## Planned (owned by issues — see PLAN.md)
 
 | Paper label | Lean declaration (planned name) | Owner issue |
 |---|---|---|
-| memory-extractability (`prop:memory-extractability`) | `Memory.step_mem_extract` / `trace_mem_extract` | Issue 1 |
-| Update binding replaces punctured binding | `UpdateBinding` | Issue 1 |
 | ISA op set `{read, write, arith, hash, bin}` + `φ'_op` split (ch03, simplified) | `ISA.*` | Issue 3 |
 | `R_2` convert (`lem:convert`) | `MultiStep.RConvert` | Issue 4 |
 | `R_3` combine + tree unrolling (`lem:combine`) | `MultiStep.RCombine` / `combine_tree` | Issue 4 |

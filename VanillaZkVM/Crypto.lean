@@ -15,13 +15,14 @@ The file is split into two tiers (`docs/INVARIANTS.md` I4):
 * `Extractor` + `KnowledgeSound` — straight-line knowledge soundness.
 
 ## Provisional — the commitment layer, expected to change
-* `VectorCommitment` with `PositionBinding` and `PuncturedBinding`.
+* `VectorCommitment` with `Complete`, `PositionBinding`, and `UpdateBinding`.
 * `HashCommitment` with `CollisionResistant` (for the bus commitment).
 
-These binding/CR notions are **not** frozen: `PuncturedBinding` is known to be
-insufficient and is replaced by `UpdateBinding` in Issue 1, and `CollisionResistant`
-may gain a keyed/algorithmic variant. They may change without a constitutional
-amendment; see the `provisional` note on each.
+These binding/CR notions are **not** frozen: `UpdateBinding` supersedes the earlier
+punctured-binding notion (which was insufficient — it could not pin a reconstructed
+post-write root into the image of `commit`; see `Memory.lean`), and
+`CollisionResistant` may gain a keyed/algorithmic variant. They may change without a
+constitutional amendment; see the `provisional` note on each.
 
 ## Soundness is modeled as *perfect straight-line extraction* (no probabilities)
 
@@ -110,6 +111,17 @@ structure VectorCommitment where
   openProof : (Index → Value) → Index → OpenProof
   verify : Com → Index → Value → OpenProof → Prop
 
+/-- **Commitment completeness** (perfect): an *honest* opening always verifies.
+Provides the honest opening that position binding compares an adversarial opening
+against, and that update binding uses to identify the honest pre-root.
+
+Paper: `def:binding` (correctness of `open`/`verify`).
+
+**Provisional** (I4). -/
+def Complete (VC : VectorCommitment) : Prop :=
+  ∀ (m : VC.Index → VC.Value) (i : VC.Index),
+    VC.verify (VC.commit m) i (m i) (VC.openProof m i)
+
 /-- **Position-binding** (perfect): no commitment admits two accepted openings of
 different values at the same position.
 
@@ -120,18 +132,29 @@ def PositionBinding (VC : VectorCommitment) : Prop :=
   ∀ (C : VC.Com) (i : VC.Index) (v v' : VC.Value) (pi pi' : VC.OpenProof),
     VC.verify C i v pi → VC.verify C i v' pi' → v = v'
 
-/-- **Punctured-binding** (perfect): if a single opening `pi` is accepted at
-`addr` under both `C` and `C'`, then `C` and `C'` agree at every other position.
+/-- **Update-binding** (perfect): a single opening `π` that opens an *honest*
+commitment `commit m` at `addr` (necessarily to `m addr`) and also opens some `C'`
+at `addr` to `x` forces `C'` to be the honest commitment of `m` point-updated at
+`addr` to `x`. The updated vector `m'` is described pointwise (`m' addr = x`, and
+`m' j = m j` off `addr`), so no `DecidableEq VC.Index` is required; classically
+`m'` is unique.
 
-**Provisional (insufficient)** (I4): this notion does not force a candidate
-post-commitment to be the honest commitment of the updated memory, so it cannot
-support inductive memory reconstruction. Do not build on it. -/
-def PuncturedBinding (VC : VectorCommitment) : Prop :=
-  ∀ (C C' : VC.Com) (addr : VC.Index) (v v' : VC.Value) (pi : VC.OpenProof)
-    (i : VC.Index) (u u' : VC.Value) (rho rho' : VC.OpenProof),
-    VC.verify C addr v pi → VC.verify C' addr v' pi →
-    VC.verify C i u rho → VC.verify C' i u' rho' →
-    i ≠ addr → u = u'
+This is the property that pins a *reconstructed* post-write root to an actual
+output of `commit`. Position binding only bounds what a root can be *opened to*
+(non-equivocation); it does **not** force a committed root to lie in the image of
+`commit`, which is exactly what full-memory reconstruction needs (`Memory.lean`).
+
+Paper: `def:binding`.
+
+**Provisional** (I4): supersedes the earlier, insufficient punctured-binding
+notion. The `MemorySanity.appendBitVC` model satisfies position binding yet fails
+this, witnessing that update binding is strictly stronger. -/
+def UpdateBinding (VC : VectorCommitment) : Prop :=
+  ∀ (m m' : VC.Index → VC.Value) (addr : VC.Index) (x : VC.Value)
+    (C' : VC.Com) (π : VC.OpenProof),
+    m' addr = x → (∀ j, j ≠ addr → m' j = m j) →
+    VC.verify (VC.commit m) addr (m addr) π → VC.verify C' addr x π →
+    C' = VC.commit m'
 
 /-! ## Provisional — collision-resistant (bus) commitment -/
 
