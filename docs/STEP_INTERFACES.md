@@ -80,7 +80,7 @@ implication under collision resistance.
 
 | Layer | Designated module | Required realization |
 |---|---|---|
-| Memory reconstruction | `VanillaZkVM/Memory.lean` (Issue 1 / #7) | Instantiate `represents` with the commitment invariant, define `stepCommitted`, and prove `MemoryBridge`; derive `step_mem_extract` and `trace_mem_extract`. |
+| Memory reconstruction | `VanillaZkVM/Memory.lean` + concrete VM module (Issue 1 / #7) | `Memory.lean` defines `CommitInv`, `committedStep`, `step_mem_extract`, `step_reconstruct`, and `trace_mem_extract`. The module owning a concrete full-memory `ZkVM` packages these as a `StepInterface` and proves `MemoryBridge`; `Twostep.lean` supplies the Issue-1 instance. |
 | Plain ISA semantics | `VanillaZkVM/ISA.lean` (Issue 3 / #9) | Define `ISA.stepPlain` and use it as the concrete `ZkVM.step`. |
 | Bus unification | `VanillaZkVM/Bus.lean` (Issue 5 / #11) | Define `stepWithBus` and prove `BusBridge` from extracted witnesses and bus-commitment security. |
 

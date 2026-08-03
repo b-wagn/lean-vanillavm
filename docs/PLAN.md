@@ -69,8 +69,8 @@ in lockstep. This is a hard deliverable, not optional.
   `ZkVM`, `TraceValid`, `Rstar`, `CTE`, `cte_iff_knowledgeSound`; plus the Lean-only consistency
   signatures `StepInterface`, `StepInterface.MemoryBridge`, and `StepInterface.BusBridge`.
   **Provisional (NOT frozen — expected to change):** `VectorCommitment`'s binding predicates —
-  `PuncturedBinding` is known to be **insufficient** and will be **replaced by `UpdateBinding`**
-  (Issue 1); a `Complete` invariant may move into `Crypto`; and `CollisionResistant` may gain a
+  `PuncturedBinding` is known to be **insufficient** and is **replaced by `UpdateBinding`**
+  in Issue 1; `Complete` is made explicit there; and `CollisionResistant` may gain a
   keyed/algorithmic variant (Jessica's `cr-algorithmic`). These live in `Crypto.lean` but are
   marked provisional in their docstrings and are free to change without a constitutional amendment.
 - **New public surface (3 source declarations).** `StepInterface` (whose three structure fields are
@@ -117,17 +117,19 @@ in lockstep. This is a hard deliverable, not optional.
   reference (identical Lean to pr5; skim `AXIOM_AUDIT.md`). **DROP `memory-recon`** (destructive,
   least complete). Re-apply hunks onto post-#4 `main-temp` (§4).
 - **New public surface (max ~5).** `UpdateBinding` (+ break witness), `FullVMState`/`CommitInv`,
-  the concrete committed predicate underlying `StepInterface.stepCommitted`,
-  `step_mem_extract`, and `trace_mem_extract`. `TwoStepWithMemory` is an *instance* of the abstract
-  `ZkVM` (I5). Deprecate/remove `PuncturedBinding` in the same PR.
+  the concrete `committedStep` predicate underlying `StepInterface.stepCommitted`,
+  `step_mem_extract`, and `trace_mem_extract`. `TwoStepWithMemory` is realized as
+  `TwoStep.System.toZkVMFull`, an *instance* of the abstract `ZkVM` (I5), rather than as a duplicate
+  security definition. Deprecate/remove `PuncturedBinding` in the same PR.
 - **Deliverables.** Reconciled `Memory.lean` core, the `TwoStepWithMemory` instance, `cte_full`
   (CTE over *full* memory), `MemorySanity`-style non-vacuity instances, and a concrete proof of
   `StepInterface.MemoryBridge`.
 - **Math companion.** Write the memory-extractability proposition and the read/write commitment
   equations into `math-companion.md` (Dmitry already drafted much of this on `memory-integration`).
 - **Review requirement (human — George).** Confirm `UpdateBinding` matches `def:binding` and is
-  genuinely stronger than the retired `PuncturedBinding`; that `CommitInv` is the right invariant;
-  and that Yavor's and Dmitry's two integrations prove *the same* statement. Approve the two
+  the update-realizability guarantee missing from the retired punctured condition (the paper treats
+  position binding and update binding as independent); that `CommitInv` is the right invariant; and
+  that Yavor's and Dmitry's two integrations prove *the same* statement. Approve the Issue-1
   `CORRESPONDENCE` rows; run the vacuity probe.
 - **Skills & conventions.** `/security-review` (definitions), `/simplify`, adversarial-review at
   session end. Derive from `VectorCommitment`; do not re-declare frozen kernel notions.

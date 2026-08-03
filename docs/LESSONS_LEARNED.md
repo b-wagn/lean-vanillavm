@@ -42,6 +42,30 @@ guard; when a guard becomes a CI check, note that.
   separate reviewer columns for a reason.
   **Guard:** CORRESPONDENCE.md `Fidelity` **and** `Complete` columns; CONVENTIONS.md §6.1.
 
+- **"Needed for this reduction" does not mean logical implication.** The paper
+  defines position binding and update binding as independent properties.
+  `appendBitVC` proves that the punctured non-equivocation condition plus position
+  binding does not imply update binding; it does not prove that update binding
+  implies position binding.
+  **Guard:** the `def:binding` companion text and the append-bit countermodel;
+  reject "strictly stronger" wording unless both implication directions have
+  actually been checked.
+
+- **An opaque predicate cannot constrain values absent from its type.**
+  `MemFreePredicate` sees only PCs and register files, so it cannot by itself tie a
+  separate `MemStep.addr`/`value` field to particular registers. The current
+  theorem is therefore a memory-only slice; the ISA layer must add those equations.
+  **Guard:** explicit limitation in `Memory.lean` and `CORRESPONDENCE.md`; Issue 3
+  owns the concrete descriptor/register wiring.
+
+- **A two-endpoint refinement is not an inductive reconstruction theorem.**
+  `step_mem_extract` faithfully proves the paper's conditional proposition when
+  both endpoint commitment invariants are supplied. A trace extractor additionally
+  needs to *construct* the post-memory and establish its invariant from the pre-state;
+  assuming the post-invariant would hide the commitment-swap gap.
+  **Guard:** frozen `StepInterface.MemoryBridge`; Issue 1's `step_reconstruct` and
+  `TwoStep.System.memoryBridge` have an existential represented post-state.
+
 - **Agents anchor on training-data analogues for novel-but-familiar notions.** A
   definition that "looks like" a standard one may be silently bent toward the textbook
   version. Novel material (I3) is written interactively or with heavy up-front docs.

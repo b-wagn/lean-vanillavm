@@ -15,13 +15,15 @@ The file is split into two tiers (`docs/INVARIANTS.md` I4):
 * `Extractor` + `KnowledgeSound` — straight-line knowledge soundness.
 
 ## Provisional — the commitment layer, expected to change
-* `VectorCommitment` with `PositionBinding` and `PuncturedBinding`.
+* `VectorCommitment` with `Complete`, `PositionBinding`, and `UpdateBinding`.
 * `HashCommitment` with `CollisionResistant` (for the bus commitment).
 
-These binding/CR notions are **not** frozen: `PuncturedBinding` is known to be
-insufficient and is replaced by `UpdateBinding` in Issue 1, and `CollisionResistant`
-may gain a keyed/algorithmic variant. They may change without a constitutional
-amendment; see the `provisional` note on each.
+These binding/CR notions are **not** frozen. `UpdateBinding` is the
+commitment-realizability property used by memory reconstruction; the earlier
+punctured non-equivocation property did not rule out verifier-accepted roots
+outside the image of `commit`. `CollisionResistant` may gain a keyed/algorithmic
+variant. These declarations may change without a constitutional amendment; see
+the `provisional` note on each.
 
 ## Soundness is modeled as *perfect straight-line extraction* (no probabilities)
 
@@ -110,6 +112,15 @@ structure VectorCommitment where
   openProof : (Index → Value) → Index → OpenProof
   verify : Com → Index → Value → OpenProof → Prop
 
+/-- **Commitment completeness** (perfect): an honest opening always verifies.
+This makes explicit the correctness property used by the binding reductions,
+as requested by the instruction preceding `def:binding` in ch05.
+
+**Provisional** (I4). -/
+def Complete (VC : VectorCommitment) : Prop :=
+  ∀ (m : VC.Index → VC.Value) (i : VC.Index),
+    VC.verify (VC.commit m) i (m i) (VC.openProof m i)
+
 /-- **Position-binding** (perfect): no commitment admits two accepted openings of
 different values at the same position.
 
@@ -120,18 +131,47 @@ def PositionBinding (VC : VectorCommitment) : Prop :=
   ∀ (C : VC.Com) (i : VC.Index) (v v' : VC.Value) (pi pi' : VC.OpenProof),
     VC.verify C i v pi → VC.verify C i v' pi' → v = v'
 
-/-- **Punctured-binding** (perfect): if a single opening `pi` is accepted at
-`addr` under both `C` and `C'`, then `C` and `C'` agree at every other position.
+/-- **Update-binding** (perfect, `def:binding`, ch05): one opening `pi` that
+opens the honest pre-commitment `commit m` at `addr` to `m addr` and a candidate
+post-commitment `C'` at the same address to `x` forces `C'` to be the honest
+commitment of the point-updated memory.
 
-**Provisional (insufficient)** (I4): this notion does not force a candidate
-post-commitment to be the honest commitment of the updated memory, so it cannot
-support inductive memory reconstruction. Do not build on it. -/
-def PuncturedBinding (VC : VectorCommitment) : Prop :=
-  ∀ (C C' : VC.Com) (addr : VC.Index) (v v' : VC.Value) (pi : VC.OpenProof)
-    (i : VC.Index) (u u' : VC.Value) (rho rho' : VC.OpenProof),
-    VC.verify C addr v pi → VC.verify C' addr v' pi →
-    VC.verify C i u rho → VC.verify C' i u' rho' →
-    i ≠ addr → u = u'
+The post-memory `m'` is supplied extensionally (`m' addr = x` and equality with
+`m` away from `addr`), avoiding a global `DecidableEq VC.Index` requirement.
+As in the paper, this property is assumed independently of `PositionBinding`;
+neither implication is built into the definitions.
+
+**Provisional** (I4). -/
+def UpdateBinding (VC : VectorCommitment) : Prop :=
+  ∀ (m m' : VC.Index → VC.Value) (addr : VC.Index) (x : VC.Value)
+    (C' : VC.Com) (pi : VC.OpenProof),
+    m' addr = x → (∀ j, j ≠ addr → m' j = m j) →
+    VC.verify (VC.commit m) addr (m addr) pi →
+    VC.verify C' addr x pi →
+    C' = VC.commit m'
+
+/-! ## Provisional — update-binding break witness -/
+
+/-- Data witnessing a candidate update-binding failure. The winning predicate
+below records the point-update equations and the two accepted openings. An
+explicit extract-or-break reduction can return this record when reconstruction
+cannot establish the honest post-commitment equation. -/
+structure UpdateBindingBreak (VC : VectorCommitment) where
+  preMemory : VC.Index → VC.Value
+  postMemory : VC.Index → VC.Value
+  index : VC.Index
+  newValue : VC.Value
+  postCommitment : VC.Com
+  proof : VC.OpenProof
+
+/-- The exact winning predicate for an `UpdateBindingBreak`. -/
+def IsUpdateBindingBreak (VC : VectorCommitment)
+    (b : UpdateBindingBreak VC) : Prop :=
+  b.postMemory b.index = b.newValue ∧
+  (∀ j, j ≠ b.index → b.postMemory j = b.preMemory j) ∧
+  VC.verify (VC.commit b.preMemory) b.index (b.preMemory b.index) b.proof ∧
+  VC.verify b.postCommitment b.index b.newValue b.proof ∧
+  b.postCommitment ≠ VC.commit b.postMemory
 
 /-! ## Provisional — collision-resistant (bus) commitment -/
 

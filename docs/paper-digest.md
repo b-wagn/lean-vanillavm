@@ -323,16 +323,18 @@ not a concrete security level.
 
 ## 6. Gap list for Lean formalization
 
-Baseline (`VanillaZkVM/{Zkvm,Bus,Twostep,Crypto}.lean`): `Zkvm.lean` has the
+Current Issue-1 development (`VanillaZkVM/*.lean`): `Zkvm.lean` has the
 abstract `ZkVM` structure, `R*=ZkVM.Rstar`, `CTE=ZkVM.CTE`, keystone
-`cte_iff_knowledgeSound`, plus `concatTrace`/`chain_flatten`. `Crypto.lean`
+`cte_iff_knowledgeSound`; `Trace.lean` has `concatTrace`/`chain_flatten`. `Crypto.lean`
 has `Relation`, `ArgumentSystem` (verifier-only), `Extractor`,
 `KnowledgeSound` (**perfect**: `∃E,∀ x p, verify → rel`, no `λ`/`negl`/
-running time), `VectorCommitment` with `PositionBinding`/`PuncturedBinding`
-(perfect), `HashCommitment` with `CollisionResistant` (perfect: injective
-`hash`). `Twostep.lean`: 2-layer toy (`RSeg→RFinal`), `TwoStep.System.cte`
-from `Assumptions:={ksSeg,ksFinal}` — no bus, no inner circuits,
-`Com_mem`/`VC` declared but its binding never invoked. `Bus.lean`: leaf/
+running time), `VectorCommitment` with `Complete`, `PositionBinding`, and
+`UpdateBinding` (perfect), and `HashCommitment` with `CollisionResistant`
+(perfect: injective `hash`). `Memory.lean` reconstructs full memory from a
+known initial memory and per-step descriptors, proves the constructive frozen
+`MemoryBridge`, and `Twostep.lean` composes that fold into
+`TwoStep.System.cte_full`. The concrete ISA and bus remain absent.
+`Bus.lean`: leaf/
 segment layer only (`RInnerStep/Keccak/Poseidon/Range`, `RSegment`,
 `RSegmentTrace`), `Bus.System.segment_extract` proves `KnowledgeSound
 ASSegmentTrace` from `Assumptions:={busCR,ksInnerStep,ksInnerKeccak,
@@ -340,22 +342,20 @@ ksInnerPoseidon,ksInnerRange,ksSegment}` — a faithful perfect-probability
 analogue of `lem:segment`; states are `CommittedVMState`, but memory-opening
 witnesses (`StepAux`) are an opaque type parameter.
 
-**(a) Committed memory / memory-commitment properties — largest gap.** Lean
-has `PositionBinding` + `PuncturedBinding` (shared opening at `addr` under
-`C,C'` ⇒ agreement at every *other* index). The paper's **update-binding**
-is different and more direct: an opening at `addr` valid under honest
-`C=Commit(m)` and some `C'` forces `C'=Commit(m[addr↦x])` outright (full
-re-commitment equality). Related (Merkle trees get both from hash CR per the
-paper's Remark) but not interchangeable; no Lean lemma derives one from the
-other or reconstructs a full memory vector. Missing: (i) `prop:memory-
-extractability` itself — no bridge from `CommittedVMState` back to `VMState`
-(full `Addr→Byte` memory); `VMState`/`memUpdate` exist in `Zkvm.lean` but are
-never connected to `CommittedVMState` by any theorem; (ii) no per-op
-predicates `φ_read/write`, `φ'_read/write`, the commitment-opening equations
-(`eq:op-mem-comm-read/write`), or the memory-reconstruction invariant
-(`rem:mem-inheritance`) — `Bus.lean`'s `stepBus`/`StepAux` are fully
-abstract, so read/write aren't distinguished from any other opcode; (iii) no
-per-step probability accounting (see (e)).
+**(a) Committed memory / memory-commitment properties — memory core implemented,
+semantic wiring still open.** `Memory.lean` now formalizes the perfect
+position/update-binding memory slice: committed/full read and write equations,
+the `CommitInv` reconstruction invariant, conditional `step_mem_extract`,
+constructive `step_reconstruct`/`TwoStep.System.memoryBridge`, and
+`trace_mem_extract`; `TwoStep.System.cte_full` composes the fold with the
+two-layer toy. `TwostepSanity.lean` gives a permanent accepting joint model for
+the theorem's hypotheses. The append-bit countermodel demonstrates that the punctured
+non-equivocation condition does not provide update binding. Remaining:
+(i) `MemFreePredicate` does not yet tie descriptor address/value fields to
+registers or program fetch; (ii) the five-class ISA and bus-deferred step
+predicate must conjoin those semantic equations (Issues 3 and 5); and
+(iii) the paper's explicit bad-event reductions, probability/advantage
+accounting, and runtime bounds remain Issues 2, 6, and 8.
 
 **(b) Multi-layer recursion — capped at 2 layers.** `Twostep.lean` has only
 `RSeg→RFinal`; the paper has leaf(`inner-*`)→`segment`(`R_1`)→
