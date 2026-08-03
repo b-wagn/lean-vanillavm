@@ -20,6 +20,9 @@
   the defs-only kernel). Provides `FullVMState`, `CommitInv`, `MemStep`, `readC/writeC/readF/writeF`,
   `stepC/stepF`, `step_mem_extract`, `commit_update`, `commitInv_write`, `stepReconstruct`,
   `reconstructTrace`, `commitInv_step`, `trace_mem_extract`, `chooseDescr`(+`_spec`).
+  *(Superseded 2026-08-02/03: `readC/writeC/readF/writeF`, `commit_update`, `commitInv_write` are now
+  `private`, and `chooseDescr` was renamed `chooseStepWitness` — see
+  [`2026-08-03-memory-twostep.md`](2026-08-03-memory-twostep.md).)*
 - `Twostep.lean`: opaque toy → classified toy. Imports `Memory` + `Trace` + `Step` (reuses the frozen
   `concatTrace`/`chain_flatten`, no local copy). Added `SegWitness.steps`, `stepRel`, `toCommitted`,
   `FinalStmtFull`, `toZkVMFull`, `traceValid_full`, `cte_full`. Kept the `Assumptions` trust-base
@@ -92,5 +95,6 @@ Four dimensions, read-only skeptics (a,d) blind + orchestrator-run build-touchin
   `CommitInv` is the right invariant; `memory-integration`↔`pr5` prove the same statement; run the
   vacuity probe.
 - Committed as a single clean Issue-1 commit on `memory-twostep` atop ratified `main-temp` (584476e);
-  backup of the pre-rebase state at `memory-twostep-pre-rebase`. Not pushed. `docs/paper-digest.md`
-  (main-temp) still names PuncturedBinding as live — a separate, out-of-scope cleanup.
+  backup of the pre-rebase state at `memory-twostep-pre-rebase`. Not pushed *at the time of writing* —
+  pushed 2026-08-03 (see the next session entry). `docs/paper-digest.md` (main-temp) still names
+  PuncturedBinding as live — cleaned up 2026-08-03.

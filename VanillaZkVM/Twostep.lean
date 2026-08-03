@@ -203,8 +203,7 @@ theorem traceValid_full
   · -- terminal state equals `x.ST`
     show reconstructTrace Ŝ (chooseStepWitness sys.memFreePred Ŝ) x.S0 (sys.m * sys.Nseg) = x.ST
     set ST' := reconstructTrace Ŝ (chooseStepWitness sys.memFreePred Ŝ) x.S0 (sys.m * sys.Nseg)
-      with hST'
-    have hci : CommitInv (Ŝ (sys.m * sys.Nseg)) ST' := hinv (sys.m * sys.Nseg) (le_refl _)
+    have hci : CommitInv (Ŝ (sys.m * sys.Nseg)) ST' := hinv (sys.m * sys.Nseg) (Nat.le_refl _)
     rw [hendc] at hci
     simp only [toCommitted] at hci
     obtain ⟨hpc, hreg, hmem⟩ := hci
@@ -280,8 +279,8 @@ theorem cte_full (hNseg : 0 < sys.Nseg) (h : sys.Assumptions)
     sys.toZkVMFull.CTE := by
   obtain ⟨E, hE⟩ := sys.cte hNseg h
   exact ⟨fun x p =>
-      reconstructTrace (E ⟨toCommitted x.S0, toCommitted x.ST⟩ p)
-        (chooseStepWitness sys.memFreePred (E ⟨toCommitted x.S0, toCommitted x.ST⟩ p)) x.S0,
+      let Ŝ := E ⟨toCommitted x.S0, toCommitted x.ST⟩ p
+      reconstructTrace Ŝ (chooseStepWitness sys.memFreePred Ŝ) x.S0,
     fun x p hp =>
       sys.traceValid_full hComplete hpos hupd x _
         (hE ⟨toCommitted x.S0, toCommitted x.ST⟩ p hp)⟩

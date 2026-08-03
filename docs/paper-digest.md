@@ -329,7 +329,8 @@ abstract `ZkVM` structure, `R*=ZkVM.Rstar`, `CTE=ZkVM.CTE`, keystone
 has `Relation`, `ArgumentSystem` (verifier-only), `Extractor`,
 `KnowledgeSound` (**perfect**: `∃E,∀ x p, verify → rel`, no `λ`/`negl`/
 running time), `VectorCommitment` with `PositionBinding`/`PuncturedBinding`
-(perfect), `HashCommitment` with `CollisionResistant` (perfect: injective
+(perfect; the latter retired for `UpdateBinding` in Issue 1 — see the update
+note under (a)), `HashCommitment` with `CollisionResistant` (perfect: injective
 `hash`). `Twostep.lean`: 2-layer toy (`RSeg→RFinal`), `TwoStep.System.cte`
 from `Assumptions:={ksSeg,ksFinal}` — no bus, no inner circuits,
 `Com_mem`/`VC` declared but its binding never invoked. `Bus.lean`: leaf/
@@ -356,6 +357,19 @@ predicates `φ_read/write`, `φ'_read/write`, the commitment-opening equations
 (`rem:mem-inheritance`) — `Bus.lean`'s `stepBus`/`StepAux` are fully
 abstract, so read/write aren't distinguished from any other opcode; (iii) no
 per-step probability accounting (see (e)).
+
+> **Update (Issue 1, `memory-twostep`).** This gap is now largely closed and the
+> paragraph above describes the *pre-Issue-1* baseline. `PuncturedBinding` is
+> **retired**: the live pair in `Crypto.lean` is `PositionBinding` +
+> `UpdateBinding` (plus `Complete`), and `MemorySanity.appendBitVC_not_updateBinding`
+> witnesses that position binding does not imply update binding. `Memory.lean`
+> supplies `CommitInv`, `stepC`/`stepF` (the `φ̂_read`/`φ̂_write` and
+> `φ_read`/`φ_write` equations), `step_mem_extract` and `trace_mem_extract`
+> (`prop:memory-extractability`, perfect/memory-only slice), and
+> `TwoStep.System.memoryBridge` discharges `rem:mem-inheritance`. Still open here:
+> per-op predicates beyond the read/write/other split (Issue 3) and per-step
+> probability accounting (Issue 6). See `docs/CORRESPONDENCE.md` §"Memory
+> extractability (Issue 1)".
 
 **(b) Multi-layer recursion — capped at 2 layers.** `Twostep.lean` has only
 `RSeg→RFinal`; the paper has leaf(`inner-*`)→`segment`(`R_1`)→

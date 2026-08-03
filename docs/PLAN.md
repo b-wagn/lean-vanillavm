@@ -120,6 +120,11 @@ in lockstep. This is a hard deliverable, not optional.
   the concrete committed predicate underlying `StepInterface.stepCommitted`,
   `step_mem_extract`, and `trace_mem_extract`. `TwoStepWithMemory` is an *instance* of the abstract
   `ZkVM` (I5). Deprecate/remove `PuncturedBinding` in the same PR.
+  - **Naming (as realized).** There is no Lean declaration literally named `TwoStepWithMemory`: the
+    full-memory `ZkVM` instance is `VanillaZkVM.TwoStep.System.toZkVMFull` (`Twostep.lean`), with
+    `toCommitted` mapping full boundary states to committed ones, and the headline result is
+    `TwoStep.System.cte_full`. Read `TwoStepWithMemory` as this triple wherever this plan or the
+    README uses it.
 - **Deliverables.** Reconciled `Memory.lean` core, the `TwoStepWithMemory` instance, `cte_full`
   (CTE over *full* memory), `MemorySanity`-style non-vacuity instances, and a concrete proof of
   `StepInterface.MemoryBridge`.

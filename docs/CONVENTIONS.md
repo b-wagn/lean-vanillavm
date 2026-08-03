@@ -86,8 +86,8 @@ layer.
 - **`main-temp`'s `Bus.lean` is a prototype, not ground truth** (Yavor's playground). Do not treat
   its declarations as frozen or done; the segment/bus layer is rebuilt in Issue 5. Reuse it as
   reference only.
-- **The commitment binding layer is provisional** (I4): `PuncturedBinding` is being retired for
-  `UpdateBinding` (Issue 1). Do not build on `PuncturedBinding`; do not freeze binding notions.
+- **The commitment binding layer is provisional** (I4): Issue 1 retired `PuncturedBinding` for
+  `UpdateBinding`. Do not resurrect `PuncturedBinding`; do not freeze binding notions.
 - Keep `lake build` green at the start and end of every session (I11). Commit messages are
   imperative and cite the issue and any `CORRESPONDENCE.md` rows touched.
 - Do not commit or push unless a human asks. Never skip hooks or bypass signing.

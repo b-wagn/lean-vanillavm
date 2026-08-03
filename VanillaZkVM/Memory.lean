@@ -267,23 +267,25 @@ theorem step_mem_extract
     (h1 : CommitInv Ŝ₁ S₁) (h2 : CommitInv Ŝ₂ S₂)
     (hstep : stepC memFreePred Ŝ₁ Ŝ₂ w) :
     stepF memFreePred S₁ S₂ w := by
-  unfold CommitInv at h1 h2
   obtain ⟨hpc1, hreg1, hmem1⟩ := h1
   obtain ⟨hpc2, hreg2, hmem2⟩ := h2
+  -- The two moves every branch makes: transport the memory-free part across the
+  -- representation, and turn equal committed memories into equal memories.
+  have hfree : memFreePred Ŝ₁.pc Ŝ₁.regs Ŝ₂.pc Ŝ₂.regs →
+      memFreePred S₁.pc S₁.regs S₂.pc S₂.regs := by
+    rw [hpc1, hreg1, hpc2, hreg2]; exact id
+  have hsame : Ŝ₁.mem = Ŝ₂.mem → S₂.mem = S₁.mem := fun hmemEq =>
+    mem_eq_of_commit_eq hComplete hpos (by rw [← hmem1, ← hmem2]; exact hmemEq)
   cases w with
   | read addr v π =>
     simp only [stepC, readC] at hstep
     simp only [stepF, readF]
     obtain ⟨hreg, hmemEq, hverify⟩ := hstep
-    refine ⟨?_, ?_, ?_⟩
-    · rw [hpc1, hreg1, hpc2, hreg2] at hreg; exact hreg
+    refine ⟨hfree hreg, ?_, hsame hmemEq⟩
     · -- `S₁.mem addr = v`: honest opening vs. the step witness's `π`, via position binding.
       have hadv : VC.verify (VC.commit S₁.mem) addr v π := by rw [← hmem1]; exact hverify
       exact hpos (VC.commit S₁.mem) addr (S₁.mem addr) v (VC.openProof S₁.mem addr) π
         (hComplete S₁.mem addr) hadv
-    · -- `S₂.mem = S₁.mem`: the committed memories are equal, so the memories are.
-      apply mem_eq_of_commit_eq hComplete hpos
-      rw [← hmem1, ← hmem2]; exact hmemEq
   | write addr v vOld π =>
     simp only [stepC, writeC] at hstep
     simp only [stepF, writeF]
@@ -304,19 +306,15 @@ theorem step_mem_extract
         (VC.commit S₂.mem) addr v vOld π (if_pos rfl) (fun k hk => if_neg hk) hv1 hv2
     have hfun : (fun k => if k = addr then v else S₁.mem k) = S₂.mem :=
       mem_eq_of_commit_eq hComplete hpos key
-    refine ⟨?_, haddr2, ?_⟩
-    · rw [hpc1, hreg1, hpc2, hreg2] at hreg; exact hreg
-    · intro j hj
-      have hj2 : S₂.mem j = (if j = addr then v else S₁.mem j) := (congrFun hfun j).symm
-      rw [hj2, if_neg hj]
+    refine ⟨hfree hreg, haddr2, ?_⟩
+    intro j hj
+    have hj2 : S₂.mem j = (if j = addr then v else S₁.mem j) := (congrFun hfun j).symm
+    rw [hj2, if_neg hj]
   | other =>
     simp only [stepC] at hstep
     simp only [stepF]
     obtain ⟨hreg, hmemEq⟩ := hstep
-    refine ⟨?_, ?_⟩
-    · rw [hpc1, hreg1, hpc2, hreg2] at hreg; exact hreg
-    · apply mem_eq_of_commit_eq hComplete hpos
-      rw [← hmem1, ← hmem2]; exact hmemEq
+    exact ⟨hfree hreg, hsame hmemEq⟩
 
 /-! ## The commitment invariant across a write
 
@@ -406,17 +404,17 @@ theorem commitInv_step
     (S : FullVMState VC) (Ŝ Ŝ' : CommittedVMState VC) (w : MemStep VC)
     (h : CommitInv Ŝ S) (hs : stepC memFreePred Ŝ Ŝ' w) :
     CommitInv Ŝ' (stepReconstruct S Ŝ' w) := by
+  -- Reads and non-memory steps both inherit the invariant from `Ŝ.mem = Ŝ'.mem`
+  -- alone; only the spelling of the step witness differs.
+  have hkeep : Ŝ.mem = Ŝ'.mem → CommitInv Ŝ' (⟨Ŝ'.pc, Ŝ'.regs, S.mem⟩ : FullVMState VC) :=
+    fun hmemEq => ⟨rfl, rfl, by show Ŝ'.mem = VC.commit S.mem; rw [← hmemEq]; exact h.2.2⟩
   cases w with
-  | read addr v π =>
-    obtain ⟨-, -, hmem⟩ := h
+  | read _ _ _ =>
     simp only [stepC, readC] at hs
-    obtain ⟨-, hmemEq, -⟩ := hs
-    exact ⟨rfl, rfl, by show Ŝ'.mem = VC.commit S.mem; rw [← hmemEq]; exact hmem⟩
+    exact hkeep hs.2.1
   | other =>
-    obtain ⟨-, -, hmem⟩ := h
     simp only [stepC] at hs
-    obtain ⟨-, hmemEq⟩ := hs
-    exact ⟨rfl, rfl, by show Ŝ'.mem = VC.commit S.mem; rw [← hmemEq]; exact hmem⟩
+    exact hkeep hs.2
   | write addr v vOld π =>
     simp only [stepC] at hs
     exact commitInv_write hComplete hpos hupd memFreePred S

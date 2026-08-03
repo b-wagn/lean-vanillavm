@@ -38,7 +38,7 @@ The single most important idea, from the Hicks meeting: **the definitions are 80
 The *kernel* — `KnowledgeSound`, `CTE`, the abstract `ZkVM`, `cte_iff_knowledgeSound` — is small and
 explicitly frozen under I4. Dmitry signed the current paper-facing rows on 2026-07-29; any later
 signature change follows I4's re-review process. The commitment binding layer is deliberately
-**not** frozen (it is still changing — `PuncturedBinding` is being retired in favour of
+**not** frozen (it is still changing — Issue 1 retired `PuncturedBinding` in favour of
 `UpdateBinding`).
 
 **Roles.** Implementers: **Yavor, Dmitry, Jessica** (assigned to the code they already wrote —
@@ -77,8 +77,8 @@ is intentionally late — recursion is built over an abstract leaf and doesn't n
 - [x] **C0. Kernel defined.** Abstract `ZkVM`, `CTE`, `cte_iff_knowledgeSound`, perfect crypto. *(done)*
 - [x] **C1. Toy VM CTE.** Two-step VM proven CTE from KS of both layers. *(done)*
 - [~] **C2. Segment/bus prototype.** `Bus.lean` exists (Yavor's playground) — *prototype, to be redone in Issue 5, not an audited checkpoint.*
-- [ ] **C3. Kernel frozen + scaffolding** — Issue 0.
-- [ ] **C4. Committed memory** → `TwoStepWithMemory`, CTE from memory-commitment binding (`UpdateBinding` replaces `PuncturedBinding`) — Issue 1.
+- [x] **C3. Kernel frozen + scaffolding** — Issue 0. *(PR #16 merged into `main-temp` 2026-07-29)*
+- [~] **C4. Committed memory** → full-memory `ZkVM` instance `TwoStep.System.toZkVMFull` + `cte_full`, CTE from memory-commitment binding (`UpdateBinding` replaces `PuncturedBinding`) — Issue 1. *(code complete and green on `memory-twostep`; pending George's definition audit and the `CORRESPONDENCE` sign-offs.)*
 - [ ] **C5. Reduction vocabulary** (extract-or-break) — Issue 2.
 - [ ] **C6. ISA op set** `{read, write, arith, hash, bin}` — Issue 3.
 - [ ] **C7. Real recursion** → `MultiStepVM` (convert/combine/embed + tree unrolling) — Issue 4.

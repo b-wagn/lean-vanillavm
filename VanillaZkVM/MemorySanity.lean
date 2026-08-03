@@ -1,11 +1,5 @@
 import VanillaZkVM.Crypto
 
-/- DK: This file contains exact models that satisfy our memory requirements. Without those
-it could have happened that the requirements were inconsistent and thus jointly be false,
-from which everything can be implied. We also prove that position binding does not imply
-update binding, i.e. the latter is not redundant.-/
-
-
 /-!
 # Memory-binding sanity models
 
@@ -114,9 +108,9 @@ def appendBitVC : VectorCommitment where
   verify := fun commitment index value proof =>
     exactVC.verify commitment.1 index value proof
 
-theorem appendBitVC_complete : Complete appendBitVC := by
-  intro memory index
-  exact ⟨rfl, fun _ _ => rfl⟩
+theorem appendBitVC_complete : Complete appendBitVC :=
+  -- The appended bit is ignored by `verify`, so this is `exactVC`'s completeness.
+  fun memory index => exactVC_complete memory index
 
 theorem appendBitVC_positionBinding : PositionBinding appendBitVC := by
   intro commitment index leftValue rightValue leftProof rightProof
@@ -128,30 +122,6 @@ theorem appendBitVC_positionBinding : PositionBinding appendBitVC := by
 
 /-- The all-zero memory used by the sanity checks. -/
 private def zeroMemory : Bool → Bool := fun _ => false
-
-/-- The result of genuinely changing address `false` in `zeroMemory`. -/
-private def singleWriteMemory : Bool → Bool :=
-  fun index => if index = false then true else false
-
-/-- The positive model accepts a genuine changed write with one shared
-authentication proof, and the pre/post commitments are distinct. -/
-private theorem exactVC_accepts_changed_write :
-    exactVC.commit zeroMemory ≠ exactVC.commit singleWriteMemory ∧
-    exactVC.verify (exactVC.commit zeroMemory) false false
-      (exactVC.openProof zeroMemory false) ∧
-    exactVC.verify (exactVC.commit singleWriteMemory) false true
-      (exactVC.openProof zeroMemory false) := by
-  constructor
-  · change zeroMemory ≠ singleWriteMemory
-    intro heq
-    have hfalse := congrFun heq false
-    simp [zeroMemory, singleWriteMemory] at hfalse
-  · refine ⟨exactVC_complete zeroMemory false, ?_⟩
-    change
-      singleWriteMemory false = true ∧
-      ∀ j, j ≠ false → singleWriteMemory j = zeroMemory j
-    exact ⟨by simp [singleWriteMemory],
-      fun j hj => by simp [singleWriteMemory, zeroMemory, hj]⟩
 
 /-- A valid update-binding failure: `(zeroMemory, true)` accepts the same opening
 as the honest root but is not any output of `appendBitVC.commit`.

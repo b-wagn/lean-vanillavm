@@ -36,9 +36,9 @@ the invariant number (I1, I2, …) when a decision depends on it. Modeled on the
   touching this file and re-approval of every dependent `CORRESPONDENCE.md` row that exists.
 
   **Explicitly NOT frozen — the commitment layer is provisional and expected to change:**
-  `VectorCommitment`'s binding predicates in particular. `PuncturedBinding` is **known to be
-  insufficient** (the paper replaced it) and **will be replaced by `UpdateBinding`** in Issue 1; a
-  `Complete` invariant may migrate into `Crypto.lean`; and `CollisionResistant` may gain a
+  `VectorCommitment`'s binding predicates in particular. `PuncturedBinding` was **known to be
+  insufficient** (the paper replaced it) and **has been retired in favour of `UpdateBinding`** in
+  Issue 1, which also moved the `Complete` invariant into `Crypto.lean`; `CollisionResistant` may gain a
   keyed/algorithmic variant (Jessica's `cr-algorithmic`). These declarations live in `Crypto.lean`
   but carry a "provisional" note in their docstrings and may change without a constitutional
   amendment. Freezing the commitment layer now would be premature (do not over-freeze —
