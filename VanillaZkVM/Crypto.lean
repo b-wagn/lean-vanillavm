@@ -117,7 +117,7 @@ This makes explicit the correctness property used by the binding reductions,
 as requested by the instruction preceding `def:binding` in ch05.
 
 **Provisional** (I4). -/
-def Complete (VC : VectorCommitment) : Prop :=
+def VectorCommitment.Complete (VC : VectorCommitment) : Prop :=
   ∀ (m : VC.Index → VC.Value) (i : VC.Index),
     VC.verify (VC.commit m) i (m i) (VC.openProof m i)
 

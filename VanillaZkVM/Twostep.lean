@@ -176,7 +176,7 @@ represented full-memory post-state satisfying the canonical
 Paper: `prop:memory-extractability`, `rem:mem-inheritance`, and Step 6 of
 `thm:main` (ch05), specialized to the two-step toy. -/
 theorem memoryBridge
-    (hComplete : Complete sys.VC) (hpos : PositionBinding sys.VC)
+    (hComplete : sys.VC.Complete) (hpos : PositionBinding sys.VC)
     (hupd : UpdateBinding sys.VC) :
     sys.memoryStepInterface.MemoryBridge := by
   intro Ŝ₁ Ŝ₂ S₁ hInv hstep
@@ -210,7 +210,7 @@ pins its memory.
 Paper: `prop:memory-extractability` and `rem:mem-inheritance` (ch05), composed
 with the two-layer toy trace. -/
 theorem traceValid_full
-    (hComplete : Complete sys.VC) (hpos : PositionBinding sys.VC)
+    (hComplete : sys.VC.Complete) (hpos : PositionBinding sys.VC)
     (hupd : UpdateBinding sys.VC)
     (x : FinalStmtFull sys.VC) (Ŝ : ℕ → CommittedVMState sys.VC)
     (hval : sys.toZkVM.TraceValid ⟨toCommitted x.S0, toCommitted x.ST⟩ Ŝ) :
@@ -308,7 +308,7 @@ Paper: `def:cte`, `prop:memory-extractability`, and `rem:mem-inheritance`
 (ch05). This is a two-layer memory theorem, not the full VanillaVM main
 theorem. -/
 theorem cte_full (hNseg : 0 < sys.Nseg) (h : sys.Assumptions)
-    (hComplete : Complete sys.VC) (hpos : PositionBinding sys.VC)
+    (hComplete : sys.VC.Complete) (hpos : PositionBinding sys.VC)
     (hupd : UpdateBinding sys.VC) :
     sys.toZkVMFull.CTE := by
   obtain ⟨E, hE⟩ := sys.cte hNseg h

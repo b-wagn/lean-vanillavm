@@ -53,7 +53,7 @@ def exactVC : VectorCommitment where
     commitment index = value ∧
     ∀ j, j ≠ index → commitment j = proof j
 
-theorem exactVC_complete : Complete exactVC := by
+theorem exactVC_complete : exactVC.Complete := by
   intro memory index
   exact ⟨rfl, fun _ _ => rfl⟩
 
@@ -75,7 +75,7 @@ theorem exactVC_updateBinding : UpdateBinding exactVC := by
 /-- The three commitment hypotheses used by memory reconstruction are jointly
 satisfied by `exactVC`. -/
 theorem exactVC_bindingAssumptions :
-    Complete exactVC ∧ PositionBinding exactVC ∧ UpdateBinding exactVC :=
+    exactVC.Complete ∧ PositionBinding exactVC ∧ UpdateBinding exactVC :=
   ⟨exactVC_complete, exactVC_positionBinding, exactVC_updateBinding⟩
 
 /-! ## Negative model: append an ignored bit -/
@@ -93,7 +93,7 @@ def appendBitVC : VectorCommitment where
   verify := fun commitment index value proof =>
     exactVC.verify commitment.1 index value proof
 
-theorem appendBitVC_complete : Complete appendBitVC := by
+theorem appendBitVC_complete : appendBitVC.Complete := by
   intro memory index
   exact ⟨rfl, fun _ _ => rfl⟩
 

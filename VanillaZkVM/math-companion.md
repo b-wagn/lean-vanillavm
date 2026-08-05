@@ -159,7 +159,7 @@ verifies:
 
     verify (commit m) i (m i) (openProof m i).
 
-*Lean:* `Complete`.
+*Lean:* `VectorCommitment.Complete`.
 
 **Position binding** (`def:binding`, ch05). No commitment admits two accepted openings
 of different values at the same position:
