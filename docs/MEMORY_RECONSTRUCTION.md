@@ -48,7 +48,7 @@ public theorem `step_reconstruct` packages the constructive one-step bridge.
   full-memory states.
 - `stepC` is the classified committed-memory transition over reads, writes, and
   other instructions.
-- `committedStep` hides the descriptor existentially and is the binary
+- `committedStep` hides the `MemStep` witness existentially and is the binary
   committed relation exposed through `StepInterface`.
 - `stepF` is the corresponding classified full-memory transition.
 - `step_mem_extract` assumes that both full endpoint states and both commitment
@@ -62,16 +62,16 @@ public theorem `step_reconstruct` packages the constructive one-step bridge.
 - `commitInv_write` proves that a reconstructed correct write preserves
   `CommitInv` from the pre-state to the post-state.
 - `stepReconstruct` constructs the full post-state from a full pre-state, a
-  committed candidate post-state, and a `MemStep` descriptor.
+  committed candidate post-state, and a `MemStep` witness.
 - `reconstructTrace` applies `stepReconstruct` inductively to reconstruct the
   complete full-memory trace from the committed states and initial full state.
 - `commitInv_step` proves that the reconstructed post-state remains related to
   the corresponding committed post-state by `CommitInv`.
 - `reconstructed_step_full` proves that the reconstructed post-state satisfies
-  the full-memory semantics of the same descriptor.
+  the full-memory semantics of the same `MemStep` witness.
 - `step_reconstruct` proves the constructive one-step bridge: from
   `CommitInv Ŝ₁ S₁` and a committed transition from `Ŝ₁` to `Ŝ₂`, it
-  constructs a full state `S₂` and descriptor `w` such that both
+  constructs a full state `S₂` and `MemStep` witness `w` such that both
   `CommitInv Ŝ₂ S₂` and `stepF S₁ S₂ w` hold.
 - `trace_mem_extract` folds the preceding result across a sequence of committed
   states. The reconstructed states satisfy both the commitment invariant and
@@ -105,7 +105,7 @@ the full-memory CTE theorem for the two-layer toy system, not yet the complete
 Vanilla VM with its ISA, bus, and recursive proof layers.
 
 - `SegStmt` and `SegWitness` describe a segment's committed boundaries,
-  intermediate states, and explicit memory-step descriptors.
+  intermediate states, and explicit `MemStep` witnesses.
 - `FinalStmt` and `FinalWitness` describe the whole committed execution through
   chained segment boundaries and proofs.
 - `FinalStmtFull` carries the corresponding full-memory boundaries, and
@@ -113,7 +113,7 @@ Vanilla VM with its ISA, bus, and recursive proof layers.
 - `System` packages the commitment scheme, memory-free step component, and
   verifier interfaces for the two-layer toy system.
 - `RSeg` requires the segment boundaries to match and every explicit
-  descriptor to satisfy `stepC`.
+  `MemStep` witness to satisfy `stepC`.
 - `RFinal` requires the outer boundaries to match and every chained segment
   proof to verify.
 - `toZkVM` and `toZkVMFull` instantiate the frozen abstract `ZkVM` with,

@@ -169,8 +169,9 @@ in lockstep. This is a hard deliverable, not optional.
 - **Assigned.** Yavor (his memory work already defines `readC`/`writeC`/`readF`/`writeF`).
   *Review: George.*
 - **Reuse.** Yavor's own read/write predicates from `pr5`. Otherwise new.
-- **New public surface (max ~4).** An `ISA` descriptor (the 5-class op set + per-op predicate split
-  `φ_op`/`φ'_op`), the memory-free/memory-equation decomposition, and the disjunctive `stepPred`.
+- **New public surface (max ~4).** An `ISA` operation type (the 5-class op set + per-op predicate
+  split `φ_op`/`φ'_op`), the memory-free/memory-equation decomposition, and the disjunctive
+  `stepPred`.
 - **Deliverables.** `ISA.lean`: the 5 op classes, `φ'_op`/`φ_op` split, `φ_read`/`φ_write` with their
   memory equations, and `φ_step` as the disjunction; a lemma that non-memory ops don't mutate
   memory. The resulting `ISA.stepPlain` is used as the concrete `ZkVM.step`, not a parallel relation.

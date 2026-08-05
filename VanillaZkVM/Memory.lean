@@ -15,10 +15,11 @@ is an actual `commit` output, which non-equivocation binding notions cannot give
 * **Commitment injectivity:** `mem_eq_of_commit_eq` (kept here, not in the
   definitions-only kernel `Crypto.lean`).
 * **Model plumbing:** `FullVMState` and `CommitInv`.
-* **Concrete predicates:** the `MemStep` descriptor, the committed
-  (`readC`/`writeC`) and full-memory (`readF`/`writeF`) op predicates, and the
-  classified steps `stepC`/`stepF`. `committedStep` is the descriptor-hiding
-  binary relation exposed through `StepInterface.stepCommitted`.
+* **Concrete predicates:** the per-transition memory witness `MemStep`, the
+  committed (`readC`/`writeC`) and full-memory (`readF`/`writeF`) op predicates,
+  and the classified steps `stepC`/`stepF`. `committedStep` existentially hides
+  the `MemStep` value and is the binary relation exposed through
+  `StepInterface.stepCommitted`.
 * **Per-step extractability:** `step_mem_extract`, turning a committed step into a
   full-memory step (given the commitment invariant on both endpoints).
 * **Write reconstruction:** `commit_update` and `commitInv_write`, which
@@ -26,7 +27,7 @@ is an actual `commit` output, which non-equivocation binding notions cannot give
 * **Constructive bridge:** `step_reconstruct`, which constructs the represented
   full-memory post-state required by `StepInterface.MemoryBridge`.
 * **Trace fold:** `trace_mem_extract`, folding the per-step lemmas along a whole
-  committed trace (with `stepReconstruct`/`reconstructTrace`/`chooseDescr`).
+  committed trace (with `stepReconstruct`/`reconstructTrace`/`chooseMemStep`).
 
 In the perfect/probability-free style of `Crypto.lean`, "except with probability
 `Adv`" collapses to "always", so the two binding hypotheses are consumed as plain
@@ -74,15 +75,17 @@ def CommitInv {VC : VectorCommitment} (Ŝ : CommittedVMState VC) (S : FullVMStat
 
 /-- The memory-free part of an op predicate: a relation on the non-memory state
 `(pc₁, regs₁, pc₂, regs₂)`. This memory-only interface deliberately does not
-express the equations tying a descriptor's `addr`/`v` to registers; the
+express the equations tying a `MemStep` value's `addr`/`v` to registers; the
 concrete ISA layer must conjoin those equations.
 
 Paper: `eq:phi-read-decomp` and `eq:phi-write-decomp` (ch01). -/
 abbrev MemFreePredicate : Type := Word → (ℕ → Word) → Word → (ℕ → Word) → Prop
 
-/-- The memory-step descriptor as a typed sum: read/write/other distinguished at
-the type level, each carrying the opening *and* the typed address/value it feeds
-to `VC.verify`. These are the explicit memory-opening witness fields.
+/-- The per-transition memory witness as a typed sum: read/write/other are
+distinguished at the type level, each carrying the opening *and* the typed
+address/value it feeds to `VC.verify`. These are the explicit memory-opening
+witness fields. `MemStep` is Lean-specific packaging for data present in the
+paper's per-step memory-opening witness, not a separate paper-level notion.
 
 Paper: `prop:memory-extractability` (ch05). -/
 inductive MemStep (VC : VectorCommitment) where
@@ -93,16 +96,17 @@ inductive MemStep (VC : VectorCommitment) where
 variable {VC : VectorCommitment}
 
 /-- Committed read `φ̂_read`: register part holds, memory is unchanged, and the
-descriptor's opening `π` verifies `v` at `addr` under the committed memory.
+`MemStep.read` witness's opening `π` verifies `v` at `addr` under the committed
+memory.
 
 Paper: `eq:op-mem-comm-read` (ch03). -/
 def readC (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC)
     (addr : VC.Index) (v : VC.Value) (π : VC.OpenProof) : Prop :=
   memFreePred Ŝ₁.pc Ŝ₁.regs Ŝ₂.pc Ŝ₂.regs ∧ Ŝ₁.mem = Ŝ₂.mem ∧ VC.verify Ŝ₁.mem addr v π
 
-/-- Committed write `φ̂_write`: register part holds, the descriptor's opening `π`
-verifies the old value `vOld` at `addr` under the pre-state memory and the new
-value `v` at `addr` under the post-state memory.
+/-- Committed write `φ̂_write`: register part holds, the `MemStep.write`
+witness's opening `π` verifies the old value `vOld` at `addr` under the pre-state
+memory and the new value `v` at `addr` under the post-state memory.
 
 Paper: `eq:op-mem-comm-write` (ch03). -/
 def writeC (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC)
@@ -129,10 +133,10 @@ def writeF (memFreePred : MemFreePredicate) (addr : VC.Index) (v : VC.Value)
   memFreePred S₁.pc S₁.regs S₂.pc S₂.regs ∧
   S₂.mem addr = v ∧ (∀ j : VC.Index, j ≠ addr → S₂.mem j = S₁.mem j)
 
-/-- Classified committed step `φ̂_step` (memory-only slice), carrying the
-descriptor. Non-memory ops carry `.other` and a memory-free predicate. It omits
-the paper's bus and concrete ISA classification; those layers later conjoin this
-memory component.
+/-- Classified committed step `φ̂_step` (memory-only slice), indexed by a
+`MemStep` witness. Non-memory ops carry `.other` and a memory-free predicate. It
+omits the paper's bus and concrete ISA classification; those layers later
+conjoin this memory component.
 
 Paper: memory component of `eq:step-bus2` (ch03). -/
 def stepC (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC) : MemStep VC → Prop
@@ -141,9 +145,9 @@ def stepC (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC) :
   | .other => memFreePred Ŝ₁.pc Ŝ₁.regs Ŝ₂.pc Ŝ₂.regs ∧ Ŝ₁.mem = Ŝ₂.mem
 
 /-- The canonical binary committed-memory step exposed by Issue 1. A step holds
-when some classified descriptor, including any required opening proof, satisfies
-`stepC`. The descriptor remains available in extraction witnesses, but is hidden
-from the public `StepInterface.stepCommitted` relation.
+when some `MemStep` witness, including any required opening proof, satisfies
+`stepC`. The `MemStep` value remains available in extraction witnesses, but is
+hidden from the public `StepInterface.stepCommitted` relation.
 
 Paper: the memory component of `eq:step-bus2` and the per-step opening witness
 in `prop:memory-extractability` (ch03/ch05). -/
@@ -151,9 +155,9 @@ def committedStep (memFreePred : MemFreePredicate)
     (Ŝ₁ Ŝ₂ : CommittedVMState VC) : Prop :=
   ∃ w : MemStep VC, stepC memFreePred Ŝ₁ Ŝ₂ w
 
-/-- Classified full-memory step `φ_step` (the real predicate), carrying the same
-descriptor. The full-memory predicates ignore the opening `π`. This is the
-memory-only component, not yet the full ISA step predicate.
+/-- Classified full-memory step `φ_step` (the real predicate), indexed by the
+same `MemStep` witness. The full-memory predicates ignore the opening `π`. This
+is the memory-only component, not yet the full ISA step predicate.
 
 Paper: memory component of `φ_step` in ch03. -/
 def stepF (memFreePred : MemFreePredicate) (S₁ S₂ : FullVMState VC) : MemStep VC → Prop
@@ -170,7 +174,7 @@ full-memory step holds for the *real* predicate.
 
 This is the first place `PositionBinding` and `UpdateBinding` are consumed. The
 proof mirrors the paper's Step A, minus probabilities: `addr`, `v`, `vOld`, `π`
-are the typed fields of the descriptor, so nothing casts. The write case names
+are the typed fields of `w : MemStep VC`, so nothing casts. The write case names
 the point-updated pre-memory via `classical` (there is no `DecidableEq` on the
 abstract `VC.Index`).
 
@@ -193,7 +197,7 @@ theorem step_mem_extract
     obtain ⟨hreg, hmemEq, hverify⟩ := hstep
     refine ⟨?_, ?_, ?_⟩
     · rw [hpc1, hreg1, hpc2, hreg2] at hreg; exact hreg
-    · -- `S₁.mem addr = v`: honest opening vs. the descriptor's `π`, via position binding.
+    · -- Compare the honest opening with the `MemStep.read` proof via position binding.
       have hadv : VC.verify (VC.commit S₁.mem) addr v π := by rw [← hmem1]; exact hverify
       exact hpos (VC.commit S₁.mem) addr (S₁.mem addr) v (VC.openProof S₁.mem addr) π
         (hComplete S₁.mem addr) hadv
@@ -306,7 +310,7 @@ extractability statement to full memory (see `TwoStep.System.cte_full`). -/
 
 open Classical in
 /-- Reconstruct the full-memory post-state from the full pre-state `S`, the
-committed post-state `Ŝ'` (source of `pc`/`regs`), and the step descriptor:
+committed post-state `Ŝ'` (source of `pc`/`regs`), and a `MemStep` witness:
 memory is unchanged on reads and non-memory steps, point-updated on a write.
 
 Paper: reconstruction in `rem:mem-inheritance` (ch05). -/
@@ -317,7 +321,8 @@ private noncomputable def stepReconstruct (S : FullVMState VC) (Ŝ' : CommittedV
   | .write addr v _ _ => ⟨Ŝ'.pc, Ŝ'.regs, fun j => if j = addr then v else S.mem j⟩
 
 /-- The reconstructed full-memory trace: start at `S₀`, then at step `k` apply
-`stepReconstruct` with the committed trace's next state and the `k`-th descriptor.
+`stepReconstruct` with the committed trace's next state and the `k`-th
+`MemStep` witness.
 
 Paper: inductive reconstruction in `rem:mem-inheritance` (ch05). -/
 noncomputable def reconstructTrace (Ŝ : ℕ → CommittedVMState VC) (w : ℕ → MemStep VC)
@@ -354,9 +359,9 @@ private theorem commitInv_step
       h rfl rfl (by simp [stepReconstruct]) (fun j hj => by simp [stepReconstruct, hj]) hs
 
 /-- The state produced by `stepReconstruct` satisfies the full-memory semantics
-of the same descriptor. Binding is needed only to identify a read value; the
-write memory equations hold by construction. Kept private because callers use
-the packaged bridge below. -/
+of the same `MemStep` witness. Binding is needed only to identify a read value;
+the write memory equations hold by construction. Kept private because callers
+use the packaged bridge below. -/
 private theorem reconstructed_step_full
     (hComplete : Complete VC) (hpos : PositionBinding VC)
     (memFreePred : MemFreePredicate)
@@ -420,12 +425,12 @@ theorem step_reconstruct
   exact ⟨S₂, hInv₂, w,
     reconstructed_step_full hComplete hpos memFreePred S₁ Ŝ₁ Ŝ₂ w hInv hw⟩
 
-/-- **Trace fold.** Given a committed trace `Ŝ`, its per-step descriptors `w`
-(each certifying a committed step), and an initial full state `S₀` matching
-`Ŝ 0` under the commitment invariant, the reconstructed full-memory trace
-`reconstructTrace Ŝ w S₀` (i) satisfies the commitment invariant at every state
-and (ii) realizes every committed step as a full-memory step. This is the
-whole-trace form of memory extractability.
+/-- **Trace fold.** Given a committed trace `Ŝ`, its sequence
+`w : ℕ → MemStep VC` (each value certifying a committed step), and an initial
+full state `S₀` matching `Ŝ 0` under the commitment invariant, the reconstructed
+full-memory trace `reconstructTrace Ŝ w S₀` (i) satisfies the commitment invariant
+at every state and (ii) realizes every committed step as a full-memory step. This
+is the whole-trace form of memory extractability.
 
 Paper: `prop:memory-extractability` and `rem:mem-inheritance` (ch05), restricted
 to the memory-only step interface. -/
@@ -455,19 +460,20 @@ theorem trace_mem_extract
     (hinv k (by omega)) (hstep k hk)
 
 open Classical in
-/-- Pick a step descriptor for each transition of a committed trace: where a
-committed step exists, choose a witnessing descriptor; otherwise a dummy. This
+/-- Pick a `MemStep` witness for each transition of a committed trace: where a
+committed step exists, choose its witnessing `MemStep` value; otherwise use a
+dummy `.other`. This
 lets a caller that only knows the *existential* step relation (`∃ w, stepC …`,
 the shape of an abstract `ZkVM.step`) still drive `reconstructTrace`.
 
 Paper: per-step memory-opening witnesses in `prop:memory-extractability` (ch05). -/
-noncomputable def chooseDescr (memFreePred : MemFreePredicate)
+noncomputable def chooseMemStep (memFreePred : MemFreePredicate)
     (Ŝ : ℕ → CommittedVMState VC) : ℕ → MemStep VC :=
   fun k => if h : committedStep memFreePred (Ŝ k) (Ŝ (k + 1)) then h.choose else MemStep.other
 
-theorem chooseDescr_spec (memFreePred : MemFreePredicate) (Ŝ : ℕ → CommittedVMState VC)
+theorem chooseMemStep_spec (memFreePred : MemFreePredicate) (Ŝ : ℕ → CommittedVMState VC)
     (k : ℕ) (h : committedStep memFreePred (Ŝ k) (Ŝ (k + 1))) :
-    stepC memFreePred (Ŝ k) (Ŝ (k + 1)) (chooseDescr memFreePred Ŝ k) := by
-  simp only [chooseDescr]; rw [dif_pos h]; exact h.choose_spec
+    stepC memFreePred (Ŝ k) (Ŝ (k + 1)) (chooseMemStep memFreePred Ŝ k) := by
+  simp only [chooseMemStep]; rw [dif_pos h]; exact h.choose_spec
 
 end VanillaZkVM

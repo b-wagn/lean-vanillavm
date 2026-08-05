@@ -55,8 +55,11 @@ guard; when a guard becomes a CI check, note that.
   `MemFreePredicate` sees only PCs and register files, so it cannot by itself tie a
   separate `MemStep.addr`/`value` field to particular registers. The current
   theorem is therefore a memory-only slice; the ISA layer must add those equations.
+  In prose, name this formal type as `MemStep` or a “`MemStep` witness”; the
+  generic term “descriptor” is neither a Lean declaration nor paper vocabulary.
   **Guard:** explicit limitation in `Memory.lean` and `CORRESPONDENCE.md`; Issue 3
-  owns the concrete descriptor/register wiring.
+  owns the concrete `MemStep`/register wiring, and review rejects generic
+  synonyms for formal witness types.
 
 - **A two-endpoint refinement is not an inductive reconstruction theorem.**
   `step_mem_extract` faithfully proves the paper's conditional proposition when

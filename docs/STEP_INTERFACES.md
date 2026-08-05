@@ -28,9 +28,9 @@ stepCommitted
 must not create a second, disconnected top-level execution relation.
 
 `stepCommitted` is the canonical binary relation exposed by the memory layer.
-Concrete operation descriptors and opening proofs may be carried by internal
-predicates; the concrete Issue 1 instantiation must existentially project them
-when it supplies this public relation.
+Operation-specific auxiliary witnesses and opening proofs may be carried by
+internal predicates; the concrete Issue 1 instantiation uses `MemStep` and must
+existentially project it when supplying this public relation.
 
 Issue 5 separately supplies
 

@@ -96,9 +96,11 @@ No branch contains an actual `sorry`/`admit` tactic — all are axiom-clean as f
 - `MemFreePredicate`, `readC`/`writeC`/`readF`/`writeF`, `stepC`/`stepF` — committed vs. full step predicates parameterized by a memory-independent ("free") predicate on the rest of the step.
 - `theorem step_mem_extract` — per-step: a valid committed step + `CommitInv` ⇒ a full step exists with the same memory-free part.
 - `theorem commit_update`, `commitInv_write` — commitment update lemmas.
-- `noncomputable def stepReconstruct`, `reconstructTrace` — build a full-state trace from a committed trace + per-step descriptors.
+- `noncomputable def stepReconstruct`, `reconstructTrace` — build a full-state trace from a
+  committed trace plus per-step `MemStep` values.
 - `theorem commitInv_step`, `trace_mem_extract` — trace-level extraction: a valid committed trace lifts to a valid full-memory trace.
-- `noncomputable def chooseDescr`, `theorem chooseDescr_spec` — existence/choice of the per-step descriptor.
+- `noncomputable def chooseDescr`, `theorem chooseDescr_spec` — legacy names in that branch for
+  choosing the per-step `MemStep` value.
 
 **New Lean (`Twostep.lean` additions):** `FinalStmtFull`, `toCommitted`, `stepRel`, `toZkVMFull`, `theorem traceValid_full`, `theorem cte_full` — a full-memory-aware final theorem parallel to `cte`.
 

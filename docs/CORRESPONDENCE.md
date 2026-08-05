@@ -84,7 +84,7 @@ change (see notes below the table).
 ## Memory extractability (Issue 1)
 
 These declarations formalize the memory component only. `MemFreePredicate`
-abstracts the PC/register transition and does not yet connect descriptor fields
+abstracts the PC/register transition and does not yet connect `MemStep` fields
 to registers; the concrete ISA, bus, and their conjunction with this component
 remain Issues 3 and 5. Human review must therefore judge fidelity to the memory
 slice separately from completeness of the eventual `φ_step`.

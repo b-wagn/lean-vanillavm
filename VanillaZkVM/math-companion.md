@@ -222,7 +222,7 @@ Their commitment invariant is
 
 *Lean:* `FullVMState`, `CommitInv`.
 
-Each transition carries a descriptor
+Each transition carries a memory-step witness `w : MemStep VC`:
 
     w ::= read(addr, v, π)
         | write(addr, v_new, v_old, π)
@@ -249,9 +249,9 @@ For an abstract non-memory predicate `φ'` on the two PCs and register files:
          ∧ ∀ j ≠ addr, S₂.mem(j) = S₁.mem(j).
 
 `stepC` and `stepF` select these equations by `w`; `.other` preserves memory.
-The public binary committed relation hides the descriptor existentially:
+The public binary committed relation hides the `MemStep` witness existentially:
 
-    committedStep(Ŝ₁,Ŝ₂) := ∃ w, stepC(Ŝ₁,Ŝ₂,w).
+    committedStep(Ŝ₁,Ŝ₂) := ∃ w : MemStep VC, stepC(Ŝ₁,Ŝ₂,w).
 
 This is deliberately the **memory-only component**. It does not yet connect
 `addr` and `v` to specific registers, classify the concrete ISA, or model the
@@ -287,11 +287,11 @@ establishes the post-state commitment invariant in the write case:
       ⟹ CommitInv(Ŝₖ₊₁,Sₖ₊₁)
           ∧ stepF(Sₖ,Sₖ₊₁,wₖ).
 
-After hiding the descriptor, the constructive statement has exactly the
+After hiding the `MemStep` witness, the constructive statement has exactly the
 frozen memory-bridge shape:
 
     CommitInv(Ŝ₁,S₁) ∧ committedStep(Ŝ₁,Ŝ₂)
-      ⟹ ∃ S₂. CommitInv(Ŝ₂,S₂) ∧ ∃ w. stepF(S₁,S₂,w).
+      ⟹ ∃ S₂. CommitInv(Ŝ₂,S₂) ∧ ∃ w : MemStep VC. stepF(S₁,S₂,w).
 
 For the two-step full-memory `ZkVM`, `V.step` is the final existential above,
 so `memoryStepInterface` sets `represents := CommitInv` and

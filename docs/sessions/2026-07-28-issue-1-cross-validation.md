@@ -20,8 +20,8 @@
 - Dmitry's and Yavor's branches use the same `UpdateBinding`, `FullVMState`,
   `CommitInv`, and committed/full read-write predicates.
 - Yavor's branch makes the one-step valid-or-binding-break reduction explicit
-  and retains descriptors through its Bus witness. Those features belong to
-  Issues 5–6 under the current dependency plan and are not ported here.
+  and retains per-step `StepAux` values through its Bus witness. Those features
+  belong to Issues 5–6 under the current dependency plan and are not ported here.
 - Dmitry's branch supplies the missing Issue-1 target: a compact generic trace
   fold plus `TwoStep.System.toZkVMFull` and `cte_full`, without adding global
   decidable-equality requirements. This is the integration base.
@@ -41,9 +41,9 @@
   byte-for-byte unchanged.
 - New `Memory.lean` provides `FullVMState`, `CommitInv`, the classified
   committed/full memory predicates, the one-step lift, write reconstruction,
-  the inductive commitment-invariant fold, and descriptor selection for an
+  the inductive commitment-invariant fold, and `MemStep` selection for an
   existential committed-step relation.
-- `Twostep.lean` retains one `MemStep` descriptor per extracted segment step,
+- `Twostep.lean` retains one `MemStep` witness per extracted segment step,
   derives both committed and full-memory `ZkVM` instances, and proves
   `traceValid_full` and `cte_full`.
 - New `MemorySanity.lean` contains:
@@ -118,10 +118,10 @@ extractor, or CTE notion was redeclared.
   `CryptoSanity.lean` are unchanged; the frozen declaration block in
   `Crypto.lean` is unchanged.
 - **Confirmed limitation:** `MemFreePredicate` sees only PCs/register files, so
-  it cannot bind a separate descriptor address/value to registers. This branch
+  it cannot bind separate `MemStep` address/value fields to registers. This branch
   is therefore the memory-only slice, not the complete `φ_step`; Issue 3 must
   add those equations and Issue 5 must add the bus.
-- **Deferred by the ratified plan:** `chooseDescr` uses permitted
+- **Deferred by the ratified plan:** `chooseMemStep` uses permitted
   `Classical.choice`, and binding assumptions are applied directly. Executable
   extract-or-break reductions, advantages, and runtime inspection remain
   Issues 2, 6, and 8.
@@ -144,7 +144,7 @@ extractor, or CTE notion was redeclared.
   3. confirm the retained Dmitry trace/`cte_full` integration and Yavor sanity
      models represent the best reconciliation;
   4. classify the memory rows as faithful but intentionally partial until the
-     descriptor/register and bus conjuncts land.
+     `MemStep`/register and bus conjuncts land.
 - The review wording now asks whether `UpdateBinding` supplies the realizability
   guarantee missing from punctured non-equivocation; it does not claim a logical
   implication between the paper's independent binding properties.
@@ -200,3 +200,19 @@ extractor, or CTE notion was redeclared.
   self-test/correspondence/axiom/hygiene check (33 audited declarations and 611
   project declarations). All checks passed with no forbidden proof holes or
   non-permitted axioms.
+
+## Review follow-up — 2026-08-05
+
+- George identified that the prose used an undefined generic synonym for
+  `MemStep`, while a few planning documents used the same word for unrelated
+  future ISA or `StepAux` values.
+- Replaced active prose with the exact formal names `MemStep`, “`MemStep`
+  witness,” `StepAux`, or “ISA operation type,” according to the type actually
+  meant. Literal names from historical branches remain quoted only in
+  `branch-analysis.md`.
+- Renamed the current API from `chooseDescr`/`chooseDescr_spec` to
+  `chooseMemStep`/`chooseMemStep_spec`. No security definition, theorem
+  statement, or proof semantics changed.
+- `lake build` again completed all 8,592 jobs. The combined CI check again
+  elaborated 33 audited declarations, inspected 611 project declarations, and
+  found no forbidden proof holes or non-permitted axioms.

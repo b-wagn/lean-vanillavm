@@ -331,8 +331,8 @@ has `Relation`, `ArgumentSystem` (verifier-only), `Extractor`,
 running time), `VectorCommitment` with `Complete`, `PositionBinding`, and
 `UpdateBinding` (perfect), and `HashCommitment` with `CollisionResistant`
 (perfect: injective `hash`). `Memory.lean` reconstructs full memory from a
-known initial memory and per-step descriptors, proves the constructive frozen
-`MemoryBridge`, and `Twostep.lean` composes that fold into
+known initial memory and per-step `MemStep` witnesses, proves the constructive
+frozen `MemoryBridge`, and `Twostep.lean` composes that fold into
 `TwoStep.System.cte_full`. The concrete ISA and bus remain absent.
 `Bus.lean`: leaf/
 segment layer only (`RInnerStep/Keccak/Poseidon/Range`, `RSegment`,
@@ -351,7 +351,7 @@ constructive `step_reconstruct`/`TwoStep.System.memoryBridge`, and
 two-layer toy. `TwostepSanity.lean` gives a permanent accepting joint model for
 the theorem's hypotheses. The append-bit countermodel demonstrates that the punctured
 non-equivocation condition does not provide update binding. Remaining:
-(i) `MemFreePredicate` does not yet tie descriptor address/value fields to
+(i) `MemFreePredicate` does not yet tie `MemStep` address/value fields to
 registers or program fetch; (ii) the five-class ISA and bus-deferred step
 predicate must conjoin those semantic equations (Issues 3 and 5); and
 (iii) the paper's explicit bad-event reductions, probability/advantage
