@@ -74,6 +74,35 @@ guard; when a guard becomes a CI check, note that.
   version. Novel material (I3) is written interactively or with heavy up-front docs.
   **Guard:** INVARIANTS.md I11; human definition audit (CONVENTIONS.md §6.1).
 
+## Naming / documentation
+
+- **Parallel predicate families get namespaces, not letter suffixes.** `stepC`/`stepF`
+  made every reader carry a decoder ring; `CommittedMemory.step` / `FullMemory.step`
+  names the state type at each use site, and the type checker already enforces the
+  split. Corollary: never `open` such a namespace — opening erases exactly the
+  distinction it encodes.
+  **Guard:** "use qualified names, do not `open`" notes in `Memory.lean`; review
+  rejects new one-letter variant suffixes on paired declarations (CONVENTIONS.md §1).
+
+- **Comments must survive without the conversation that produced them.** Session-local
+  metaphors ("the two worlds") and undefined adjectives ("classified", 12 occurrences)
+  read as jargon to a fresh reader — the target reader had to ask what "classified"
+  meant. Use paper vocabulary (citable in the `Paper:` line) or describe the mechanism
+  ("a case split over the `MemStep` witness"). Same family as the "descriptor" rule
+  above.
+  **Guard:** docstring review checks vocabulary against the paper and Lean identifiers
+  (CONVENTIONS.md §6).
+
+- **A rename's risk lives in the docs, not the Lean.** `lake build` fully verifies the
+  code side of a pure rename; drift lands in prose. Update living docs
+  (CORRESPONDENCE.md, MEMORY_RECONSTRUCTION.md, math-companion.md); leave historical
+  records (docs/sessions/, branch-analysis.md) describing old states. Footgun: in a
+  CORRESPONDENCE.md name cell, a bare name inherits the namespace of the *previous*
+  dotted name, so rows mixing namespaces must fully qualify every name.
+  **Guard:** `ci_checks.py --check-correspondence` elaborates every audited row
+  (caught the `committedStep` mis-prefix live); repo-wide grep for the old name
+  before declaring a rename done.
+
 ## Vacuity / axioms
 
 - **A theorem with unsatisfiable hypotheses is a bug (I6).** Every headline theorem
