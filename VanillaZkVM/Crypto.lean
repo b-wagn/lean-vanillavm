@@ -112,12 +112,14 @@ structure VectorCommitment where
   openProof : (Index → Value) → Index → OpenProof
   verify : Com → Index → Value → OpenProof → Prop
 
+namespace VectorCommitment
+
 /-- **Commitment completeness** (perfect): an honest opening always verifies.
 This makes explicit the correctness property used by the binding reductions,
 as requested by the instruction preceding `def:binding` in ch05.
 
 **Provisional** (I4). -/
-def VectorCommitment.Complete (VC : VectorCommitment) : Prop :=
+def Complete (VC : VectorCommitment) : Prop :=
   ∀ (m : VC.Index → VC.Value) (i : VC.Index),
     VC.verify (VC.commit m) i (m i) (VC.openProof m i)
 
@@ -149,6 +151,8 @@ def UpdateBinding (VC : VectorCommitment) : Prop :=
     VC.verify (VC.commit m) addr (m addr) pi →
     VC.verify C' addr x pi →
     C' = VC.commit m'
+
+end VectorCommitment
 
 /-! ## Provisional — update-binding break witness -/
 

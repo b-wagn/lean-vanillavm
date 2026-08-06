@@ -27,8 +27,8 @@ namespace VanillaZkVM
 
 /-- Update binding rules out every certified update-binding break: the two
 implications are dual, so a winning break contradicts `UpdateBinding` directly. -/
-theorem UpdateBinding.not_isUpdateBindingBreak {VC : VectorCommitment}
-    (hupd : UpdateBinding VC) (b : UpdateBindingBreak VC) :
+theorem VectorCommitment.UpdateBinding.not_isUpdateBindingBreak {VC : VectorCommitment}
+    (hupd : VC.UpdateBinding) (b : UpdateBindingBreak VC) :
     ¬IsUpdateBindingBreak VC b := by
   rintro ⟨hat, hoff, hpre, hpost, hne⟩
   exact hne (hupd b.preMemory b.postMemory b.index b.newValue
@@ -57,12 +57,12 @@ theorem exactVC_complete : exactVC.Complete := by
   intro memory index
   exact ⟨rfl, fun _ _ => rfl⟩
 
-theorem exactVC_positionBinding : PositionBinding exactVC := by
+theorem exactVC_positionBinding : exactVC.PositionBinding := by
   intro commitment index leftValue rightValue leftProof rightProof
     hleft hright
   exact hleft.1.symm.trans hright.1
 
-theorem exactVC_updateBinding : UpdateBinding exactVC := by
+theorem exactVC_updateBinding : exactVC.UpdateBinding := by
   intro memory updated addr value commitment' proof
     hat hoff hpre hpost
   funext index
@@ -75,7 +75,7 @@ theorem exactVC_updateBinding : UpdateBinding exactVC := by
 /-- The three commitment hypotheses used by memory reconstruction are jointly
 satisfied by `exactVC`. -/
 theorem exactVC_bindingAssumptions :
-    exactVC.Complete ∧ PositionBinding exactVC ∧ UpdateBinding exactVC :=
+    exactVC.Complete ∧ exactVC.PositionBinding ∧ exactVC.UpdateBinding :=
   ⟨exactVC_complete, exactVC_positionBinding, exactVC_updateBinding⟩
 
 /-! ## Negative model: append an ignored bit -/
@@ -97,7 +97,7 @@ theorem appendBitVC_complete : appendBitVC.Complete := by
   intro memory index
   exact ⟨rfl, fun _ _ => rfl⟩
 
-theorem appendBitVC_positionBinding : PositionBinding appendBitVC := by
+theorem appendBitVC_positionBinding : appendBitVC.PositionBinding := by
   intro commitment index leftValue rightValue leftProof rightProof
     hleft hright
   exact exactVC_positionBinding commitment.1 index leftValue rightValue
@@ -248,7 +248,7 @@ update-binding: the certified break `appendBitBreak` wins. Consequently, those
 non-equivocation hypotheses do not establish that an accepted post-root is an
 honest commitment output. -/
 theorem appendBitVC_not_updateBinding :
-    ¬UpdateBinding appendBitVC := by
+    ¬appendBitVC.UpdateBinding := by
   intro hupd
   exact hupd.not_isUpdateBindingBreak appendBitBreak appendBitBreak_wins
 

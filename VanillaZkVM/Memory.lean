@@ -47,7 +47,7 @@ binding: if two memories commit to the same value, they are equal.
 
 Paper: completeness instruction preceding `def:binding`; `def:binding` (ch05). -/
 theorem mem_eq_of_commit_eq {VC : VectorCommitment}
-    (hComplete : VC.Complete) (hpos : PositionBinding VC)
+    (hComplete : VC.Complete) (hpos : VC.PositionBinding)
     {m₁ m₂ : VC.Index → VC.Value} (h : VC.commit m₁ = VC.commit m₂) : m₂ = m₁ := by
   funext i
   have h₂ : VC.verify (VC.commit m₁) i (m₂ i) (VC.openProof m₂ i) := by
@@ -200,7 +200,7 @@ abstract `VC.Index`).
 Paper: `prop:memory-extractability` (ch05), restricted to the memory-only
 `CommittedMemory.step`/`FullMemory.step` interface above. -/
 theorem step_mem_extract
-    (hComplete : VC.Complete) (hpos : PositionBinding VC) (hupd : UpdateBinding VC)
+    (hComplete : VC.Complete) (hpos : VC.PositionBinding) (hupd : VC.UpdateBinding)
     (memFreePred : MemFreePredicate)
     (S₁ S₂ : FullVMState VC) (Ŝ₁ Ŝ₂ : CommittedVMState VC) (w : MemStep VC)
     (h1 : CommitInv Ŝ₁ S₁) (h2 : CommitInv Ŝ₂ S₂)
@@ -281,7 +281,7 @@ update binding forces `Ĉ₂ = VC.commit mem₂`.
 
 Paper: `def:binding` and `rem:mem-inheritance` (ch05). -/
 private theorem commit_update
-    (hComplete : VC.Complete) (hpos : PositionBinding VC) (hupd : UpdateBinding VC)
+    (hComplete : VC.Complete) (hpos : VC.PositionBinding) (hupd : VC.UpdateBinding)
     (mem₁ mem₂ : VC.Index → VC.Value) (Ĉ₂ : VC.Com)
     (addr : VC.Index) (v vOld : VC.Value) (π : VC.OpenProof)
     (h2addr : mem₂ addr = v) (h2off : ∀ j, j ≠ addr → mem₂ j = mem₁ j)
@@ -302,7 +302,7 @@ part; the register part is carried by hypothesis.
 
 Paper: write case of `rem:mem-inheritance` (ch05). -/
 private theorem commitInv_write
-    (hComplete : VC.Complete) (hpos : PositionBinding VC) (hupd : UpdateBinding VC)
+    (hComplete : VC.Complete) (hpos : VC.PositionBinding) (hupd : VC.UpdateBinding)
     (memFreePred : MemFreePredicate)
     (S₁ S₂ : FullVMState VC) (Ŝ₁ Ŝ₂ : CommittedVMState VC)
     (addr : VC.Index) (v vOld : VC.Value) (π : VC.OpenProof)
@@ -355,7 +355,7 @@ memory (and the invariant) unchanged; writes invoke `commitInv_write`.
 
 Paper: induction step in `rem:mem-inheritance` (ch05). -/
 private theorem commitInv_step
-    (hComplete : VC.Complete) (hpos : PositionBinding VC) (hupd : UpdateBinding VC)
+    (hComplete : VC.Complete) (hpos : VC.PositionBinding) (hupd : VC.UpdateBinding)
     (memFreePred : MemFreePredicate)
     (S : FullVMState VC) (Ŝ Ŝ' : CommittedVMState VC) (w : MemStep VC)
     (h : CommitInv Ŝ S) (hs : CommittedMemory.step memFreePred Ŝ Ŝ' w) :
@@ -382,7 +382,7 @@ of the same `MemStep` witness. Binding is needed only to identify a read value;
 the write memory equations hold by construction. Kept private because callers
 use the packaged bridge below. -/
 private theorem reconstructed_step_full
-    (hComplete : VC.Complete) (hpos : PositionBinding VC)
+    (hComplete : VC.Complete) (hpos : VC.PositionBinding)
     (memFreePred : MemFreePredicate)
     (S : FullVMState VC) (Ŝ Ŝ' : CommittedVMState VC) (w : MemStep VC)
     (hInv : CommitInv Ŝ S) (hstep : CommittedMemory.step memFreePred Ŝ Ŝ' w) :
@@ -431,7 +431,7 @@ existential direction required by `StepInterface.MemoryBridge`; a concrete
 Paper: inductive construction in `rem:mem-inheritance` and Step 6 of
 `thm:main` (ch05). -/
 theorem step_reconstruct
-    (hComplete : VC.Complete) (hpos : PositionBinding VC) (hupd : UpdateBinding VC)
+    (hComplete : VC.Complete) (hpos : VC.PositionBinding) (hupd : VC.UpdateBinding)
     (memFreePred : MemFreePredicate)
     (S₁ : FullVMState VC) (Ŝ₁ Ŝ₂ : CommittedVMState VC)
     (hInv : CommitInv Ŝ₁ S₁) (hstep : committedStep memFreePred Ŝ₁ Ŝ₂) :
@@ -454,7 +454,7 @@ is the whole-trace form of memory extractability.
 Paper: `prop:memory-extractability` and `rem:mem-inheritance` (ch05), restricted
 to the memory-only step interface. -/
 theorem trace_mem_extract
-    (hComplete : VC.Complete) (hpos : PositionBinding VC) (hupd : UpdateBinding VC)
+    (hComplete : VC.Complete) (hpos : VC.PositionBinding) (hupd : VC.UpdateBinding)
     (memFreePred : MemFreePredicate) (T : ℕ)
     (Ŝ : ℕ → CommittedVMState VC) (w : ℕ → MemStep VC) (S₀ : FullVMState VC)
     (hseed : CommitInv (Ŝ 0) S₀)

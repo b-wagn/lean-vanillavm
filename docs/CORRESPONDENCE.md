@@ -43,8 +43,8 @@ change (see notes below the table).
 | CTE ⇔ KS (`rem:cte-ks`) | `VanillaZkVM.ZkVM.cte_iff_knowledgeSound` | frozen | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 | Merkle memory commitment `Com_mem` (ch02) | `VanillaZkVM.VectorCommitment` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 | Commitment completeness (instruction before `def:binding`) | `VanillaZkVM.VectorCommitment.Complete` | provisional | proved | — | — | _unreviewed_ |
-| Position binding (`def:binding`) | `VanillaZkVM.PositionBinding` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
-| Update binding (`def:binding`) | `VanillaZkVM.UpdateBinding` | provisional | proved | — | — | _unreviewed_ |
+| Position binding (`def:binding`) | `VanillaZkVM.VectorCommitment.PositionBinding` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Update binding (`def:binding`) | `VanillaZkVM.VectorCommitment.UpdateBinding` | provisional | proved | — | — | _unreviewed_ |
 | Bus commitment `Com_bus` (`def:bus-cr`) | `VanillaZkVM.HashCommitment` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 | Collision resistance (`Adv^cr`) | `VanillaZkVM.CollisionResistant` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 

@@ -166,7 +166,7 @@ of different values at the same position:
 
     verify C i v π  ∧  verify C i v' π'  ⟹  v = v'.
 
-*Lean:* `PositionBinding`.
+*Lean:* `VectorCommitment.PositionBinding`.
 
 **Update binding** (`def:binding`, ch05). One opening `π` that opens an honest
 pre-root `commit m` at `addr` to `m(addr)` and opens a candidate post-root `C'`
@@ -185,7 +185,7 @@ binding, and the punctured non-equivocation formula but fails update binding.
 It therefore demonstrates that those earlier non-equivocation hypotheses do
 not guarantee that a verifier-accepted post-root lies in the image of `commit`;
 it does not establish an implication in the other direction.
-*Lean:* `UpdateBinding`; countermodel
+*Lean:* `VectorCommitment.UpdateBinding`; countermodel
 `MemorySanity.appendBitVC_not_updateBinding`.
 
 **Hash commitment / collision resistance** (`Com_bus`, `Adv^cr`, ch02). `H = (Domain,
@@ -265,7 +265,7 @@ Completeness plus position binding imply injectivity of honest commitments:
 
     commit(m₁) = commit(m₂) ⟹ m₁ = m₂.
 
-Given `Complete VC`, `PositionBinding VC`, `UpdateBinding VC`, both endpoint
+Given `VC.Complete`, `VC.PositionBinding`, `VC.UpdateBinding`, both endpoint
 invariants, and a committed step,
 
     CommitInv(Ŝ₁,S₁) ∧ CommitInv(Ŝ₂,S₂) ∧ CommittedMemory.step(Ŝ₁,Ŝ₂,w)
