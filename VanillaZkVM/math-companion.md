@@ -230,33 +230,33 @@ Each transition carries a memory-step witness `w : MemStep VC`:
 
 For an abstract non-memory predicate `φ'` on the two PCs and register files:
 
-    readC(Ŝ₁, Ŝ₂, addr, v, π)
+    CommittedMemory.read(Ŝ₁, Ŝ₂, addr, v, π)
       := φ'(Ŝ₁, Ŝ₂)
          ∧ Ŝ₁.mem = Ŝ₂.mem
          ∧ verify Ŝ₁.mem addr v π,
 
-    writeC(Ŝ₁, Ŝ₂, addr, v_new, v_old, π)
+    CommittedMemory.write(Ŝ₁, Ŝ₂, addr, v_new, v_old, π)
       := φ'(Ŝ₁, Ŝ₂)
          ∧ verify Ŝ₁.mem addr v_old π
          ∧ verify Ŝ₂.mem addr v_new π,
 
-    readF(S₁, S₂, addr, v)
+    FullMemory.read(S₁, S₂, addr, v)
       := φ'(S₁, S₂) ∧ S₁.mem(addr) = v ∧ S₂.mem = S₁.mem,
 
-    writeF(S₁, S₂, addr, v_new)
+    FullMemory.write(S₁, S₂, addr, v_new)
       := φ'(S₁, S₂)
          ∧ S₂.mem(addr) = v_new
          ∧ ∀ j ≠ addr, S₂.mem(j) = S₁.mem(j).
 
-`stepC` and `stepF` select these equations by `w`; `.other` preserves memory.
+`CommittedMemory.step` and `FullMemory.step` select these equations by `w`; `.other` preserves memory.
 The public binary committed relation hides the `MemStep` witness existentially:
 
-    committedStep(Ŝ₁,Ŝ₂) := ∃ w : MemStep VC, stepC(Ŝ₁,Ŝ₂,w).
+    committedStep(Ŝ₁,Ŝ₂) := ∃ w : MemStep VC, CommittedMemory.step(Ŝ₁,Ŝ₂,w).
 
 This is deliberately the **memory-only component**. It does not yet connect
 `addr` and `v` to specific registers, classify the concrete ISA, or model the
 bus. Those semantic conjuncts belong to Issues 3 and 5.
-*Lean:* `MemStep`, `readC`, `writeC`, `readF`, `writeF`, `stepC`, `stepF`,
+*Lean:* `MemStep`, `CommittedMemory.read`, `CommittedMemory.write`, `FullMemory.read`, `FullMemory.write`, `CommittedMemory.step`, `FullMemory.step`,
 `committedStep`.
 
 ### 1.2 One-step memory extraction
@@ -268,8 +268,8 @@ Completeness plus position binding imply injectivity of honest commitments:
 Given `Complete VC`, `PositionBinding VC`, `UpdateBinding VC`, both endpoint
 invariants, and a committed step,
 
-    CommitInv(Ŝ₁,S₁) ∧ CommitInv(Ŝ₂,S₂) ∧ stepC(Ŝ₁,Ŝ₂,w)
-      ⟹ stepF(S₁,S₂,w).
+    CommitInv(Ŝ₁,S₁) ∧ CommitInv(Ŝ₂,S₂) ∧ CommittedMemory.step(Ŝ₁,Ŝ₂,w)
+      ⟹ FullMemory.step(S₁,S₂,w).
 
 Reads compare the supplied opening with an honest opening and use commitment
 injectivity to preserve memory. Writes use position binding to identify the old
@@ -283,15 +283,15 @@ Starting with `CommitInv(Ŝ₀,S₀)`, reconstruct the next full state by keepin
 memory for reads/other steps and point-updating it for writes. Update binding
 establishes the post-state commitment invariant in the write case:
 
-    CommitInv(Ŝₖ,Sₖ) ∧ stepC(Ŝₖ,Ŝₖ₊₁,wₖ)
+    CommitInv(Ŝₖ,Sₖ) ∧ CommittedMemory.step(Ŝₖ,Ŝₖ₊₁,wₖ)
       ⟹ CommitInv(Ŝₖ₊₁,Sₖ₊₁)
-          ∧ stepF(Sₖ,Sₖ₊₁,wₖ).
+          ∧ FullMemory.step(Sₖ,Sₖ₊₁,wₖ).
 
 After hiding the `MemStep` witness, the constructive statement has exactly the
 frozen memory-bridge shape:
 
     CommitInv(Ŝ₁,S₁) ∧ committedStep(Ŝ₁,Ŝ₂)
-      ⟹ ∃ S₂. CommitInv(Ŝ₂,S₂) ∧ ∃ w : MemStep VC. stepF(S₁,S₂,w).
+      ⟹ ∃ S₂. CommitInv(Ŝ₂,S₂) ∧ ∃ w : MemStep VC. FullMemory.step(S₁,S₂,w).
 
 For the two-step full-memory `ZkVM`, `V.step` is the final existential above,
 so `memoryStepInterface` sets `represents := CommitInv` and
@@ -301,7 +301,7 @@ so `memoryStepInterface` sets `represents := CommitInv` and
 Induction over `k < T` yields both:
 
     ∀ k ≤ T, CommitInv(Ŝₖ,Sₖ),
-    ∀ k < T, stepF(Sₖ,Sₖ₊₁,wₖ).
+    ∀ k < T, FullMemory.step(Sₖ,Sₖ₊₁,wₖ).
 
 This is the perfect, memory-only counterpart of the paper's
 memory-extractability reduction and its reconstruction invariant. It assumes
@@ -315,7 +315,7 @@ accounting remain assigned to Issues 2 and 6.
 
 The toy has a committed instantiation whose step is `committedStep`,
 
-and a full-memory instantiation with step `∃ w, stepF(S₁,S₂,w)`. The latter's
+and a full-memory instantiation with step `∃ w, FullMemory.step(S₁,S₂,w)`. The latter's
 verifier commits the full boundary memories and calls the same final verifier.
 Assuming non-empty segments, knowledge soundness of the segment and final
 argument systems, and all three memory-commitment properties, the committed

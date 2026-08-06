@@ -92,9 +92,9 @@ slice separately from completeness of the eventual `φ_step`.
 | Paper label | Lean declaration | Status | Fidelity | Complete | Reviewer |
 |---|---|---|---|---|---|
 | full/committed memory invariant (`rem:mem-inheritance`) | `VanillaZkVM.CommitInv` | proved | — | — | _unreviewed_ |
-| committed memory read/write (`eq:op-mem-comm-read`, `eq:op-mem-comm-write`) | `VanillaZkVM.readC` / `writeC` | proved | — | — | _unreviewed_ |
-| full-memory read/write (`eq:mem-op-read`, `eq:mem-op-write`) | `VanillaZkVM.readF` / `writeF` | proved | — | — | _unreviewed_ |
-| classified committed/full memory step (memory component of `φ̂_step`/`φ_step`) | `VanillaZkVM.stepC` / `stepF` / `committedStep` | proved | — | — | _unreviewed_ |
+| committed memory read/write (`eq:op-mem-comm-read`, `eq:op-mem-comm-write`) | `VanillaZkVM.CommittedMemory.read` / `CommittedMemory.write` | proved | — | — | _unreviewed_ |
+| full-memory read/write (`eq:mem-op-read`, `eq:mem-op-write`) | `VanillaZkVM.FullMemory.read` / `FullMemory.write` | proved | — | — | _unreviewed_ |
+| classified committed/full memory step (memory component of `φ̂_step`/`φ_step`) | `VanillaZkVM.CommittedMemory.step` / `FullMemory.step` / `VanillaZkVM.committedStep` | proved | — | — | _unreviewed_ |
 | one-step memory lift (`prop:memory-extractability`) | `VanillaZkVM.step_mem_extract` | proved | — | — | _unreviewed_ |
 | constructive memory-inheritance step (`rem:mem-inheritance`, `thm:main` Step 6) | `VanillaZkVM.step_reconstruct` / `VanillaZkVM.TwoStep.System.memoryBridge` | proved | — | — | _unreviewed_ |
 | trace reconstruction invariant (`rem:mem-inheritance`) | `VanillaZkVM.trace_mem_extract` | proved | — | — | _unreviewed_ |

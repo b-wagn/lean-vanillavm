@@ -10,7 +10,7 @@ and committed-memory states — while dropping the bus, the four inner circuits,
 the chips, and the binary `convert`/`combine`/`embed` tower.
 
 * Segment layer `RSeg`: a chain of `Nseg` committed steps `Sin → Sout` under the
-  classified committed step predicate `stepC` (from `Memory`). Each step carries
+  classified committed step predicate `CommittedMemory.step` (from `Memory`). Each step carries
   its explicit `MemStep` witness, including the opening used by a read/write.
   Operations are not deferred to a bus.
 * Final layer `RFinal`: a single SNARK merging `m` segment proofs whose boundary
@@ -22,11 +22,11 @@ plus a two-layer extraction. The committed trace is produced with `concatTrace`;
 its validity rests on `chain_flatten` (both from `Trace`).
 
 The base `cte` target is a committed-memory trace whose binary step is the
-existential projection `committedStep` of the classified `stepC`, with the per-step
+existential projection `committedStep` of the classified `CommittedMemory.step`, with the per-step
 `MemStep` witnesses retained in the segment witnesses. `cte_full` then folds
 `Memory.trace_mem_extract` over that trace to obtain the *full-memory* statement:
 a full-memory trace satisfying the commitment invariant at every state and a
-genuine `stepF` at every step. Traces are `ℕ`-indexed with `< bound` conditions
+genuine `FullMemory.step` at every step. Traces are `ℕ`-indexed with `< bound` conditions
 (uniform with `Rstar`, and it makes concatenation pure `ℕ`-arithmetic).
 -/
 
@@ -82,7 +82,7 @@ structure System where
   Nseg : ℕ
   m : ℕ
   /-- Memory-free register/program-counter part of each classified step; the full
-  committed step is `stepC memFreePred` (from `Memory`). -/
+  committed step is `CommittedMemory.step memFreePred` (from `Memory`). -/
   memFreePred : MemFreePredicate
   SegProof : Type
   segVerify : SegStmt VC → SegProof → Prop
@@ -102,7 +102,7 @@ def RSeg : Relation where
     w.states 0 = st.Sin ∧
     w.states sys.Nseg = st.Sout ∧
     ∀ j, j < sys.Nseg →
-      stepC sys.memFreePred (w.states j) (w.states (j + 1)) (w.steps j)
+      CommittedMemory.step sys.memFreePred (w.states j) (w.states (j + 1)) (w.steps j)
 
 /-- The segment argument system `Π_seg`. -/
 def ASSeg : ArgumentSystem sys.RSeg where
@@ -139,7 +139,7 @@ def toZkVM : ZkVM where
   verify := sys.finalVerify
 
 /-- **Full-memory instantiation.** Same VM, but the state is the *full-memory*
-state, a step is `∃ w, stepF …` (the full-memory step relation), the statement
+state, a step is `∃ w, FullMemory.step …` (the full-memory step relation), the statement
 carries full boundary states, and the verifier commits them and defers to the
 committed final SNARK. `CTE` of this instance is the full-memory correct-trace
 extractability statement — a concrete instance of the abstract `CTE`.
@@ -148,7 +148,7 @@ Paper: `def:cte` and `prop:memory-extractability` (ch05). This toy omits the bus
 concrete ISA, and recursive convert/combine/embed layers. -/
 def toZkVMFull : ZkVM where
   State := FullVMState sys.VC
-  step := fun S₁ S₂ => ∃ w, stepF sys.memFreePred S₁ S₂ w
+  step := fun S₁ S₂ => ∃ w, FullMemory.step sys.memFreePred S₁ S₂ w
   T := sys.m * sys.Nseg
   Stmt := FinalStmtFull sys.VC
   initial := FinalStmtFull.S0
@@ -223,7 +223,7 @@ theorem traceValid_full
   have hseed : CommitInv (Ŝ 0) x.S0 := by rw [hstartc]; exact ⟨rfl, rfl, rfl⟩
   -- Pick `MemStep` witnesses and run the generic fold.
   have hstepC : ∀ k, k < sys.m * sys.Nseg →
-      stepC sys.memFreePred (Ŝ k) (Ŝ (k + 1))
+      CommittedMemory.step sys.memFreePred (Ŝ k) (Ŝ (k + 1))
         (chooseMemStep sys.memFreePred Ŝ k) :=
     fun k hk => chooseMemStep_spec sys.memFreePred Ŝ k (hsteprel k hk)
   obtain ⟨hinv, hstepF⟩ :=
@@ -298,7 +298,7 @@ stated as a concrete instance of the abstract `CTE`: `sys.toZkVMFull.CTE`. Under
 the `cte` hypotheses plus the commitment binding assumptions, the two-step VM is
 correct-trace extractable *over full-memory states* — the extractor turns every
 accepting final proof into a valid full-memory trace (right boundaries, and a
-genuine `∃ w, stepF …` at every step).
+genuine `∃ w, FullMemory.step …` at every step).
 
 Proof: from `cte` get the committed extractor `E`; the full extractor commits
 `x`'s boundaries, runs `E`, and reconstructs the full trace. Correctness is then

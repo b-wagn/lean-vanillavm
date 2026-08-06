@@ -25,7 +25,7 @@ private def memFree : MemFreePredicate :=
 private def segVerify (st : SegStmt exactVC) (w : SegWitness exactVC) : Prop :=
   w.states 0 = st.Sin ∧
   w.states 1 = st.Sout ∧
-  ∀ j, j < 1 → stepC memFree (w.states j) (w.states (j + 1)) (w.steps j)
+  ∀ j, j < 1 → CommittedMemory.step memFree (w.states j) (w.states (j + 1)) (w.steps j)
 
 private def finalVerify
     (st : FinalStmt exactVC) (w : FinalWitness exactVC (SegWitness exactVC)) : Prop :=
@@ -68,7 +68,7 @@ private def finalWitness : FinalWitness exactVC (SegWitness exactVC) where
 
 example : system.toZkVMFull.verify ⟨fullState, fullState⟩ finalWitness := by
   simp [TwoStep.System.toZkVMFull, system, finalVerify, finalWitness,
-    segmentWitness, segVerify, committedState, memFree, stepC]
+    segmentWitness, segVerify, committedState, memFree, CommittedMemory.step]
 
 example : system.toZkVMFull.CTE := by
   exact system.cte_full (by simp [system]) assumptions exactVC_complete

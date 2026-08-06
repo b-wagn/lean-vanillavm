@@ -170,18 +170,18 @@ private def changedWrite : MemStep exactVC :=
 private theorem changedWrite_committed :
     committedStep writeMemFree writePreCommitted writePostCommitted := by
   refine ⟨changedWrite, ?_⟩
-  simp [changedWrite, stepC, writeC, writeMemFree, writePreCommitted,
+  simp [changedWrite, CommittedMemory.step, CommittedMemory.write, writeMemFree, writePreCommitted,
     writePostCommitted, writePre, exactVC, zeroMemory, singleWriteMemory]
 
 /-- The constructive one-step theorem is non-vacuous on a genuine changed
 write: all three binding assumptions hold simultaneously, the committed step
 accepts one shared path, and reconstruction produces a represented full
-post-state satisfying `stepF`. All data stays private so this consistency floor
+post-state satisfying `FullMemory.step`. All data stays private so this consistency floor
 adds no public API. -/
 example :
     ∃ S₂ : FullVMState exactVC,
       CommitInv writePostCommitted S₂ ∧
-        ∃ w : MemStep exactVC, stepF writeMemFree writePre S₂ w := by
+        ∃ w : MemStep exactVC, FullMemory.step writeMemFree writePre S₂ w := by
   exact step_reconstruct exactVC_complete exactVC_positionBinding
     exactVC_updateBinding writeMemFree writePre writePreCommitted
     writePostCommitted ⟨rfl, rfl, rfl⟩ changedWrite_committed
@@ -223,7 +223,7 @@ private def appendBitMalformedPost : CommittedVMState appendBitVC :=
 private theorem appendBitMalformedStep :
     committedStep appendBitMemFree appendBitCommittedPre appendBitMalformedPost := by
   refine ⟨.write false false false zeroMemory, ?_⟩
-  simp [stepC, writeC, appendBitMemFree, appendBitCommittedPre,
+  simp [CommittedMemory.step, CommittedMemory.write, appendBitMemFree, appendBitCommittedPre,
     appendBitMalformedPost, appendBitPre, appendBitVC, exactVC, zeroMemory]
 
 private theorem appendBitMalformedPost_not_representable :

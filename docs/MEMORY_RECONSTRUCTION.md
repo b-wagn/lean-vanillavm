@@ -29,7 +29,7 @@ position binding, and update binding, a committed trace with valid
 committed-memory steps can be reconstructed from a known full initial state
 into a full-memory trace. Every reconstructed state corresponds to its
 committed state under `CommitInv`, and every reconstructed transition satisfies
-the corresponding full-memory predicate `stepF`. The private theorem
+the corresponding full-memory predicate `FullMemory.step`. The private theorem
 `reconstructed_step_full` provides the one-step semantic component, while the
 public theorem `step_reconstruct` packages the constructive one-step bridge.
 
@@ -42,18 +42,18 @@ public theorem `step_reconstruct` packages the constructive one-step bridge.
   - a write contains an address, the new value, the old value, and an opening
     proof;
   - other instructions carry no additional memory data.
-- `readC` and `writeC` describe correct reads and writes between committed
+- `CommittedMemory.read` and `CommittedMemory.write` describe correct reads and writes between committed
   states.
-- `readF` and `writeF` describe the corresponding operations between
+- `FullMemory.read` and `FullMemory.write` describe the corresponding operations between
   full-memory states.
-- `stepC` is the classified committed-memory transition over reads, writes, and
+- `CommittedMemory.step` is the classified committed-memory transition over reads, writes, and
   other instructions.
 - `committedStep` hides the `MemStep` witness existentially and is the binary
   committed relation exposed through `StepInterface`.
-- `stepF` is the corresponding classified full-memory transition.
+- `FullMemory.step` is the corresponding classified full-memory transition.
 - `step_mem_extract` assumes that both full endpoint states and both commitment
-  invariants are already available. It proves that a committed `stepC` also
-  satisfies `stepF`. Because it assumes the post-state invariant, it is a
+  invariants are already available. It proves that a `CommittedMemory.step` also
+  satisfies `FullMemory.step`. Because it assumes the post-state invariant, it is a
   conditional refinement theorem rather than the induction step used to
   reconstruct a trace.
 - `commit_update` shows that a candidate post-state commitment is the commitment
@@ -72,7 +72,7 @@ public theorem `step_reconstruct` packages the constructive one-step bridge.
 - `step_reconstruct` proves the constructive one-step bridge: from
   `CommitInv Ŝ₁ S₁` and a committed transition from `Ŝ₁` to `Ŝ₂`, it
   constructs a full state `S₂` and `MemStep` witness `w` such that both
-  `CommitInv Ŝ₂ S₂` and `stepF S₁ S₂ w` hold.
+  `CommitInv Ŝ₂ S₂` and `FullMemory.step S₁ S₂ w` hold.
 - `trace_mem_extract` folds the preceding result across a sequence of committed
   states. The reconstructed states satisfy both the commitment invariant and
   the full-memory transition relation at every index in the trace.
@@ -113,7 +113,7 @@ Vanilla VM with its ISA, bus, and recursive proof layers.
 - `System` packages the commitment scheme, memory-free step component, and
   verifier interfaces for the two-layer toy system.
 - `RSeg` requires the segment boundaries to match and every explicit
-  `MemStep` witness to satisfy `stepC`.
+  `MemStep` witness to satisfy `CommittedMemory.step`.
 - `RFinal` requires the outer boundaries to match and every chained segment
   proof to verify.
 - `toZkVM` and `toZkVMFull` instantiate the frozen abstract `ZkVM` with,

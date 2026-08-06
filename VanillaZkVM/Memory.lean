@@ -15,11 +15,13 @@ is an actual `commit` output, which non-equivocation binding notions cannot give
 * **Commitment injectivity:** `mem_eq_of_commit_eq` (kept here, not in the
   definitions-only kernel `Crypto.lean`).
 * **Model plumbing:** `FullVMState` and `CommitInv`.
-* **Concrete predicates:** the per-transition memory witness `MemStep`, the
-  committed (`readC`/`writeC`) and full-memory (`readF`/`writeF`) op predicates,
-  and the classified steps `stepC`/`stepF`. `committedStep` existentially hides
-  the `MemStep` value and is the binary relation exposed through
-  `StepInterface.stepCommitted`.
+* **Concrete predicates:** the per-transition memory witness `MemStep`, plus
+  `CommittedMemory.read`/`.write`/`.step` (the `φ̂` predicates over
+  `CommittedVMState`, ch03) and `FullMemory.read`/`.write`/`.step` (the `φ`
+  predicates over `FullVMState`, ch01). `MemStep` sits outside both namespaces
+  because the same witness indexes both step predicates. `committedStep`
+  existentially hides the `MemStep` value and is the binary relation exposed
+  through `StepInterface.stepCommitted`.
 * **Per-step extractability:** `step_mem_extract`, turning a committed step into a
   full-memory step (given the commitment invariant on both endpoints).
 * **Write reconstruction:** `commit_update` and `commitInv_write`, which
@@ -94,12 +96,18 @@ inductive MemStep (VC : VectorCommitment) where
 
 variable {VC : VectorCommitment}
 
+/-! ### Committed-memory predicates over `CommittedVMState` (`φ̂`, ch03)
+
+Use qualified names (`CommittedMemory.step`); do not `open` this namespace. -/
+
+namespace CommittedMemory
+
 /-- Committed read `φ̂_read`: register part holds, memory is unchanged, and the
 `MemStep.read` witness's opening `π` verifies `v` at `addr` under the committed
 memory.
 
 Paper: `eq:op-mem-comm-read` (ch03). -/
-def readC (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC)
+def read (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC)
     (addr : VC.Index) (v : VC.Value) (π : VC.OpenProof) : Prop :=
   memFreePred Ŝ₁.pc Ŝ₁.regs Ŝ₂.pc Ŝ₂.regs ∧ Ŝ₁.mem = Ŝ₂.mem ∧ VC.verify Ŝ₁.mem addr v π
 
@@ -108,17 +116,36 @@ witness's opening `π` verifies the old value `vOld` at `addr` under the pre-sta
 memory and the new value `v` at `addr` under the post-state memory.
 
 Paper: `eq:op-mem-comm-write` (ch03). -/
-def writeC (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC)
+def write (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC)
     (addr : VC.Index) (v vOld : VC.Value) (π : VC.OpenProof) : Prop :=
   memFreePred Ŝ₁.pc Ŝ₁.regs Ŝ₂.pc Ŝ₂.regs ∧
   VC.verify Ŝ₁.mem addr vOld π ∧
   VC.verify Ŝ₂.mem addr v π
 
+/-- Classified committed step `φ̂_step` (memory-only slice), indexed by a
+`MemStep` witness. Non-memory ops carry `.other` and a memory-free predicate. It
+omits the paper's bus and concrete ISA classification; those layers later
+conjoin this memory component.
+
+Paper: memory component of `eq:step-bus2` (ch03). -/
+def step (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC) : MemStep VC → Prop
+  | .read addr v π => read memFreePred Ŝ₁ Ŝ₂ addr v π
+  | .write addr v vOld π => write memFreePred Ŝ₁ Ŝ₂ addr v vOld π
+  | .other => memFreePred Ŝ₁.pc Ŝ₁.regs Ŝ₂.pc Ŝ₂.regs ∧ Ŝ₁.mem = Ŝ₂.mem
+
+end CommittedMemory
+
+/-! ### Full-memory predicates over `FullVMState` (`φ`, ch01)
+
+Use qualified names (`FullMemory.step`); do not `open` this namespace. -/
+
+namespace FullMemory
+
 /-- Full-memory read `φ_read`: register part holds, `addr` really holds `v`, and
 memory is unchanged.
 
 Paper: `eq:mem-op-read` and `eq:phi-read-decomp` (ch01). -/
-def readF (memFreePred : MemFreePredicate) (addr : VC.Index) (v : VC.Value)
+def read (memFreePred : MemFreePredicate) (addr : VC.Index) (v : VC.Value)
     (S₁ S₂ : FullVMState VC) : Prop :=
   memFreePred S₁.pc S₁.regs S₂.pc S₂.regs ∧ S₁.mem addr = v ∧ S₂.mem = S₁.mem
 
@@ -127,42 +154,33 @@ pre-memory updated at `addr` to `v` (stated point-wise to avoid a `DecidableEq`
 requirement on `VC.Index`).
 
 Paper: `eq:mem-op-write` and `eq:phi-write-decomp` (ch01). -/
-def writeF (memFreePred : MemFreePredicate) (addr : VC.Index) (v : VC.Value)
+def write (memFreePred : MemFreePredicate) (addr : VC.Index) (v : VC.Value)
     (S₁ S₂ : FullVMState VC) : Prop :=
   memFreePred S₁.pc S₁.regs S₂.pc S₂.regs ∧
   S₂.mem addr = v ∧ (∀ j : VC.Index, j ≠ addr → S₂.mem j = S₁.mem j)
-
-/-- Classified committed step `φ̂_step` (memory-only slice), indexed by a
-`MemStep` witness. Non-memory ops carry `.other` and a memory-free predicate. It
-omits the paper's bus and concrete ISA classification; those layers later
-conjoin this memory component.
-
-Paper: memory component of `eq:step-bus2` (ch03). -/
-def stepC (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC) : MemStep VC → Prop
-  | .read addr v π => readC memFreePred Ŝ₁ Ŝ₂ addr v π
-  | .write addr v vOld π => writeC memFreePred Ŝ₁ Ŝ₂ addr v vOld π
-  | .other => memFreePred Ŝ₁.pc Ŝ₁.regs Ŝ₂.pc Ŝ₂.regs ∧ Ŝ₁.mem = Ŝ₂.mem
-
-/-- The canonical binary committed-memory step exposed by Issue 1. A step holds
-when some `MemStep` witness, including any required opening proof, satisfies
-`stepC`. The `MemStep` value remains available in extraction witnesses, but is
-hidden from the public `StepInterface.stepCommitted` relation.
-
-Paper: the memory component of `eq:step-bus2` and the per-step opening witness
-in `prop:memory-extractability` (ch03/ch05). -/
-def committedStep (memFreePred : MemFreePredicate)
-    (Ŝ₁ Ŝ₂ : CommittedVMState VC) : Prop :=
-  ∃ w : MemStep VC, stepC memFreePred Ŝ₁ Ŝ₂ w
 
 /-- Classified full-memory step `φ_step` (the real predicate), indexed by the
 same `MemStep` witness. The full-memory predicates ignore the opening `π`. This
 is the memory-only component, not yet the full ISA step predicate.
 
 Paper: memory component of `φ_step` in ch03. -/
-def stepF (memFreePred : MemFreePredicate) (S₁ S₂ : FullVMState VC) : MemStep VC → Prop
-  | .read addr v _π => readF memFreePred addr v S₁ S₂
-  | .write addr v _vOld _π => writeF memFreePred addr v S₁ S₂
+def step (memFreePred : MemFreePredicate) (S₁ S₂ : FullVMState VC) : MemStep VC → Prop
+  | .read addr v _π => read memFreePred addr v S₁ S₂
+  | .write addr v _vOld _π => write memFreePred addr v S₁ S₂
   | .other => memFreePred S₁.pc S₁.regs S₂.pc S₂.regs ∧ S₂.mem = S₁.mem
+
+end FullMemory
+
+/-- The canonical binary committed-memory step exposed by Issue 1. A step holds
+when some `MemStep` witness, including any required opening proof, satisfies
+`CommittedMemory.step`. The `MemStep` value remains available in extraction
+witnesses, but is hidden from the public `StepInterface.stepCommitted` relation.
+
+Paper: the memory component of `eq:step-bus2` and the per-step opening witness
+in `prop:memory-extractability` (ch03/ch05). -/
+def committedStep (memFreePred : MemFreePredicate)
+    (Ŝ₁ Ŝ₂ : CommittedVMState VC) : Prop :=
+  ∃ w : MemStep VC, CommittedMemory.step memFreePred Ŝ₁ Ŝ₂ w
 
 /-! ## The per-step memory-extractability lemma -/
 
@@ -178,21 +196,21 @@ the point-updated pre-memory via `classical` (there is no `DecidableEq` on the
 abstract `VC.Index`).
 
 Paper: `prop:memory-extractability` (ch05), restricted to the memory-only
-`stepC`/`stepF` interface above. -/
+`CommittedMemory.step`/`FullMemory.step` interface above. -/
 theorem step_mem_extract
     (hComplete : VC.Complete) (hpos : PositionBinding VC) (hupd : UpdateBinding VC)
     (memFreePred : MemFreePredicate)
     (S₁ S₂ : FullVMState VC) (Ŝ₁ Ŝ₂ : CommittedVMState VC) (w : MemStep VC)
     (h1 : CommitInv Ŝ₁ S₁) (h2 : CommitInv Ŝ₂ S₂)
-    (hstep : stepC memFreePred Ŝ₁ Ŝ₂ w) :
-    stepF memFreePred S₁ S₂ w := by
+    (hstep : CommittedMemory.step memFreePred Ŝ₁ Ŝ₂ w) :
+    FullMemory.step memFreePred S₁ S₂ w := by
   unfold CommitInv at h1 h2
   obtain ⟨hpc1, hreg1, hmem1⟩ := h1
   obtain ⟨hpc2, hreg2, hmem2⟩ := h2
   cases w with
   | read addr v π =>
-    simp only [stepC, readC] at hstep
-    simp only [stepF, readF]
+    simp only [CommittedMemory.step, CommittedMemory.read] at hstep
+    simp only [FullMemory.step, FullMemory.read]
     obtain ⟨hreg, hmemEq, hverify⟩ := hstep
     refine ⟨?_, ?_, ?_⟩
     · rw [hpc1, hreg1, hpc2, hreg2] at hreg; exact hreg
@@ -204,8 +222,8 @@ theorem step_mem_extract
       apply mem_eq_of_commit_eq hComplete hpos
       rw [← hmem1, ← hmem2]; exact hmemEq
   | write addr v vOld π =>
-    simp only [stepC, writeC] at hstep
-    simp only [stepF, writeF]
+    simp only [CommittedMemory.step, CommittedMemory.write] at hstep
+    simp only [FullMemory.step, FullMemory.write]
     obtain ⟨hreg, hv1, hv2⟩ := hstep
     classical
     -- Move the two openings onto the honest commitments.
@@ -235,8 +253,8 @@ theorem step_mem_extract
       have hj2 : S₂.mem j = (if j = addr then v else S₁.mem j) := (congrFun hfun j).symm
       rw [hj2, if_neg hj]
   | other =>
-    simp only [stepC] at hstep
-    simp only [stepF]
+    simp only [CommittedMemory.step] at hstep
+    simp only [FullMemory.step]
     obtain ⟨hreg, hmemEq⟩ := hstep
     refine ⟨?_, ?_⟩
     · rw [hpc1, hreg1, hpc2, hreg2] at hreg; exact hreg
@@ -289,10 +307,10 @@ private theorem commitInv_write
     (h1 : CommitInv Ŝ₁ S₁)
     (hpc : Ŝ₂.pc = S₂.pc) (hreg : Ŝ₂.regs = S₂.regs)
     (h2addr : S₂.mem addr = v) (h2off : ∀ j, j ≠ addr → S₂.mem j = S₁.mem j)
-    (hstep : writeC memFreePred Ŝ₁ Ŝ₂ addr v vOld π) :
+    (hstep : CommittedMemory.write memFreePred Ŝ₁ Ŝ₂ addr v vOld π) :
     CommitInv Ŝ₂ S₂ := by
   obtain ⟨_, _, hmem1⟩ := h1
-  simp only [writeC] at hstep
+  simp only [CommittedMemory.write] at hstep
   obtain ⟨_, hv1, hv2⟩ := hstep
   rw [hmem1] at hv1
   exact ⟨hpc, hreg,
@@ -338,21 +356,21 @@ private theorem commitInv_step
     (hComplete : VC.Complete) (hpos : PositionBinding VC) (hupd : UpdateBinding VC)
     (memFreePred : MemFreePredicate)
     (S : FullVMState VC) (Ŝ Ŝ' : CommittedVMState VC) (w : MemStep VC)
-    (h : CommitInv Ŝ S) (hs : stepC memFreePred Ŝ Ŝ' w) :
+    (h : CommitInv Ŝ S) (hs : CommittedMemory.step memFreePred Ŝ Ŝ' w) :
     CommitInv Ŝ' (stepReconstruct S Ŝ' w) := by
   cases w with
   | read addr v π =>
     obtain ⟨-, -, hmem⟩ := h
-    simp only [stepC, readC] at hs
+    simp only [CommittedMemory.step, CommittedMemory.read] at hs
     obtain ⟨-, hmemEq, -⟩ := hs
     exact ⟨rfl, rfl, by show Ŝ'.mem = VC.commit S.mem; rw [← hmemEq]; exact hmem⟩
   | other =>
     obtain ⟨-, -, hmem⟩ := h
-    simp only [stepC] at hs
+    simp only [CommittedMemory.step] at hs
     obtain ⟨-, hmemEq⟩ := hs
     exact ⟨rfl, rfl, by show Ŝ'.mem = VC.commit S.mem; rw [← hmemEq]; exact hmem⟩
   | write addr v vOld π =>
-    simp only [stepC] at hs
+    simp only [CommittedMemory.step] at hs
     exact commitInv_write hComplete hpos hupd memFreePred S
       (stepReconstruct S Ŝ' (.write addr v vOld π)) Ŝ Ŝ' addr v vOld π
       h rfl rfl (by simp [stepReconstruct]) (fun j hj => by simp [stepReconstruct, hj]) hs
@@ -365,14 +383,14 @@ private theorem reconstructed_step_full
     (hComplete : VC.Complete) (hpos : PositionBinding VC)
     (memFreePred : MemFreePredicate)
     (S : FullVMState VC) (Ŝ Ŝ' : CommittedVMState VC) (w : MemStep VC)
-    (hInv : CommitInv Ŝ S) (hstep : stepC memFreePred Ŝ Ŝ' w) :
-    stepF memFreePred S (stepReconstruct S Ŝ' w) w := by
+    (hInv : CommitInv Ŝ S) (hstep : CommittedMemory.step memFreePred Ŝ Ŝ' w) :
+    FullMemory.step memFreePred S (stepReconstruct S Ŝ' w) w := by
   obtain ⟨hpc, hregs, hmem⟩ := hInv
   cases w with
   | read addr value proof =>
-    simp only [stepC, readC] at hstep
+    simp only [CommittedMemory.step, CommittedMemory.read] at hstep
     obtain ⟨hsem, _, hopen⟩ := hstep
-    simp only [stepReconstruct, stepF, readF]
+    simp only [stepReconstruct, FullMemory.step, FullMemory.read]
     refine ⟨?_, ?_, trivial⟩
     · rw [hpc, hregs] at hsem
       exact hsem
@@ -382,18 +400,18 @@ private theorem reconstructed_step_full
       exact hpos (VC.commit S.mem) addr (S.mem addr) value
         (VC.openProof S.mem addr) proof (hComplete S.mem addr) hopen'
   | write addr value oldValue proof =>
-    simp only [stepC, writeC] at hstep
+    simp only [CommittedMemory.step, CommittedMemory.write] at hstep
     obtain ⟨hsem, _, _⟩ := hstep
-    simp only [stepReconstruct, stepF, writeF]
+    simp only [stepReconstruct, FullMemory.step, FullMemory.write]
     refine ⟨?_, by simp, ?_⟩
     · rw [hpc, hregs] at hsem
       exact hsem
     · intro j hj
       exact if_neg hj
   | other =>
-    simp only [stepC] at hstep
+    simp only [CommittedMemory.step] at hstep
     obtain ⟨hsem, _⟩ := hstep
-    simp only [stepReconstruct, stepF]
+    simp only [stepReconstruct, FullMemory.step]
     refine ⟨?_, trivial⟩
     rw [hpc, hregs] at hsem
     exact hsem
@@ -416,7 +434,7 @@ theorem step_reconstruct
     (S₁ : FullVMState VC) (Ŝ₁ Ŝ₂ : CommittedVMState VC)
     (hInv : CommitInv Ŝ₁ S₁) (hstep : committedStep memFreePred Ŝ₁ Ŝ₂) :
     ∃ S₂ : FullVMState VC,
-      CommitInv Ŝ₂ S₂ ∧ ∃ w : MemStep VC, stepF memFreePred S₁ S₂ w := by
+      CommitInv Ŝ₂ S₂ ∧ ∃ w : MemStep VC, FullMemory.step memFreePred S₁ S₂ w := by
   obtain ⟨w, hw⟩ := hstep
   let S₂ := stepReconstruct S₁ Ŝ₂ w
   have hInv₂ : CommitInv Ŝ₂ S₂ :=
@@ -438,9 +456,9 @@ theorem trace_mem_extract
     (memFreePred : MemFreePredicate) (T : ℕ)
     (Ŝ : ℕ → CommittedVMState VC) (w : ℕ → MemStep VC) (S₀ : FullVMState VC)
     (hseed : CommitInv (Ŝ 0) S₀)
-    (hstep : ∀ k, k < T → stepC memFreePred (Ŝ k) (Ŝ (k + 1)) (w k)) :
+    (hstep : ∀ k, k < T → CommittedMemory.step memFreePred (Ŝ k) (Ŝ (k + 1)) (w k)) :
     (∀ k, k ≤ T → CommitInv (Ŝ k) (reconstructTrace Ŝ w S₀ k)) ∧
-    (∀ k, k < T → stepF memFreePred (reconstructTrace Ŝ w S₀ k)
+    (∀ k, k < T → FullMemory.step memFreePred (reconstructTrace Ŝ w S₀ k)
                      (reconstructTrace Ŝ w S₀ (k + 1)) (w k)) := by
   have hinv : ∀ k, k ≤ T → CommitInv (Ŝ k) (reconstructTrace Ŝ w S₀ k) := by
     intro k
@@ -462,7 +480,7 @@ open Classical in
 /-- Pick a `MemStep` witness for each transition of a committed trace: where a
 committed step exists, choose its witnessing `MemStep` value; otherwise use a
 dummy `.other`. This
-lets a caller that only knows the *existential* step relation (`∃ w, stepC …`,
+lets a caller that only knows the *existential* step relation (`∃ w, CommittedMemory.step …`,
 the shape of an abstract `ZkVM.step`) still drive `reconstructTrace`.
 
 Paper: per-step memory-opening witnesses in `prop:memory-extractability` (ch05). -/
@@ -472,7 +490,7 @@ noncomputable def chooseMemStep (memFreePred : MemFreePredicate)
 
 theorem chooseMemStep_spec (memFreePred : MemFreePredicate) (Ŝ : ℕ → CommittedVMState VC)
     (k : ℕ) (h : committedStep memFreePred (Ŝ k) (Ŝ (k + 1))) :
-    stepC memFreePred (Ŝ k) (Ŝ (k + 1)) (chooseMemStep memFreePred Ŝ k) := by
+    CommittedMemory.step memFreePred (Ŝ k) (Ŝ (k + 1)) (chooseMemStep memFreePred Ŝ k) := by
   simp only [chooseMemStep]; rw [dif_pos h]; exact h.choose_spec
 
 end VanillaZkVM
