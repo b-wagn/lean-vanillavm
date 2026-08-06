@@ -211,7 +211,7 @@ Paper: `prop:memory-extractability` and `rem:mem-inheritance` (ch05);
 `eq:op-mem-comm-read`/`eq:op-mem-comm-write` (ch03);
 `eq:mem-op-read`/`eq:mem-op-write` (ch01).
 
-### 1.1 State relation and classified memory steps
+### 1.1 State relation and memory step predicates
 
 For a vector commitment `VC`, a full state has
 `mem : VC.Index → VC.Value`, while a committed state has `mem̂ : VC.Com`.
@@ -254,7 +254,7 @@ The public binary committed relation hides the `MemStep` witness existentially:
     committedStep(Ŝ₁,Ŝ₂) := ∃ w : MemStep VC, CommittedMemory.step(Ŝ₁,Ŝ₂,w).
 
 This is deliberately the **memory-only component**. It does not yet connect
-`addr` and `v` to specific registers, classify the concrete ISA, or model the
+`addr` and `v` to specific registers, decode the concrete ISA, or model the
 bus. Those semantic conjuncts belong to Issues 3 and 5.
 *Lean:* `MemStep`, `CommittedMemory.read`, `CommittedMemory.write`, `FullMemory.read`, `FullMemory.write`, `CommittedMemory.step`, `FullMemory.step`,
 `committedStep`.

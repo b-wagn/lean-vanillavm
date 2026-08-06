@@ -122,10 +122,11 @@ def write (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC)
   VC.verify Ŝ₁.mem addr vOld π ∧
   VC.verify Ŝ₂.mem addr v π
 
-/-- Classified committed step `φ̂_step` (memory-only slice), indexed by a
-`MemStep` witness. Non-memory ops carry `.other` and a memory-free predicate. It
-omits the paper's bus and concrete ISA classification; those layers later
-conjoin this memory component.
+/-- Committed step `φ̂_step` (memory-only slice): a case split over the
+operation type carried by the `MemStep` witness (the paper's disjunction over
+ops). Non-memory ops carry `.other` and a memory-free predicate. It omits the
+paper's bus and concrete ISA decoding; those layers later conjoin this memory
+component.
 
 Paper: memory component of `eq:step-bus2` (ch03). -/
 def step (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC) : MemStep VC → Prop
@@ -159,9 +160,10 @@ def write (memFreePred : MemFreePredicate) (addr : VC.Index) (v : VC.Value)
   memFreePred S₁.pc S₁.regs S₂.pc S₂.regs ∧
   S₂.mem addr = v ∧ (∀ j : VC.Index, j ≠ addr → S₂.mem j = S₁.mem j)
 
-/-- Classified full-memory step `φ_step` (the real predicate), indexed by the
-same `MemStep` witness. The full-memory predicates ignore the opening `π`. This
-is the memory-only component, not yet the full ISA step predicate.
+/-- Full-memory step `φ_step` (the real predicate): the same case split over
+the `MemStep` witness as `CommittedMemory.step`. The full-memory predicates
+ignore the opening `π`. This is the memory-only component, not yet the full ISA
+step predicate.
 
 Paper: memory component of `φ_step` in ch03. -/
 def step (memFreePred : MemFreePredicate) (S₁ S₂ : FullVMState VC) : MemStep VC → Prop

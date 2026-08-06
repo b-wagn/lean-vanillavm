@@ -46,11 +46,12 @@ public theorem `step_reconstruct` packages the constructive one-step bridge.
   states.
 - `FullMemory.read` and `FullMemory.write` describe the corresponding operations between
   full-memory states.
-- `CommittedMemory.step` is the classified committed-memory transition over reads, writes, and
-  other instructions.
+- `CommittedMemory.step` is the committed-memory transition, case-split over
+  reads, writes, and other instructions.
 - `committedStep` hides the `MemStep` witness existentially and is the binary
   committed relation exposed through `StepInterface`.
-- `FullMemory.step` is the corresponding classified full-memory transition.
+- `FullMemory.step` is the corresponding full-memory transition, case-split over
+  the same witness.
 - `step_mem_extract` assumes that both full endpoint states and both commitment
   invariants are already available. It proves that a `CommittedMemory.step` also
   satisfies `FullMemory.step`. Because it assumes the post-state invariant, it is a

@@ -10,7 +10,7 @@ and committed-memory states — while dropping the bus, the four inner circuits,
 the chips, and the binary `convert`/`combine`/`embed` tower.
 
 * Segment layer `RSeg`: a chain of `Nseg` committed steps `Sin → Sout` under the
-  classified committed step predicate `CommittedMemory.step` (from `Memory`). Each step carries
+  committed step predicate `CommittedMemory.step` (from `Memory`). Each step carries
   its explicit `MemStep` witness, including the opening used by a read/write.
   Operations are not deferred to a bus.
 * Final layer `RFinal`: a single SNARK merging `m` segment proofs whose boundary
@@ -22,7 +22,7 @@ plus a two-layer extraction. The committed trace is produced with `concatTrace`;
 its validity rests on `chain_flatten` (both from `Trace`).
 
 The base `cte` target is a committed-memory trace whose binary step is the
-existential projection `committedStep` of the classified `CommittedMemory.step`, with the per-step
+existential projection `committedStep` of the witness-indexed `CommittedMemory.step`, with the per-step
 `MemStep` witnesses retained in the segment witnesses. `cte_full` then folds
 `Memory.trace_mem_extract` over that trace to obtain the *full-memory* statement:
 a full-memory trace satisfying the commitment invariant at every state and a
@@ -75,13 +75,13 @@ def toCommitted {VC : VectorCommitment} (S : FullVMState VC) : CommittedVMState 
 /-! ## The toy system -/
 
 /-- The toy system: a memory commitment scheme, the memory-free component of
-its classified step semantics, and the two layers' proof types with their
+its step semantics, and the two layers' proof types with their
 verifiers. -/
 structure System where
   VC : VectorCommitment
   Nseg : ℕ
   m : ℕ
-  /-- Memory-free register/program-counter part of each classified step; the full
+  /-- Memory-free register/program-counter part of each step; the full
   committed step is `CommittedMemory.step memFreePred` (from `Memory`). -/
   memFreePred : MemFreePredicate
   SegProof : Type
