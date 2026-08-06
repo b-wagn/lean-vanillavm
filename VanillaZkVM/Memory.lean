@@ -41,8 +41,7 @@ namespace VanillaZkVM
 /-! ## Commitment injectivity -/
 
 /-- A commitment is injective on memories, given completeness and position
-binding: if two memories commit to the same value, they are equal. (The `funext`
-+ position-binding argument used throughout memory extraction.)
+binding: if two memories commit to the same value, they are equal.
 
 Paper: completeness instruction preceding `def:binding`; `def:binding` (ch05). -/
 theorem mem_eq_of_commit_eq {VC : VectorCommitment}
@@ -63,11 +62,11 @@ is the instance `VC.Index := ℕ`, `VC.Value := ℕ`. No wrapper, no casts.
 Paper: VM state in ch01. -/
 abbrev FullVMState (VC : VectorCommitment) : Type := VMStateWith (VC.Index → VC.Value)
 
-/-- **Commitment invariant** linking a full state to a committed one: same `pc`
-and `regs`, and the committed memory is the commitment of the full memory. Both
-sides live over `VC.Index → VC.Value`, so this typechecks with no casts.
+/-- `Ŝ` is the committed version of `S`: same `pc` and `regs`, and `Ŝ.mem` is
+the commitment of `S.mem`.
 
-Paper: `rem:mem-inheritance` (ch05). -/
+Paper: `rem:mem-inheritance` (ch05) — the *commitment invariant* carried along
+the memory-reconstruction induction. -/
 def CommitInv {VC : VectorCommitment} (Ŝ : CommittedVMState VC) (S : FullVMState VC) : Prop :=
   Ŝ.pc = S.pc ∧ Ŝ.regs = S.regs ∧ Ŝ.mem = VC.commit S.mem
 
