@@ -2,7 +2,8 @@
 
 This is the working plan: **10 dependency-ordered issues** taking us from the current two-step toy
 to a formalized main security theorem for the full vanilla VM (`thm:main`). It supersedes the
-free-form task list in `benedikt-plan.md` (which it folds in) and is the authoritative scope (I2).
+free-form task list in `benedikt-plan.md` (whose relevant items it incorporates)
+and is the authoritative scope (I2).
 
 **How to read an issue.** Each has: *Goal · Depends on · Assigned · Reuse · New public surface ·
 Deliverables · Math companion · Review requirement (where assigned; human, not delegatable) ·
@@ -20,13 +21,14 @@ Skills & conventions · Paper anchor.* Everything is written on a branch per iss
   Benedikt (or another non-author).
 
 **Assignments follow the code people have already written** (git-verified):
-Yavor owns memory reconstruction (`pr5`/`yl-memory-reconstruction`) and the `Bus.lean` prototype;
-Dmitry owns the memory→abstract-VM integration (`memory-integration`, `cte_full`) and the
+Yavor owns memory reconstruction (`pr5`/`yl-memory-reconstruction`) and authored
+the former `Bus.lean` prototype, now retained only in git history;
+Dmitry owns the memory→abstract-VM integration (`memory-integration`, full-memory CTE) and the
 cost/reduction experiments (`cost-twostep`, `cost-bus-reduction`); Jessica owns reductions
 (`extract-or-collision`, `cr-algorithmic`).
 
 **Redundancy (by design).** Issue **1** carries two independent memory integrations (Yavor's
-Bus-wired core vs Dmitry's abstract-VM `cte_full`) that must prove the same statement, and Issue
+Bus-wired core vs Dmitry's abstract-VM full-memory CTE) that must prove the same statement, and Issue
 **9** re-derives the statements independently. This cross-validation is deliberate (Hicks).
 
 ---
@@ -108,20 +110,20 @@ in lockstep. This is a hard deliverable, not optional.
   insufficient `PuncturedBinding`** and formalize `prop:memory-extractability`.
 - **Depends on.** Issue 0.
 - **Assigned.** **Redundant:** Yavor (base: `pr5`'s Bus-wired reconstruction core — his code) **and**
-  Dmitry (`memory-integration`'s abstract-VM `cte_full` — his code); reconcile to one `Memory.lean`
+  Dmitry (`memory-integration`'s abstract-VM full-memory CTE); reconcile to one `Memory.lean`
   core at the end. *Review: George (and/or Benedikt).*
 - **Reuse.** **`pr5`** — best base (trace-level `trace_mem_extract`, boundary-exact, only branch with
   concrete non-vacuity checks incl. `appendBitVC_not_updateBinding`; already replaces punctured with
-  update binding). **`memory-integration`** — its `Twostep` integration (`cte_full`) + its
-  `math-companion.md` (fold into the project companion). **`yl-memory-reconstruction`** — docs
+  update binding). **`memory-integration`** — its full-memory `Twostep` integration + its
+  `math-companion.md` (incorporate into the project companion). **`yl-memory-reconstruction`** — docs
   reference (identical Lean to pr5; skim `AXIOM_AUDIT.md`). **DROP `memory-recon`** (destructive,
   least complete). Re-apply hunks onto post-#4 `main-temp` (§4).
 - **New public surface (max ~5).** `UpdateBinding` (+ break witness), `FullVMState`/`CommitInv`,
   the concrete `committedStep` predicate underlying `StepInterface.stepCommitted`,
   `step_mem_extract`, and `trace_mem_extract`. `TwoStepWithMemory` is realized as
-  `TwoStep.System.toZkVMFull`, an *instance* of the abstract `ZkVM` (I5), rather than as a duplicate
+  `TwoStep.System.toZkVMFullMemory`, an *instance* of the abstract `ZkVM` (I5), rather than as a duplicate
   security definition. Deprecate/remove `PuncturedBinding` in the same PR.
-- **Deliverables.** Reconciled `Memory.lean` core, the `TwoStepWithMemory` instance, `cte_full`
+- **Deliverables.** Reconciled `Memory.lean` core, the `TwoStepWithMemory` instance, `cte_fullMemory`
   (CTE over *full* memory), `MemorySanity`-style non-vacuity instances, and a concrete proof of
   `StepInterface.MemoryBridge`.
 - **Math companion.** Write the memory-extractability proposition and the read/write commitment
@@ -210,15 +212,16 @@ in lockstep. This is a hard deliverable, not optional.
   `rem:wellfounded`.
 
 ## Issue 5 — Bus functionality per segment, wired into a VM  *(scheduled late)*
-- **Goal.** Build the segment/bus layer **properly** (the current `Bus.lean` on `main-temp` is
-  Yavor's *playground prototype* and is **not** ground truth — redo, don't preserve it), then lift
+- **Goal.** Build the segment/bus layer **properly**. The former `Bus.lean`
+  playground prototype was removed from the active tree because it was not
+  ground truth; consult it only in git history. Then lift
   single-segment extraction across a whole execution: `m` segments each with their own
   internally-consistent bus `B̂_i`, concatenated by `concatTrace`/`chain_flatten` into one length-`T`
   trace carrying per-segment `StepAux`/bus data. Slotted **late** because the recursion tower (Issue
   4) is built over an abstract leaf and does not need it.
 - **Depends on.** Issue 0, Issue 3 (chips consume the op taxonomy). Soft-dep on Issue 2 (extract-or-break).
 - **Assigned.** Yavor (author of the prototype). *Review: Benedikt.*
-- **Reuse.** The prototype `Bus.lean` as *reference only* — reimplement to the frozen kernel and the
+- **Reuse.** The deleted prototype from git history as *reference only* — reimplement to the frozen kernel and the
   Issue-3 ISA; do not treat its `segment_extract` as done. `cost-bus-reduction` reference for the
   future cost combinators. Reuse `concatTrace`/`chain_flatten` from the kernel (do not duplicate).
 - **New public surface (max ~3).** A bus-backed segment relation + a `Bus`-backed VM as an *instance*
@@ -332,13 +335,13 @@ in lockstep. This is a hard deliverable, not optional.
 | Branch | Author | Disposition | Used by |
 |---|---|---|---|
 | `pr5` | Yavor | **REUSE — best memory base** (Bus-wired, sanity checks, already update-binding) | Issue 1 |
-| `memory-integration` | Dmitry | REUSE (abstract-VM `cte_full` + math-companion), cross-validate | Issue 1 |
+| `memory-integration` | Dmitry | REUSE (abstract-VM full-memory CTE + math-companion), cross-validate | Issue 1 |
 | `yl-memory-reconstruction` | Yavor | REFERENCE (docs; identical Lean to pr5) | Issue 1 |
 | `memory-recon` | Yavor/Dmitry | **DROP** (destructive, least complete) | — |
 | `extract-or-collision` | Jessica | **REUSE — generalize** (extract-or-collision shape) | Issue 2 |
 | `cr-algorithmic` | Jessica | REUSE as provisional CR variant (keyed/algorithmic) | Issue 2/8 |
 | `cost-twostep` | Dmitry | REFERENCE (most complete cost/`Cost.lean` superset) | Issue 6/8 |
 | `cost-bus-reduction` | Dmitry | REFERENCE (cost combinators, toy) | Issue 6/8 |
-| `main-temp` `Bus.lean` | Yavor | **NOT ground truth** — playground prototype; redo in Issue 5 | Issue 5 (ref) |
+| former `main-temp` `Bus.lean` (git history) | Yavor | **NOT ground truth** — deleted playground prototype; redo in Issue 5 | Issue 5 (ref) |
 
 All cost/CR branches predate PR #4 — **re-apply hunks, don't merge wholesale** (`CONVENTIONS.md` §4).

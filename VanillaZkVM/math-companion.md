@@ -122,8 +122,8 @@ The **memory bridge** (`StepInterface.MemoryBridge`) is
     Rep(Ĉ₁,S₁) ∧ stepCommitted(Ĉ₁,Ĉ₂)
       ⟹ ∃ S₂. Rep(Ĉ₂,S₂) ∧ V.step(S₁,S₂).
 
-The existential construction of `S₂` is what lets Issue 1 preserve the
-commitment invariant inductively. Assuming `Rep(Ĉ₂,S₂)` as a premise would prove
+The existential construction of `S₂` is what lets Issue 1 establish `Rep` for
+successive states by induction. Assuming `Rep(Ĉ₂,S₂)` as a premise would prove
 only a conditional one-step refinement and would not reconstruct a trace.
 
 The **bus bridge** (`StepInterface.BusBridge stepWithBus`) is
@@ -168,10 +168,10 @@ of different values at the same position:
 
 *Lean:* `VectorCommitment.PositionBinding`.
 
-**Update binding** (`def:binding`, ch05). One opening `π` that opens an honest
-pre-root `commit m` at `addr` to `m(addr)` and opens a candidate post-root `C'`
-at the same address to `x` forces that candidate to be the honest commitment of
-the point update:
+**Update binding** (`def:binding`, ch05). One opening `π` that verifies
+`m(addr)` against `commit m` and verifies `x` against a candidate commitment
+`C'` at the same address forces `C'` to equal the commitment of the point
+update:
 
     m'(addr) = x
     ∧ (∀ j ≠ addr, m'(j) = m(j))
@@ -181,10 +181,10 @@ the point update:
 
 Position binding and update binding are **independent requirements** in the
 paper. The append-bit model in `MemorySanity` satisfies completeness, position
-binding, and the punctured non-equivocation formula but fails update binding.
-It therefore demonstrates that those earlier non-equivocation hypotheses do
-not guarantee that a verifier-accepted post-root lies in the image of `commit`;
-it does not establish an implication in the other direction.
+binding, and agreement of accepted openings away from the updated address, but
+fails update binding. It therefore demonstrates that those properties do not
+guarantee that a verifier-accepted candidate equals `commit m` for some memory
+`m`; it does not establish an implication in the other direction.
 *Lean:* `VectorCommitment.UpdateBinding`; countermodel
 `MemorySanity.appendBitVC_not_updateBinding`.
 
@@ -215,10 +215,14 @@ Paper: `prop:memory-extractability` and `rem:mem-inheritance` (ch05);
 
 For a vector commitment `VC`, a full state has
 `mem : VC.Index → VC.Value`, while a committed state has `mem̂ : VC.Com`.
-Their commitment invariant is
+The relation between them is
 
     CommitInv(Ŝ, S)
       := Ŝ.pc = S.pc ∧ Ŝ.regs = S.regs ∧ Ŝ.mem = commit(S.mem).
+
+Thus `Ŝ` and `S` describe the same VM state: they have identical control and
+register data, while `Ŝ` stores a commitment where `S` stores the complete
+memory map. Reconstruction proves this relation at every trace position.
 
 *Lean:* `FullVMState`, `CommitInv`.
 
@@ -261,33 +265,35 @@ bus. Those semantic conjuncts belong to Issues 3 and 5.
 
 ### 1.2 One-step memory extraction
 
-Completeness plus position binding imply injectivity of honest commitments:
+Completeness plus position binding imply injectivity of commitments produced by
+`commit`:
 
     commit(m₁) = commit(m₂) ⟹ m₁ = m₂.
 
-Given `VC.Complete`, `VC.PositionBinding`, `VC.UpdateBinding`, both endpoint
-invariants, and a committed step,
+Given `VC.Complete`, `VC.PositionBinding`, `VC.UpdateBinding`, `CommitInv` for
+both endpoint states, and a committed-memory step,
 
     CommitInv(Ŝ₁,S₁) ∧ CommitInv(Ŝ₂,S₂) ∧ CommittedMemory.step(Ŝ₁,Ŝ₂,w)
       ⟹ FullMemory.step(S₁,S₂,w).
 
-Reads compare the supplied opening with an honest opening and use commitment
-injectivity to preserve memory. Writes use position binding to identify the old
-and new leaves, update binding to pin the post-root to the point-updated
-memory, and injectivity to identify the supplied full post-memory.
+Reads compare the supplied opening with the opening produced by `openProof` and
+use commitment injectivity to preserve memory. Writes use position binding to
+identify the old and new leaves, update binding to identify the second
+committed-memory state's commitment with the point-updated memory, and
+injectivity to identify the supplied second full memory.
 *Lean:* `mem_eq_of_commit_eq`, `step_mem_extract`.
 
 ### 1.3 Inductive reconstruction
 
 Starting with `CommitInv(Ŝ₀,S₀)`, reconstruct the next full state by keeping
 memory for reads/other steps and point-updating it for writes. Update binding
-establishes the post-state commitment invariant in the write case:
+establishes `CommitInv` for the next state in the write case:
 
     CommitInv(Ŝₖ,Sₖ) ∧ CommittedMemory.step(Ŝₖ,Ŝₖ₊₁,wₖ)
       ⟹ CommitInv(Ŝₖ₊₁,Sₖ₊₁)
           ∧ FullMemory.step(Sₖ,Sₖ₊₁,wₖ).
 
-After hiding the `MemStep` witness, the constructive statement has exactly the
+After hiding the `MemStep` witness, the existential statement has exactly the
 frozen memory-bridge shape:
 
     CommitInv(Ŝ₁,S₁) ∧ committedStep(Ŝ₁,Ŝ₂)
@@ -296,7 +302,7 @@ frozen memory-bridge shape:
 For the two-step full-memory `ZkVM`, `V.step` is the final existential above,
 so `memoryStepInterface` sets `represents := CommitInv` and
 `stepCommitted := committedStep`; `memoryBridge` proves
-`StepInterface.MemoryBridge` without assuming the post-invariant.
+`StepInterface.MemoryBridge` without assuming `CommitInv(Ŝ₂,S₂)`.
 
 Induction over `k < T` yields both:
 
@@ -304,7 +310,7 @@ Induction over `k < T` yields both:
     ∀ k < T, FullMemory.step(Sₖ,Sₖ₊₁,wₖ).
 
 This is the perfect, memory-only counterpart of the paper's
-memory-extractability reduction and its reconstruction invariant. It assumes
+memory-extractability reduction and its `CommitInv` relation. It assumes
 the binding properties directly; explicit bad-event reductions and advantage
 accounting remain assigned to Issues 2 and 6.
 *Lean:* public `step_reconstruct`, `reconstructTrace`, and
@@ -322,17 +328,18 @@ argument systems, and all three memory-commitment properties, the committed
 trace extractor followed by reconstruction is a `CTE` extractor for the
 full-memory instance.
 
-The terminal full state is not assumed during reconstruction: the invariant at
+The terminal full state is not assumed during reconstruction: `CommitInv` for
 the extracted committed terminal state and commitment injectivity identify it
 with the full terminal state in the statement.
-*Lean:* `TwoStep.System.toZkVMFull`, `traceValid_full`, `cte_full`.
+*Lean:* `TwoStep.System.toZkVMFullMemory`, `traceValid_full`, `cte_fullMemory`.
 
 `TwostepSanity.lean` permanently checks non-vacuity: a one-segment, one-step
 system over `MemorySanity.exactVC` has identity knowledge extractors, an
-accepting final proof, and satisfies `cte_full`'s complete hypothesis bundle.
+accepting final proof, and satisfies `cte_fullMemory`'s complete hypothesis bundle.
 `MemorySanity.lean` also instantiates the append-bit attack at the bridge level:
-the pre-state is represented and the committed write verifies, but the malformed
-post-root has no full-memory representative. Thus dropping update binding would
+the initial full-memory state represents the first committed-memory state and
+the committed-memory write verifies, but the second commitment has no
+full-memory representative. Thus dropping update binding would
 make the frozen bridge conclusion false, not merely harder to prove.
 
 This is not yet the full VanillaVM theorem: `memFreePred` is abstract, and the

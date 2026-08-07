@@ -40,7 +40,8 @@ The last sentence following `eq:step-bus2` in ch03 still says
 “punctured-binding advantages.” The normative `def:binding`,
 `prop:memory-extractability`, and Step 6 of `thm:main` in ch05 all use
 **position binding plus update binding**, and explain why update binding is the
-property that forces an accepted post-root to be an honest updated commitment.
+property that forces an accepted commitment after a write to equal `Commit` of
+the updated memory.
 Issue 1 follows those formal statements; the ch03 occurrence is treated as a
 stale term, not as a third commitment assumption.
 

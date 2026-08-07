@@ -47,13 +47,18 @@ namespace StepInterface
 
 variable {V : ZkVM} (I : StepInterface V)
 
-/-- The statement required from the memory layer: from a represented plain
-pre-state and a committed step, reconstruct a represented plain post-state that
-satisfies the canonical predicate `V.step`.
+/-- The statement required from the memory layer: if `represents C₁ S₁` and
+`stepCommitted C₁ C₂`, construct `S₂` such that `represents C₂ S₂` and
+`V.step S₁ S₂`.
+
+In plain terms, if `C₁` represents a known state `S₁`, then an accepted step
+from `C₁` to `C₂` must correspond to some next VM state `S₂`. The conclusion,
+not an additional premise, proves both that `S₂` represents `C₂` and that
+`S₁ → S₂` is a valid VM step.
 
 Issue 1 proves a concrete instance using completeness, position binding, and
-update binding. This formulation includes preservation of the representation
-invariant; merely assuming that invariant at both endpoints would not suffice
+update binding. This formulation proves the representation relation for the
+constructed second state; assuming it for both endpoint states would not suffice
 for trace reconstruction.
 
 Paper target: `prop:memory-extractability` and `rem:mem-inheritance`. -/

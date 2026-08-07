@@ -8,13 +8,13 @@ argument. It keeps the *existing* `VectorCommitment` (no specialized
 memory-commitment structure) and *consumes* `PositionBinding` and
 `UpdateBinding`, the provisional binding notions in `Crypto.lean`.
 
-`UpdateBinding` supersedes the earlier punctured-binding notion: establishing the
-commitment invariant across a write requires concluding a reconstructed post-root
-is an actual `commit` output, which non-equivocation binding notions cannot give.
+`UpdateBinding` supplies the write guarantee missing from the earlier condition
+on openings away from the updated address: the commitment after an accepted
+write must equal `commit` of the updated full memory.
 
 * **Commitment injectivity:** `mem_eq_of_commit_eq` (kept here, not in the
   definitions-only kernel `Crypto.lean`).
-* **Model plumbing:** `FullVMState` and `CommitInv`.
+* **State representation:** `FullVMState` and `CommitInv`.
 * **Concrete predicates:** the per-transition memory witness `MemStep`, plus
   `CommittedMemory.read`/`.write`/`.step` (the `φ̂` predicates over
   `CommittedVMState`, ch03) and `FullMemory.read`/`.write`/`.step` (the `φ`
@@ -22,12 +22,12 @@ is an actual `commit` output, which non-equivocation binding notions cannot give
   because the same witness indexes both step predicates. `committedStep`
   existentially hides the `MemStep` value and is the binary relation exposed
   through `StepInterface.stepCommitted`.
-* **Per-step extractability:** `step_mem_extract`, turning a committed step into a
-  full-memory step (given the commitment invariant on both endpoints).
+* **Per-step extractability:** `step_mem_extract`, turning a committed-memory
+  step into a full-memory step (given `CommitInv` for both endpoint states).
 * **Write reconstruction:** `commit_update` and `commitInv_write`, which
-  *establish* the commitment invariant across a write.
-* **Constructive bridge:** `step_reconstruct`, which constructs the represented
-  full-memory post-state required by `StepInterface.MemoryBridge`.
+  establish `CommitInv` after a write.
+* **Memory bridge:** `step_reconstruct`, which constructs the represented
+  full-memory state after the step required by `StepInterface.MemoryBridge`.
 * **Whole-trace extractability:** `trace_mem_extract`, chaining the per-step
   lemmas by induction along a whole committed trace (with
   `stepReconstruct`/`reconstructTrace`/`chooseMemStep`).
@@ -56,7 +56,7 @@ theorem mem_eq_of_commit_eq {VC : VectorCommitment}
   exact (hpos (VC.commit m₁) i (m₁ i) (m₂ i) (VC.openProof m₁ i) (VC.openProof m₂ i)
     (hComplete m₁ i) h₂).symm
 
-/-! ## Model plumbing -/
+/-! ## Full-memory states and their committed representation -/
 
 /-- Full VM state over the commitment's *native* index/value types: memory is the
 total map `VC.Index → VC.Value`. The original `VMState = VMStateWith (Addr → Byte)`
@@ -65,11 +65,16 @@ is the instance `VC.Index := ℕ`, `VC.Value := ℕ`. No wrapper, no casts.
 Paper: VM state in ch01. -/
 abbrev FullVMState (VC : VectorCommitment) : Type := VMStateWith (VC.Index → VC.Value)
 
-/-- `Ŝ` is the committed version of `S`: same `pc` and `regs`, and `Ŝ.mem` is
-the commitment of `S.mem`.
+/-- `CommitInv Ŝ S` says that the committed-memory state `Ŝ` represents the
+full-memory state `S`. They have the same program counter and registers. Their
+memory fields contain the same memory in two forms: `S.mem` is the full map,
+while `Ŝ.mem` is exactly `VC.commit S.mem`.
 
-Paper: `rem:mem-inheritance` (ch05) — the *commitment invariant* carried along
-the memory-reconstruction induction. -/
+We call this relation the commitment invariant because memory reconstruction
+proves that it holds at every position in the reconstructed trace.
+
+Paper: `rem:mem-inheritance` (ch05) — the state-representation relation carried
+along the memory-reconstruction induction. -/
 def CommitInv {VC : VectorCommitment} (Ŝ : CommittedVMState VC) (S : FullVMState VC) : Prop :=
   Ŝ.pc = S.pc ∧ Ŝ.regs = S.regs ∧ Ŝ.mem = VC.commit S.mem
 
@@ -112,9 +117,9 @@ def read (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC)
     (addr : VC.Index) (v : VC.Value) (π : VC.OpenProof) : Prop :=
   memFreePred Ŝ₁.pc Ŝ₁.regs Ŝ₂.pc Ŝ₂.regs ∧ Ŝ₁.mem = Ŝ₂.mem ∧ VC.verify Ŝ₁.mem addr v π
 
-/-- Committed write `φ̂_write`: register part holds, the `MemStep.write`
-witness's opening `π` verifies the old value `vOld` at `addr` under the pre-state
-memory and the new value `v` at `addr` under the post-state memory.
+/-- Committed write `φ̂_write`: the register part holds, and the
+`MemStep.write` witness's opening `π` verifies the old value `vOld` at `addr`
+under `Ŝ₁.mem` and the new value `v` at `addr` under `Ŝ₂.mem`.
 
 Paper: `eq:op-mem-comm-write` (ch03). -/
 def write (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC)
@@ -151,8 +156,8 @@ def read (memFreePred : MemFreePredicate) (addr : VC.Index) (v : VC.Value)
     (S₁ S₂ : FullVMState VC) : Prop :=
   memFreePred S₁.pc S₁.regs S₂.pc S₂.regs ∧ S₁.mem addr = v ∧ S₂.mem = S₁.mem
 
-/-- Full-memory write `φ_write`: register part holds and post-memory is the
-pre-memory updated at `addr` to `v` (stated point-wise to avoid a `DecidableEq`
+/-- Full-memory write `φ_write`: the register part holds and `S₂.mem` is
+`S₁.mem` updated at `addr` to `v` (stated point-wise to avoid a `DecidableEq`
 requirement on `VC.Index`).
 
 Paper: `eq:mem-op-write` and `eq:phi-write-decomp` (ch01). -/
@@ -161,10 +166,10 @@ def write (memFreePred : MemFreePredicate) (addr : VC.Index) (v : VC.Value)
   memFreePred S₁.pc S₁.regs S₂.pc S₂.regs ∧
   S₂.mem addr = v ∧ (∀ j : VC.Index, j ≠ addr → S₂.mem j = S₁.mem j)
 
-/-- Full-memory step `φ_step` (the real predicate): the same case split over
-the `MemStep` witness as `CommittedMemory.step`. The full-memory predicates
-ignore the opening `π`. This is the memory-only component, not yet the full ISA
-step predicate.
+/-- Full-memory step `φ_step`: the same case split over the `MemStep` witness as
+`CommittedMemory.step`, but interpreted over states containing the complete
+memory map. The full-memory predicates ignore the opening `π`. This is the
+memory-only component, not yet the full ISA step predicate.
 
 Paper: memory component of `φ_step` in ch03. -/
 def step (memFreePred : MemFreePredicate) (S₁ S₂ : FullVMState VC) : MemStep VC → Prop
@@ -187,15 +192,21 @@ def committedStep (memFreePred : MemFreePredicate)
 
 /-! ## The per-step memory-extractability lemma -/
 
-/-- **Memory extractability, one step.** Position-binding + update binding +
-completeness of `VC` lift a committed step to a full-memory step: given the
-commitment invariant on both endpoints and a committed step, the corresponding
-full-memory step holds for the *real* predicate.
+/-- **Memory extractability, one step.** Completeness, position binding, and
+update binding lift a committed-memory step to a full-memory step. If
+`CommitInv Ŝ₁ S₁`, `CommitInv Ŝ₂ S₂`, and
+`CommittedMemory.step memFreePred Ŝ₁ Ŝ₂ w` hold, then
+`FullMemory.step memFreePred S₁ S₂ w` holds for the same witness `w`.
+
+This theorem checks two full-memory states already supplied by its caller. In
+particular, it assumes `CommitInv Ŝ₂ S₂`; it does not construct `S₂` or prove
+that relation. The later theorem `step_reconstruct` supplies the stronger form
+needed to build a full-memory trace from only its initial state.
 
 This is the first place `PositionBinding` and `UpdateBinding` are consumed. The
 proof mirrors the paper's Step A, minus probabilities: `addr`, `v`, `vOld`, `π`
 are the typed fields of `w : MemStep VC`, so nothing casts. The write case names
-the point-updated pre-memory via `classical` (there is no `DecidableEq` on the
+the point update of `S₁.mem` via `classical` (there is no `DecidableEq` on the
 abstract `VC.Index`).
 
 Paper: `prop:memory-extractability` (ch05), restricted to the memory-only
@@ -217,7 +228,7 @@ theorem step_mem_extract
     obtain ⟨hreg, hmemEq, hverify⟩ := hstep
     refine ⟨?_, ?_, ?_⟩
     · rw [hpc1, hreg1, hpc2, hreg2] at hreg; exact hreg
-    · -- Compare the honest opening with the `MemStep.read` proof via position binding.
+    · -- Compare the canonical `VC.openProof` with the `MemStep.read` proof.
       have hadv : VC.verify (VC.commit S₁.mem) addr v π := by rw [← hmem1]; exact hverify
       exact hpos (VC.commit S₁.mem) addr (S₁.mem addr) v (VC.openProof S₁.mem addr) π
         (hComplete S₁.mem addr) hadv
@@ -229,7 +240,7 @@ theorem step_mem_extract
     simp only [FullMemory.step, FullMemory.write]
     obtain ⟨hreg, hv1, hv2⟩ := hstep
     classical
-    -- Move the two openings onto the honest commitments.
+    -- Rewrite the two openings using the commitments of `S₁.mem` and `S₂.mem`.
     rw [hmem1] at hv1  -- hv1 : VC.verify (VC.commit S₁.mem) addr vOld π
     rw [hmem2] at hv2  -- hv2 : VC.verify (VC.commit S₂.mem) addr v π
     -- Position binding at `addr` on each endpoint.
@@ -239,10 +250,10 @@ theorem step_mem_extract
     have haddr2 : S₂.mem addr = v :=
       hpos (VC.commit S₂.mem) addr (S₂.mem addr) v (VC.openProof S₂.mem addr) π
         (hComplete S₂.mem addr) hv2
-    -- The shared path opens the honest pre-commitment to `S₁.mem addr`.
+    -- The shared path opens `VC.commit S₁.mem` to `S₁.mem addr`.
     have hopen1 : VC.verify (VC.commit S₁.mem) addr (S₁.mem addr) π := by
       rw [haddr1]; exact hv1
-    -- Update binding pins the post-root to `commit` of the point-update of `S₁.mem`;
+    -- Update binding shows `Ŝ₂.mem` equals `commit` of the point update of `S₁.mem`;
     -- injectivity of `commit` then identifies `S₂.mem` with that point-update.
     have key : VC.commit S₂.mem
         = VC.commit (fun k => if k = addr then v else S₁.mem k) :=
@@ -264,21 +275,20 @@ theorem step_mem_extract
     · apply mem_eq_of_commit_eq hComplete hpos
       rw [← hmem1, ← hmem2]; exact hmemEq
 
-/-! ## The commitment invariant across a write
+/-! ## Preserving `CommitInv` across a write
 
 `step_mem_extract` consumes `CommitInv` on both endpoints; the two lemmas here
-*establish* it across a write. From `CommitInv` on the pre-state and a committed
-write step, the post-state whose memory is `S₁.mem` point-updated at `addr` again
-satisfies `CommitInv`. This is where update binding is essential: position binding
-constrains only what a root opens to, and cannot show a committed root is an
-actual `commit` output. Both lemmas are constructive (no `Classical.choice`), as
-the post-memory is supplied rather than reconstructed. -/
+establish it after a write. From `CommitInv Ŝ₁ S₁` and
+`CommittedMemory.write … Ŝ₁ Ŝ₂ …`, the full-memory state whose memory is
+`S₁.mem` point-updated at `addr` represents `Ŝ₂`. This is where update binding
+is essential: position binding constrains only accepted values, whereas update
+binding proves `Ŝ₂.mem` is the commitment of that updated memory. Both lemmas
+avoid `Classical.choice` because the updated memory is supplied explicitly. -/
 
-/-- **Write reconstruction, memory part.** From an honest pre-root
-`VC.commit mem₁`, a shared write path `π` opening it at `addr` (to `vOld`) and
-opening a post-root `Ĉ₂` at `addr` to the new value `v`, together with the
-point-updated post-memory `mem₂` (`mem₂ addr = v` and `mem₂ = mem₁` off `addr`),
-update binding forces `Ĉ₂ = VC.commit mem₂`.
+/-- **Write reconstruction, memory part.** Suppose the shared opening `π`
+verifies `vOld` at `addr` against `VC.commit mem₁` and verifies the new value
+`v` against a candidate commitment `Ĉ₂`. If `mem₂` is `mem₁` updated at
+`addr` to `v`, update binding forces `Ĉ₂ = VC.commit mem₂`.
 
 Paper: `def:binding` and `rem:mem-inheritance` (ch05). -/
 private theorem commit_update
@@ -295,11 +305,11 @@ private theorem commit_update
   have hopen1 : VC.verify (VC.commit mem₁) addr (mem₁ addr) π := by rw [haddr1]; exact hv1
   exact hupd mem₁ mem₂ addr v Ĉ₂ π h2addr h2off hopen1 hv2
 
-/-- **Write reconstruction.** Given `CommitInv` on the pre-state, a committed
-write step, and the reconstructed post-state `S₂` (same `pc`/`regs` as the
-committed post-state `Ŝ₂`, memory `S₁.mem` point-updated at `addr` to `v`), the
-commitment invariant holds on the post-state. Update binding supplies the memory
-part; the register part is carried by hypothesis.
+/-- **Write reconstruction.** Given `CommitInv Ŝ₁ S₁`, a
+`CommittedMemory.write` from `Ŝ₁` to `Ŝ₂`, and a full state `S₂` whose
+`pc`/`regs` agree with `Ŝ₂` and whose memory is `S₁.mem` updated at `addr` to
+`v`, prove `CommitInv Ŝ₂ S₂`. Update binding proves the memory equality; the
+other two field equalities are hypotheses.
 
 Paper: write case of `rem:mem-inheritance` (ch05). -/
 private theorem commitInv_write
@@ -323,14 +333,15 @@ private theorem commitInv_write
 
 `commitInv_step` and the reconstructed-state semantics are single-step.
 `trace_mem_extract` chains them by induction along a whole committed trace: it
-reconstructs the full-memory trace from an initial full state, carries the
-commitment invariant across every step, and lifts each committed step to a
+reconstructs the full-memory trace from an initial full state, proves
+`CommitInv` at every index, and lifts each committed-memory step to a
 full-memory step. A concrete system composes this to strengthen a committed-trace
 extractability statement to full memory (see `TwoStep.System.cte_fullMemory`). -/
 
 open Classical in
-/-- Reconstruct the full-memory post-state from the full pre-state `S`, the
-committed post-state `Ŝ'` (source of `pc`/`regs`), and a `MemStep` witness:
+/-- Reconstruct the next full-memory state from the current full-memory state
+`S`, the next committed-memory state `Ŝ'` (source of `pc`/`regs`), and a
+`MemStep` witness:
 memory is unchanged on reads and non-memory steps, point-updated on a write.
 
 Paper: reconstruction in `rem:mem-inheritance` (ch05). -/
@@ -350,9 +361,10 @@ noncomputable def reconstructTrace (Ŝ : ℕ → CommittedVMState VC) (w : ℕ �
   | 0       => S₀
   | (k + 1) => stepReconstruct (reconstructTrace Ŝ w S₀ k) (Ŝ (k + 1)) (w k)
 
-/-- One induction step: across any committed step, the commitment invariant
-passes from the pre-state to the reconstructed post-state. Reads/non-memory
-steps keep memory (and the invariant) unchanged; writes invoke `commitInv_write`.
+/-- One induction step: if `CommitInv Ŝ S` holds and
+`CommittedMemory.step … Ŝ Ŝ' w` is valid, then `CommitInv` relates `Ŝ'` to
+`stepReconstruct S Ŝ' w`. Reads and non-memory operations preserve memory;
+writes invoke `commitInv_write`.
 
 Paper: induction step in `rem:mem-inheritance` (ch05). -/
 private theorem commitInv_step
@@ -419,13 +431,17 @@ private theorem reconstructed_step_full
     rw [hpc, hregs] at hsem
     exact hsem
 
-/-- **Constructive one-step memory bridge.** From a represented full pre-state
-and a binary committed step, construct a full post-state which both represents
-the committed post-state and satisfies the corresponding full-memory step.
+/-- **Realization of `StepInterface.MemoryBridge`.** From `CommitInv Ŝ₁ S₁`
+and `committedStep … Ŝ₁ Ŝ₂`, construct a full-memory state `S₂` such that
+`CommitInv Ŝ₂ S₂` and the corresponding `FullMemory.step` both hold.
 
-Unlike `step_mem_extract`, this theorem does not assume the post-state
-commitment invariant. It establishes that invariant by preserving memory on
-reads/other operations and point-updating memory on writes. This is the exact
+Concretely, `S₂` takes its program counter and registers from `Ŝ₂`. A read or
+non-memory operation keeps `S₁.mem`; a write changes only its stated address.
+Update binding proves that this constructed memory commits to `Ŝ₂.mem`.
+
+Unlike `step_mem_extract`, this theorem does not assume `CommitInv Ŝ₂ S₂`.
+It proves that relation by preserving memory on reads/other operations and
+point-updating memory on writes. This is the exact
 existential direction required by `StepInterface.MemoryBridge`; a concrete
 `ZkVM` instance packages it through that frozen interface.
 
@@ -447,10 +463,14 @@ theorem step_reconstruct
 
 /-- **Memory extractability, whole trace.** Given a committed trace `Ŝ`, its
 sequence `w : ℕ → MemStep VC` (each value certifying a committed step), and an
-initial full state `S₀` matching `Ŝ 0` under the commitment invariant, the
-reconstructed full-memory trace `reconstructTrace Ŝ w S₀` (i) satisfies the
-commitment invariant at every state and (ii) realizes every committed step as a
-full-memory step. Proved by induction on the trace index via `commitInv_step`.
+initial full state `S₀` satisfying `CommitInv (Ŝ 0) S₀`, the reconstructed
+full-memory trace `reconstructTrace Ŝ w S₀` (i) satisfies `CommitInv` at every
+state and (ii) realizes every committed-memory step as a full-memory step.
+
+In plain terms, start from the one known full-memory state and apply
+`stepReconstruct` once for each committed step. Induction proves that every
+state produced this way really represents the corresponding committed state
+and that every adjacent pair obeys the full-memory semantics.
 
 Paper: `prop:memory-extractability` and `rem:mem-inheritance` (ch05), restricted
 to the memory-only step interface. -/

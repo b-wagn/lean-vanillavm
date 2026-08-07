@@ -26,8 +26,8 @@ existential projection `committedStep` of the witness-indexed
 `CommittedMemory.step`, with the per-step
 `MemStep` witnesses retained in the segment witnesses. `cte_fullMemory` then applies
 `Memory.trace_mem_extract` along that trace to obtain the *full-memory* statement:
-a full-memory trace satisfying the commitment invariant at every state and a
-genuine `FullMemory.step` at every step. Traces are `ℕ`-indexed with `< bound` conditions
+a full-memory trace satisfying `CommitInv` at every state and
+`FullMemory.step` at every step. Traces are `ℕ`-indexed with `< bound` conditions
 (uniform with `Rstar`, and it makes concatenation pure `ℕ`-arithmetic).
 -/
 
@@ -171,7 +171,7 @@ def memoryStepInterface : StepInterface sys.toZkVMFullMemory where
 
 /-- The concrete `StepInterface.MemoryBridge` required by Issue 1. Completeness,
 position binding, and update binding let `step_reconstruct` construct a
-represented full-memory post-state satisfying the canonical
+represented next full-memory state satisfying the canonical
 `sys.toZkVMFullMemory.step` predicate.
 
 Paper: `prop:memory-extractability`, `rem:mem-inheritance`, and Step 6 of
@@ -209,8 +209,8 @@ instances but proves nothing about memory. This theorem joins them, restating
 `Memory.trace_mem_extract` with `TraceValid`/`step` alone, so `cte_fullMemory` below
 never touches the memory internals.
 
-The terminal state matches `x.ST` because the commitment invariant at the last
-state plus injectivity of `commit` (`mem_eq_of_commit_eq`) pins its memory.
+The terminal state matches `x.ST` because `CommitInv` at the last state plus
+injectivity of `commit` (`mem_eq_of_commit_eq`) determines its memory.
 
 Paper: `prop:memory-extractability` and `rem:mem-inheritance` (ch05), composed
 with the two-layer toy trace. -/
@@ -302,8 +302,8 @@ theorem cte_committedMemory (hNseg : 0 < sys.Nseg) (h : sys.Assumptions) :
 (`traceValid_full`), as a concrete instance of the abstract `CTE`: `sys.toZkVMFullMemory.CTE`. Under
 the `cte_committedMemory` hypotheses plus the commitment binding assumptions, the two-step VM is
 correct-trace extractable *over full-memory states* — the extractor turns every
-accepting final proof into a valid full-memory trace (right boundaries, and a
-genuine `∃ w, FullMemory.step …` at every step).
+accepting final proof into a valid full-memory trace with the claimed
+boundaries and `∃ w, FullMemory.step …` at every step.
 
 Proof: from `cte_committedMemory` get the committed extractor `E`; the full extractor commits
 `x`'s boundaries, runs `E`, and reconstructs the full trace. Correctness is then

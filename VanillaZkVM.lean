@@ -6,6 +6,5 @@ import VanillaZkVM.ZkvmSanity    -- accepting one-step non-vacuity model (privat
 import VanillaZkVM.Trace         -- reusable trace-concatenation lemma (concatTrace / chain_flatten)
 import VanillaZkVM.Memory        -- committed/full-memory step lift and trace reconstruction
 import VanillaZkVM.MemorySanity  -- satisfiable binding model and append-bit countermodel
-import VanillaZkVM.Bus           -- four inner circuits and collision-resistant bus unification
 import VanillaZkVM.Twostep       -- minimal two-relation zkVM instantiating the abstract one
 import VanillaZkVM.TwostepSanity -- accepting model for the full-memory two-step theorem

@@ -67,20 +67,6 @@ change (see notes below the table).
 > not. The entire `VectorCommitment` binding layer and `CollisionResistant` remain
 > *provisional* and may gain keyed/algorithmic variants.
 
-## Leaf / segment / bus (ch04) — ⚠ PROTOTYPE, NOT GROUND TRUTH
-
-> `main-temp`'s `Bus.lean` is **Yavor's playground prototype**, not authoritative. These rows are
-> **not** audited checkpoints; the layer is **redone properly in Issue 5** (over the frozen kernel
-> and the Issue-3 ISA). Treat the current declarations as reference only.
-
-| Paper label | Lean declaration (prototype) | Status | Fidelity | Complete | Reviewer |
-|---|---|---|---|---|---|
-| `R_{0,step}` (inner-step) | `Bus.System.RInnerStep` | prototype | — | — | Issue 5 |
-| `R_{0,keccak/poseidon/range}` (chips) | `Bus.System.RInner{Keccak,Poseidon,Range}` | prototype | — | — | Issue 5 |
-| `R_1` (segment) | `Bus.System.RSegment` | prototype | — | — | Issue 5 |
-| segment extraction (`lem:segment`) | `Bus.System.segment_extract` | prototype | — | — | Issue 5 |
-| bus unification / extract-or-collision | _Issue 2 (shape) → Issue 5 (wired)_ | planned | — | — | — |
-
 ## Memory extractability (Issue 1)
 
 These declarations formalize the memory component only. `MemFreePredicate`
@@ -96,7 +82,7 @@ slice separately from completeness of the eventual `φ_step`.
 | full-memory read/write (`eq:mem-op-read`, `eq:mem-op-write`) | `VanillaZkVM.FullMemory.read` / `FullMemory.write` | proved | — | — | _unreviewed_ |
 | committed/full memory step (memory component of `φ̂_step`/`φ_step`) | `VanillaZkVM.CommittedMemory.step` / `FullMemory.step` / `VanillaZkVM.committedStep` | proved | — | — | _unreviewed_ |
 | one-step memory lift (`prop:memory-extractability`) | `VanillaZkVM.step_mem_extract` | proved | — | — | _unreviewed_ |
-| constructive memory-inheritance step (`rem:mem-inheritance`, `thm:main` Step 6) | `VanillaZkVM.step_reconstruct` / `VanillaZkVM.TwoStep.System.memoryBridge` | proved | — | — | _unreviewed_ |
+| memory-inheritance step constructing the next full state (`rem:mem-inheritance`, `thm:main` Step 6) | `VanillaZkVM.step_reconstruct` / `VanillaZkVM.TwoStep.System.memoryBridge` | proved | — | — | _unreviewed_ |
 | trace reconstruction invariant (`rem:mem-inheritance`) | `VanillaZkVM.trace_mem_extract` | proved | — | — | _unreviewed_ |
 | — (joint satisfiability model, I6) | `VanillaZkVM.MemorySanity.exactVC_bindingAssumptions` | proved (n/a) | — | — | _unreviewed_ |
 | — (punctured-condition countermodel, I6) | `VanillaZkVM.MemorySanity.appendBitVC_not_updateBinding` | proved (n/a) | — | — | _unreviewed_ |
@@ -113,6 +99,9 @@ slice separately from completeness of the eventual `φ_step`.
 
 | Paper label | Lean declaration (planned name) | Owner issue |
 |---|---|---|
+| `R_{0,step}` and the inner chip relations | _name pending Issue-5 definition review_ | Issue 5 |
+| `R_1` segment relation and extraction (`lem:segment`) | _name pending Issue-5 definition review_ | Issue 5 |
+| bus unification / extract-or-break | _name pending Issue-2/5 definition review_ | Issue 2/5 |
 | ISA op set `{read, write, arith, hash, bin}` + `φ'_op` split (ch03, simplified) | `ISA.*` | Issue 3 |
 | `R_2` convert (`lem:convert`) | `MultiStep.RConvert` | Issue 4 |
 | `R_3` combine + tree unrolling (`lem:combine`) | `MultiStep.RCombine` / `combine_tree` | Issue 4 |

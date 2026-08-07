@@ -7,26 +7,29 @@ Both sides of the non-vacuity / separation check for the provisional binding
 layer (`docs/INVARIANTS.md` I6), kept out of the definitions-only `Crypto.lean`:
 
 * `exactVC` is a deliberately non-succinct commitment satisfying completeness,
-  position binding, and update binding — a positive model witnessing that the
-  `Memory` extractability hypotheses are jointly satisfiable.
+  position binding, and update binding, witnessing that the `Memory`
+  extractability hypotheses are jointly satisfiable.
 * `appendBitVC` appends a verifier-ignored bit to the commitment. It preserves
-  completeness, position binding, and the retired punctured non-equivocation
-  condition, but **fails** update binding. Thus the old hypotheses do not imply
-  the commitment-realizability property needed by memory reconstruction. This
+  completeness, position binding, and the earlier condition on openings away
+  from an updated address, but **fails** update binding. Thus those properties
+  do not imply that an accepted commitment is an output of `commit`. This
   does not assert that update binding implies position binding: the two are
   independent requirements.
-* A private bridge-level attack uses that ignored bit to exhibit a represented
-  pre-state and accepted committed write with no representable post-state.
+* A private counterexample to `MemoryBridge` uses that ignored bit to exhibit a
+  represented full-memory state before an accepted committed-memory write, but
+  no full-memory state representing the commitment after the write.
 
-The break scaffolding is defined beside `UpdateBinding` in `Crypto.lean`;
-`UpdateBinding.not_isUpdateBindingBreak` below proves that any winning record
-contradicts update binding. It is not yet a reduction-emitting construction.
+The `UpdateBindingBreak` record is defined beside `UpdateBinding` in
+`Crypto.lean`; `UpdateBinding.not_isUpdateBindingBreak` proves that no record
+satisfying `IsUpdateBindingBreak` can coexist with update binding. It is not
+yet an explicit reduction.
 -/
 
 namespace VanillaZkVM
 
-/-- Update binding rules out every certified update-binding break: the two
-implications are dual, so a winning break contradicts `UpdateBinding` directly. -/
+/-- Update binding rules out every record satisfying `IsUpdateBindingBreak`:
+the equality supplied by update binding contradicts the record's final
+inequality. -/
 theorem VectorCommitment.UpdateBinding.not_isUpdateBindingBreak {VC : VectorCommitment}
     (hupd : VC.UpdateBinding) (b : UpdateBindingBreak VC) :
     ¬IsUpdateBindingBreak VC b := by
@@ -36,7 +39,7 @@ theorem VectorCommitment.UpdateBinding.not_isUpdateBindingBreak {VC : VectorComm
 
 namespace MemorySanity
 
-/-! ## Positive model: a transparent exact commitment -/
+/-! ## A scheme satisfying all three assumptions -/
 
 /-- A transparent, non-succinct authentication-path model. The proof records the
 off-address contents; verification checks the claimed leaf directly and checks
@@ -78,11 +81,13 @@ theorem exactVC_bindingAssumptions :
     exactVC.Complete ∧ exactVC.PositionBinding ∧ exactVC.UpdateBinding :=
   ⟨exactVC_complete, exactVC_positionBinding, exactVC_updateBinding⟩
 
-/-! ## Negative model: append an ignored bit -/
+/-! ## A counterexample without update binding -/
 
 /-- Append one bit to the transparent commitment and ignore it in verification.
-Honest commitments always use `false`, so a `(·, true)` root opens exactly like
-the honest root yet is not any honest commitment — breaking update binding. -/
+The `commit` function always sets this bit to `false`. Verification nevertheless
+accepts an otherwise identical value whose bit is `true`, even though no call to
+`commit` can produce it. This is precisely the behavior update binding rules
+out. -/
 def appendBitVC : VectorCommitment where
   Value := Bool
   Index := Bool
@@ -103,7 +108,11 @@ theorem appendBitVC_positionBinding : appendBitVC.PositionBinding := by
   exact exactVC_positionBinding commitment.1 index leftValue rightValue
     leftProof rightProof hleft hright
 
-private theorem appendBitVC_legacyPuncturedBinding :
+/-- If one proof is accepted at `addr` under two commitments, then accepted
+openings under those commitments at any different address reveal the same
+value. This property still does not require either commitment to be an output
+of `commit`. -/
+private theorem appendBitVC_openings_agree_away_from_update :
     ∀ (commitment commitment' : appendBitVC.Com)
       (addr : appendBitVC.Index) (value value' : appendBitVC.Value)
       (sharedProof : appendBitVC.OpenProof)
@@ -126,12 +135,12 @@ private theorem appendBitVC_legacyPuncturedBinding :
 /-- The all-zero memory used by the sanity checks. -/
 def zeroMemory : Bool → Bool := fun _ => false
 
-/-- The result of genuinely changing address `false` in `zeroMemory`. -/
+/-- The memory obtained by changing address `false` from `false` to `true`. -/
 def singleWriteMemory : Bool → Bool :=
   fun index => if index = false then true else false
 
-/-- The positive model accepts a genuine changed write with one shared
-authentication proof, and the pre/post commitments are distinct. -/
+/-- `exactVC` accepts a write that changes address `false` from `false` to
+`true` with one shared authentication proof, and the two commitments differ. -/
 theorem exactVC_accepts_changed_write :
     exactVC.commit zeroMemory ≠ exactVC.commit singleWriteMemory ∧
     exactVC.verify (exactVC.commit zeroMemory) false false
@@ -150,7 +159,7 @@ theorem exactVC_accepts_changed_write :
     exact ⟨by simp [singleWriteMemory],
       fun j hj => by simp [singleWriteMemory, zeroMemory, hj]⟩
 
-/-! ## Constructive-bridge non-vacuity -/
+/-! ## `MemoryBridge` non-vacuity -/
 
 private def writeMemFree : MemFreePredicate :=
   fun _ _ _ _ => True
@@ -173,11 +182,11 @@ private theorem changedWrite_committed :
   simp [changedWrite, CommittedMemory.step, CommittedMemory.write, writeMemFree, writePreCommitted,
     writePostCommitted, writePre, exactVC, zeroMemory, singleWriteMemory]
 
-/-- The constructive one-step theorem is non-vacuous on a genuine changed
-write: all three binding assumptions hold simultaneously, the committed step
-accepts one shared path, and reconstruction produces a represented full
-post-state satisfying `FullMemory.step`. All data stays private so this consistency floor
-adds no public API. -/
+/-- `step_reconstruct` is non-vacuous for a write that changes `false` to
+`true`: all three binding assumptions hold simultaneously, the committed-memory
+step accepts one shared proof, and reconstruction produces a represented
+full-memory state satisfying `FullMemory.step`. All data stays private, so this
+non-vacuity check adds no public API. -/
 example :
     ∃ S₂ : FullVMState exactVC,
       CommitInv writePostCommitted S₂ ∧
@@ -187,7 +196,8 @@ example :
     writePostCommitted ⟨rfl, rfl, rfl⟩ changedWrite_committed
 
 /-- A valid update-binding failure: `(zeroMemory, true)` accepts the same opening
-as the honest root but is not any output of `appendBitVC.commit`. -/
+as `(zeroMemory, false)`, which `appendBitVC.commit` produces, but is itself not
+the output of `appendBitVC.commit` for any memory. -/
 def appendBitBreak : UpdateBindingBreak appendBitVC where
   preMemory := zeroMemory
   postMemory := zeroMemory
@@ -206,7 +216,7 @@ theorem appendBitBreak_wins :
     have hbit : true = false := congrArg Prod.snd heq
     exact Bool.noConfusion hbit
 
-/-! ## Bridge-level form of the append-bit attack -/
+/-! ## Counterexample to `MemoryBridge` without update binding -/
 
 private def appendBitMemFree : MemFreePredicate :=
   fun _ _ _ _ => True
@@ -234,7 +244,8 @@ private theorem appendBitMalformedPost_not_representable :
 
 /-- Without update binding, the exact antecedent of the memory bridge can hold
 while its representation conclusion is impossible. This is the executable
-form of the out-of-image commitment attack that motivated `UpdateBinding`. -/
+form of the attack that motivated `UpdateBinding`: verification accepts the
+second commitment even though it is not `commit m` for any full memory `m`. -/
 example :
     CommitInv appendBitCommittedPre appendBitPre ∧
     committedStep appendBitMemFree appendBitCommittedPre appendBitMalformedPost ∧
@@ -242,11 +253,11 @@ example :
   ⟨⟨rfl, rfl, rfl⟩, appendBitMalformedStep,
     appendBitMalformedPost_not_representable⟩
 
-/-- `appendBitVC` satisfies completeness and position binding (above), as well
-as the punctured non-equivocation formula checked privately, yet is not
-update-binding: the certified break `appendBitBreak` wins. Consequently, those
-non-equivocation hypotheses do not establish that an accepted post-root is an
-honest commitment output. -/
+/-- `appendBitVC` satisfies completeness and position binding, as well as the
+away-from-`addr` agreement property proved by
+`appendBitVC_openings_agree_away_from_update`. Nevertheless, `appendBitBreak`
+violates update binding because its accepted candidate commitment is not an
+output of `commit`. -/
 theorem appendBitVC_not_updateBinding :
     ¬appendBitVC.UpdateBinding := by
   intro hupd

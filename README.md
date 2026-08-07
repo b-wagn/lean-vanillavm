@@ -64,15 +64,14 @@ permits only `{propext, Classical.choice, Quot.sound}`:
 | `VanillaZkVM/Step.lean` | Frozen committed-step interface and the memory/bus bridge propositions; `ZkVM.step` remains the plain predicate. |
 | `VanillaZkVM/ZkvmSanity.lean` | Private accepting one-step model witnessing CTE and bridge satisfiability. |
 | `VanillaZkVM/Trace.lean` | Reusable `concatTrace` / `chain_flatten` glue. |
-| `VanillaZkVM/Memory.lean` | The memory-only committed/full step interface, update-binding reconstruction invariant, one-step bridge, and whole-trace fold. |
+| `VanillaZkVM/Memory.lean` | The memory-only committed/full step interface, the `CommitInv` state-representation relation, one-step reconstruction, and whole-trace reconstruction. |
 | `VanillaZkVM/MemorySanity.lean` | A jointly satisfiable binding model and the append-bit countermodel showing why update binding is needed. |
 | `VanillaZkVM/Twostep.lean` | A minimal two-layer VM (`RSeg → RFinal`) with committed CTE `cte_committedMemory` and full-memory CTE `cte_fullMemory`. It still omits the concrete ISA, bus, and recursion tower. |
 | `VanillaZkVM/TwostepSanity.lean` | A private accepting model witnessing that all `cte_fullMemory` hypotheses are jointly satisfiable. |
-| `VanillaZkVM/Bus.lean` | ⚠ **Yavor's playground prototype — NOT ground truth.** A first cut of the leaf/segment layer (four inner circuits, `RSegment`, `segment_extract`). It is *reference only*; the real segment/bus layer is (re)built in Issue 5. |
 
 **How it maps to the paper.** `CTE ⇔ KnowledgeSound` is the paper's `rem:cte-ks`. The abstract
-`ZkVM` + `R*` are ch03/ch05. (`Bus.lean`'s `segment_extract` gestures at `lem:segment` but is a
-prototype, not an audited result.) See `docs/CORRESPONDENCE.md` for the full row-by-row map.
+`ZkVM` + `R*` are ch03/ch05. The segment/bus layer is not yet implemented; it
+is assigned to Issue 5. See `docs/CORRESPONDENCE.md` for the full row-by-row map.
 
 ## Checkpoints (roadmap at a glance)
 
@@ -81,13 +80,13 @@ is intentionally late — recursion is built over an abstract leaf and doesn't n
 
 - [x] **C0. Kernel defined.** Abstract `ZkVM`, `CTE`, `cte_iff_knowledgeSound`, perfect crypto. *(done)*
 - [x] **C1. Toy VM CTE.** Two-step VM proven CTE from KS of both layers. *(done)*
-- [~] **C2. Segment/bus prototype.** `Bus.lean` exists (Yavor's playground) — *prototype, to be redone in Issue 5, not an audited checkpoint.*
-- [~] **C3. Kernel frozen + scaffolding** — implementation complete; human ratification remains — Issue 0.
+- [x] **C2. Obsolete Bus prototype retired.** The unaudited file was removed; the real layer remains C8 / Issue 5.
+- [x] **C3. Kernel frozen + scaffolding** — Issue 0. *(done)*
 - [~] **C4. Committed memory** → `TwoStepWithMemory`, CTE from position/update binding — implementation complete; human definition review remains — Issue 1.
 - [ ] **C5. Reduction vocabulary** (extract-or-break) — Issue 2.
 - [ ] **C6. ISA op set** `{read, write, arith, hash, bin}` — Issue 3.
 - [ ] **C7. Real recursion** → `MultiStepVM` (convert/combine/embed + tree unrolling) — Issue 4.
-- [ ] **C8. Bus per segment, wired into a VM** (redone properly) — Issue 5.
+- [ ] **C8. Bus per segment, wired into a VM** — Issue 5.
 - [ ] **C9. Explicit per-layer reductions** (the `thm:main` weighted sum) — Issue 6.
 - [ ] **C10. Full Vanilla VM + main theorem** (`cte_main` ≈ `thm:main`) — Issue 7.
 - [ ] **Parallel:** security-model & runtime study — Issue 8; audit + independent re-derivation — Issue 9.

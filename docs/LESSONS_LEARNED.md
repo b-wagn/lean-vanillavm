@@ -24,10 +24,10 @@ guard; when a guard becomes a CI check, note that.
   stale branch.
   **Guard:** CONVENTIONS.md §4; branch dispositions in `docs/branch-analysis.md`.
 
-- **`main-temp`'s `Bus.lean` is a prototype, not ground truth.** Its `segment_extract`
-  etc. are Yavor's playground and are redone in Issue 5. Do not build on them or treat
-  their CORRESPONDENCE rows as audited.
-  **Guard:** CONVENTIONS.md §4; the "⚠ PROTOTYPE" banner in CORRESPONDENCE.md.
+- **The deleted `Bus.lean` prototype was not ground truth.** Its declarations
+  were Yavor's playground and are redone in Issue 5. Do not restore or build on
+  them as if they were an audited checkpoint.
+  **Guard:** CONVENTIONS.md §4; the planned Issue-5 rows in CORRESPONDENCE.md.
 
 ## Definitions / abstraction (the load-bearing 80%, I3)
 
@@ -63,11 +63,12 @@ guard; when a guard becomes a CI check, note that.
 
 - **A two-endpoint refinement is not an inductive reconstruction theorem.**
   `step_mem_extract` faithfully proves the paper's conditional proposition when
-  both endpoint commitment invariants are supplied. A trace extractor additionally
-  needs to *construct* the post-memory and establish its invariant from the pre-state;
-  assuming the post-invariant would hide the commitment-swap gap.
+  `CommitInv` is supplied for both endpoint states. A trace extractor additionally
+  needs to construct the next full memory and prove `CommitInv` for it from the
+  current represented state; assuming that conclusion would hide the
+  commitment-swap gap.
   **Guard:** frozen `StepInterface.MemoryBridge`; Issue 1's `step_reconstruct` and
-  `TwoStep.System.memoryBridge` have an existential represented post-state.
+  `TwoStep.System.memoryBridge` existentially produce the represented next state.
 
 - **Agents anchor on training-data analogues for novel-but-familiar notions.** A
   definition that "looks like" a standard one may be silently bent toward the textbook

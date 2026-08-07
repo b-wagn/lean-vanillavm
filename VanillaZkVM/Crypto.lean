@@ -20,9 +20,11 @@ The file is split into two tiers (`docs/INVARIANTS.md` I4):
 
 These binding/CR notions are **not** frozen. `UpdateBinding` is the
 commitment-realizability property used by memory reconstruction; the earlier
-punctured non-equivocation property did not rule out verifier-accepted roots
-outside the image of `commit`. `CollisionResistant` may gain a keyed/algorithmic
-variant. These declarations may change without a constitutional amendment; see
+condition on openings away from an updated address did not rule out
+commitments that pass `verify` but are not equal to `commit m` for any memory
+`m`.
+`CollisionResistant` may gain a keyed/algorithmic variant. These declarations
+may change without a constitutional amendment; see
 the `provisional` note on each.
 
 ## Soundness is modeled as *perfect straight-line extraction* (no probabilities)
@@ -133,13 +135,18 @@ def PositionBinding (VC : VectorCommitment) : Prop :=
   ∀ (C : VC.Com) (i : VC.Index) (v v' : VC.Value) (pi pi' : VC.OpenProof),
     VC.verify C i v pi → VC.verify C i v' pi' → v = v'
 
-/-- **Update-binding** (perfect, `def:binding`, ch05): one opening `pi` that
-opens the honest pre-commitment `commit m` at `addr` to `m addr` and a candidate
-post-commitment `C'` at the same address to `x` forces `C'` to be the honest
-commitment of the point-updated memory.
+/-- **Update-binding** (perfect, `def:binding`, ch05): suppose `m'` is obtained
+from `m` by changing only `addr`, whose new value is `x`. If the same opening
+`pi` verifies the old value against `VC.commit m` and the new value against a
+candidate commitment `C'`, then `C'` must equal `VC.commit m'`.
 
-The post-memory `m'` is supplied extensionally (`m' addr = x` and equality with
-`m` away from `addr`), avoiding a global `DecidableEq VC.Index` requirement.
+In plain terms, merely passing verification at the changed address is not
+enough. The commitment after the write must be the value computed by
+`VC.commit` from exactly the updated full memory.
+
+The first two premises describe "`m'` is `m` updated at `addr`" directly:
+`m' addr = x`, and `m'` agrees with `m` at every other address. This avoids a
+global `DecidableEq VC.Index` requirement.
 As in the paper, this property is assumed independently of `PositionBinding`;
 neither implication is built into the definitions.
 
@@ -156,10 +163,14 @@ end VectorCommitment
 
 /-! ## Provisional — update-binding break witness -/
 
-/-- Data witnessing a candidate update-binding failure. The winning predicate
-below records the point-update equations and the two accepted openings. An
-explicit extract-or-break reduction can return this record when reconstruction
-cannot establish the honest post-commitment equation. -/
+/-- The data needed to describe a possible update-binding failure: the memory
+before and after one write, the changed address and value, and the candidate
+commitment and opening proof accepted for that write.
+
+`IsUpdateBindingBreak` below states that the memories differ only by the stated
+write and that the proof verifies against both commitments, even though the
+candidate commitment is not `VC.commit` of the updated memory. An explicit
+extract-or-break reduction can return this record when reconstruction fails. -/
 structure UpdateBindingBreak (VC : VectorCommitment) where
   preMemory : VC.Index → VC.Value
   postMemory : VC.Index → VC.Value
@@ -168,7 +179,9 @@ structure UpdateBindingBreak (VC : VectorCommitment) where
   postCommitment : VC.Com
   proof : VC.OpenProof
 
-/-- The exact winning predicate for an `UpdateBindingBreak`. -/
+/-- `IsUpdateBindingBreak VC b` holds when `b` describes a valid one-address
+update whose proof is accepted, but whose candidate commitment is not the
+commitment of the resulting memory. -/
 def IsUpdateBindingBreak (VC : VectorCommitment)
     (b : UpdateBindingBreak VC) : Prop :=
   b.postMemory b.index = b.newValue ∧

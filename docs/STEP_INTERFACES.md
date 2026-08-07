@@ -58,10 +58,15 @@ I.MemoryBridge :=
       represents C2 S2 and V.step S1 S2.
 ```
 
-The existential post-state is essential. A lemma that merely assumes
-`represents C2 S2` and concludes `V.step S1 S2` does not establish the invariant
-needed to reconstruct a whole trace; this is precisely the gap exposed by the
-commitment-swap / out-of-image-commitment counterexamples.
+The existentially produced `S2` is essential. A lemma that merely assumes
+`represents C2 S2` and concludes `V.step S1 S2` does not establish the
+representation relation needed to reconstruct a whole trace; this is precisely
+the gap exposed by examples where verification accepts `C2` even though no
+full state `S2` represents it.
+
+Put differently, the bridge must construct a state `S2` corresponding to `C2`;
+it may not ask the caller to provide that state and prove the correspondence in
+advance.
 
 The bus bridge is
 

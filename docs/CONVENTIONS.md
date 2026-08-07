@@ -17,7 +17,7 @@ layer.
   `import …`, blank line, then the module docstring `/-! # … -/`.
 - **Module docstring** opens with `# Title`, a short paragraph, then `## Main definitions` /
   `## Main results` bullet lists that *name* the key declarations without restating them. Our
-  `Zkvm.lean` and `Bus.lean` already do this — match that density.
+  `Zkvm.lean` and `Memory.lean` already do this — match that density.
 - **Section headers use `/-! ## Title -/` doc-comments, never ASCII banners** (`-- ====`). If a
   section is big enough to want a loud header, it usually wants its own `namespace` or file.
 - **Naming (Mathlib convention):** types/structures/classes `UpperCamelCase`; term-level functions
@@ -34,7 +34,7 @@ layer.
 - **`autoImplicit` stays off** (already set in `lakefile.toml`). Every variable explicit. Never
   silence a linter locally to dodge a warning; if an exception is truly needed, comment why.
 - **One namespace per file/topic**, matching the file's main definition
-  (`namespace VanillaZkVM … namespace Bus …`).
+  (`namespace VanillaZkVM … namespace TwoStep …`).
 - **Adversaries/reductions are plain functions**, and efficiency is a *separate predicate* applied
   to them — never a field bundled into the adversary type (VCVio). Relevant from Issue 2 onward.
 - **Scaffolding that is intentionally unused-yet is marked in its docstring** ("retained as
@@ -83,9 +83,9 @@ layer.
 - Reuse of an existing branch (see `PLAN.md` "reuse" column): **cherry-pick/re-apply the relevant
   hunks onto current `main-temp`**, do not merge stale branches wholesale — the cost/CR/memory
   branches predate PR #4 and carry drift that spuriously deletes `trivialAS`.
-- **`main-temp`'s `Bus.lean` is a prototype, not ground truth** (Yavor's playground). Do not treat
-  its declarations as frozen or done; the segment/bus layer is rebuilt in Issue 5. Reuse it as
-  reference only.
+- **The former `Bus.lean` prototype was removed from the active tree.** Its
+  declarations were never ground truth or an audited checkpoint. Issue 5 owns
+  the segment/bus layer; consult the deleted file's history only as background.
 - **The commitment binding layer is provisional** (I4): Issue 1 removes the insufficient
   `PuncturedBinding` predicate in favor of `UpdateBinding`. Do not reintroduce or build on
   `PuncturedBinding`; do not freeze binding notions.
