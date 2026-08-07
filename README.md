@@ -66,8 +66,8 @@ permits only `{propext, Classical.choice, Quot.sound}`:
 | `VanillaZkVM/Trace.lean` | Reusable `concatTrace` / `chain_flatten` glue. |
 | `VanillaZkVM/Memory.lean` | The memory-only committed/full step interface, update-binding reconstruction invariant, one-step bridge, and whole-trace fold. |
 | `VanillaZkVM/MemorySanity.lean` | A jointly satisfiable binding model and the append-bit countermodel showing why update binding is needed. |
-| `VanillaZkVM/Twostep.lean` | A minimal two-layer VM (`RSeg → RFinal`) with committed CTE `cte` and full-memory CTE `cte_full`. It still omits the concrete ISA, bus, and recursion tower. |
-| `VanillaZkVM/TwostepSanity.lean` | A private accepting model witnessing that all `cte_full` hypotheses are jointly satisfiable. |
+| `VanillaZkVM/Twostep.lean` | A minimal two-layer VM (`RSeg → RFinal`) with committed CTE `cte_committedMemory` and full-memory CTE `cte_fullMemory`. It still omits the concrete ISA, bus, and recursion tower. |
+| `VanillaZkVM/TwostepSanity.lean` | A private accepting model witnessing that all `cte_fullMemory` hypotheses are jointly satisfiable. |
 | `VanillaZkVM/Bus.lean` | ⚠ **Yavor's playground prototype — NOT ground truth.** A first cut of the leaf/segment layer (four inner circuits, `RSegment`, `segment_extract`). It is *reference only*; the real segment/bus layer is (re)built in Issue 5. |
 
 **How it maps to the paper.** `CTE ⇔ KnowledgeSound` is the paper's `rem:cte-ks`. The abstract

@@ -21,10 +21,10 @@ We then instantiate the abstract `ZkVM` (`State` = committed states,
 plus a two-layer extraction. The committed trace is produced with `concatTrace`;
 its validity rests on `chain_flatten` (both from `Trace`).
 
-The base `cte` target is a committed-memory trace whose binary step is the
+The base `cte_committedMemory` target is a committed-memory trace whose binary step is the
 existential projection `committedStep` of the witness-indexed
 `CommittedMemory.step`, with the per-step
-`MemStep` witnesses retained in the segment witnesses. `cte_full` then applies
+`MemStep` witnesses retained in the segment witnesses. `cte_fullMemory` then applies
 `Memory.trace_mem_extract` along that trace to obtain the *full-memory* statement:
 a full-memory trace satisfying the commitment invariant at every state and a
 genuine `FullMemory.step` at every step. Traces are `ℕ`-indexed with `< bound` conditions
@@ -60,7 +60,7 @@ structure FinalWitness (VC : VectorCommitment) (SegProof : Type) where
   proofs : ℕ → SegProof
 
 /-- Full-memory boundary statement: the initial and final *full* states. Used by
-the full-memory instantiation `toZkVMFull`, whose verifier commits these to reuse
+the full-memory instantiation `toZkVMFullMemory`, whose verifier commits these to reuse
 the committed final SNARK.
 
 Paper: full-state boundaries in `def:cte` (ch05); this is the two-layer toy
@@ -129,7 +129,7 @@ def ASFinal : ArgumentSystem sys.RFinal where
 /-- The intermediate committed-memory `ZkVM`: its canonical step is
 `committedStep sys.memFreePred`, with `T = m * Nseg`, committed boundary
 statements, and the final verifier. -/
-def toZkVM : ZkVM where
+def toZkVMCommittedMemory : ZkVM where
   State := CommittedVMState sys.VC
   step := committedStep sys.memFreePred
   T := sys.m * sys.Nseg
@@ -147,7 +147,7 @@ extractability statement — a concrete instance of the abstract `CTE`.
 
 Paper: `def:cte` and `prop:memory-extractability` (ch05). This toy omits the bus,
 concrete ISA, and recursive convert/combine/embed layers. -/
-def toZkVMFull : ZkVM where
+def toZkVMFullMemory : ZkVM where
   State := FullVMState sys.VC
   step := fun S₁ S₂ => ∃ w, FullMemory.step sys.memFreePred S₁ S₂ w
   T := sys.m * sys.Nseg
@@ -164,7 +164,7 @@ hidden behind its existential.
 
 This is Lean-only coordination scaffolding for `prop:memory-extractability`,
 not an additional paper security definition. -/
-def memoryStepInterface : StepInterface sys.toZkVMFull where
+def memoryStepInterface : StepInterface sys.toZkVMFullMemory where
   CommittedState := CommittedVMState sys.VC
   represents := CommitInv
   stepCommitted := committedStep sys.memFreePred
@@ -172,7 +172,7 @@ def memoryStepInterface : StepInterface sys.toZkVMFull where
 /-- The concrete `StepInterface.MemoryBridge` required by Issue 1. Completeness,
 position binding, and update binding let `step_reconstruct` construct a
 represented full-memory post-state satisfying the canonical
-`sys.toZkVMFull.step` predicate.
+`sys.toZkVMFullMemory.step` predicate.
 
 Paper: `prop:memory-extractability`, `rem:mem-inheritance`, and Step 6 of
 `thm:main` (ch05), specialized to the two-step toy. -/
@@ -181,13 +181,13 @@ theorem memoryBridge
     (hupd : sys.VC.UpdateBinding) :
     sys.memoryStepInterface.MemoryBridge := by
   intro Ŝ₁ Ŝ₂ S₁ hInv hstep
-  simpa [memoryStepInterface, toZkVMFull] using
+  simpa [memoryStepInterface, toZkVMFullMemory] using
     (step_reconstruct hComplete hpos hupd sys.memFreePred S₁ Ŝ₁ Ŝ₂ hInv hstep)
 
 /-- **Trust base for the two-step zkVM** — the single surface collecting the
-unproven assumptions `cte` relies on. This toy system uses no bus, so its trust
+unproven assumptions `cte_committedMemory` relies on. This toy system uses no bus, so its trust
 base is exactly the two SNARKs' knowledge soundness. The full-memory statement
-`cte_full` additionally consumes the memory-commitment binding assumptions
+`cte_fullMemory` additionally consumes the memory-commitment binding assumptions
 (`Complete`/`PositionBinding`/`UpdateBinding`), which are passed separately rather
 than bundled here. The well-formedness side condition `0 < Nseg` is *not* part of
 the trust base and stays a separate argument. -/
@@ -197,16 +197,16 @@ structure Assumptions (sys : System) : Prop where
   /-- Knowledge soundness of the final merging SNARK `Π_final`. -/
   ksFinal : KnowledgeSound sys.ASFinal
 
-/-- **The `Memory` ↔ `Twostep` bridge** — a valid *committed* trace of `toZkVM`
-yields a valid *full-memory* trace of `toZkVMFull`: the reconstructed trace
-`reconstructTrace Ŝ (chooseMemStep …) x.S0` is `toZkVMFull`-valid whenever `Ŝ` is
-`toZkVM`-valid for the committed boundaries of `x`.
+/-- **The `Memory` ↔ `Twostep` bridge** — a valid *committed* trace of `toZkVMCommittedMemory`
+yields a valid *full-memory* trace of `toZkVMFullMemory`: the reconstructed trace
+`reconstructTrace Ŝ (chooseMemStep …) x.S0` is `toZkVMFullMemory`-valid whenever `Ŝ` is
+`toZkVMCommittedMemory`-valid for the committed boundaries of `x`.
 
 The two modules split the work: `Memory` reconstructs full memory over raw
 states (`CommitInv`, `MemStep`, the committed/full step predicates) and knows
 nothing of SNARKs or the abstract `ZkVM`; this file defines the two `ZkVM`
 instances but proves nothing about memory. This theorem joins them, restating
-`Memory.trace_mem_extract` with `TraceValid`/`step` alone, so `cte_full` below
+`Memory.trace_mem_extract` with `TraceValid`/`step` alone, so `cte_fullMemory` below
 never touches the memory internals.
 
 The terminal state matches `x.ST` because the commitment invariant at the last
@@ -218,8 +218,8 @@ theorem traceValid_full
     (hComplete : sys.VC.Complete) (hpos : sys.VC.PositionBinding)
     (hupd : sys.VC.UpdateBinding)
     (x : FinalStmtFull sys.VC) (Ŝ : ℕ → CommittedVMState sys.VC)
-    (hval : sys.toZkVM.TraceValid ⟨toCommitted x.S0, toCommitted x.ST⟩ Ŝ) :
-    sys.toZkVMFull.TraceValid x
+    (hval : sys.toZkVMCommittedMemory.TraceValid ⟨toCommitted x.S0, toCommitted x.ST⟩ Ŝ) :
+    sys.toZkVMFullMemory.TraceValid x
       (reconstructTrace Ŝ (chooseMemStep sys.memFreePred Ŝ) x.S0) := by
   obtain ⟨hstart, hend, hsteprel⟩ := hval
   have hstartc : Ŝ 0 = toCommitted x.S0 := hstart
@@ -251,13 +251,13 @@ theorem traceValid_full
     intro i hi
     exact ⟨_, hstepF i hi⟩
 
-/-- **CTE for the two-step VM.** If both SNARKs are knowledge-sound (and segments
+/-- **Committed-memory CTE for the two-step VM.** If both SNARKs are knowledge-sound (and segments
 are non-empty), the instantiated system is correct-trace extractable. The trace
 extractor runs the two-layer straight-line extraction — `RFinal` witness, then an
 `RSeg` witness per segment — and concatenates the resulting committed sub-chains.
 Validity of the concatenation is `chain_flatten`. -/
-theorem cte (hNseg : 0 < sys.Nseg) (h : sys.Assumptions) :
-    sys.toZkVM.CTE := by
+theorem cte_committedMemory (hNseg : 0 < sys.Nseg) (h : sys.Assumptions) :
+    sys.toZkVMCommittedMemory.CTE := by
   obtain ⟨hseg, hfinal⟩ := h
   rw [ZkVM.cte_iff_knowledgeSound]
   obtain ⟨Ef, hEf⟩ := hfinal
@@ -298,25 +298,25 @@ theorem cte (hNseg : 0 < sys.Nseg) (h : sys.Assumptions) :
   · intro k hk
     exact estep k hk
 
-/-- **Full-memory CTE** — `cte` upgraded across the `Memory ↔ Twostep` bridge
-(`traceValid_full`), as a concrete instance of the abstract `CTE`: `sys.toZkVMFull.CTE`. Under
-the `cte` hypotheses plus the commitment binding assumptions, the two-step VM is
+/-- **Full-memory CTE** — `cte_committedMemory` upgraded across the `Memory ↔ Twostep` bridge
+(`traceValid_full`), as a concrete instance of the abstract `CTE`: `sys.toZkVMFullMemory.CTE`. Under
+the `cte_committedMemory` hypotheses plus the commitment binding assumptions, the two-step VM is
 correct-trace extractable *over full-memory states* — the extractor turns every
 accepting final proof into a valid full-memory trace (right boundaries, and a
 genuine `∃ w, FullMemory.step …` at every step).
 
-Proof: from `cte` get the committed extractor `E`; the full extractor commits
+Proof: from `cte_committedMemory` get the committed extractor `E`; the full extractor commits
 `x`'s boundaries, runs `E`, and reconstructs the full trace. Correctness is then
 exactly `traceValid_full` applied to `E`'s committed `TraceValid`.
 
 Paper: `def:cte`, `prop:memory-extractability`, and `rem:mem-inheritance`
 (ch05). This is a two-layer memory theorem, not the full VanillaVM main
 theorem. -/
-theorem cte_full (hNseg : 0 < sys.Nseg) (h : sys.Assumptions)
+theorem cte_fullMemory (hNseg : 0 < sys.Nseg) (h : sys.Assumptions)
     (hComplete : sys.VC.Complete) (hpos : sys.VC.PositionBinding)
     (hupd : sys.VC.UpdateBinding) :
-    sys.toZkVMFull.CTE := by
-  obtain ⟨E, hE⟩ := sys.cte hNseg h
+    sys.toZkVMFullMemory.CTE := by
+  obtain ⟨E, hE⟩ := sys.cte_committedMemory hNseg h
   exact ⟨fun x p =>
       reconstructTrace (E ⟨toCommitted x.S0, toCommitted x.ST⟩ p)
         (chooseMemStep sys.memFreePred
@@ -324,6 +324,12 @@ theorem cte_full (hNseg : 0 < sys.Nseg) (h : sys.Assumptions)
     fun x p hp =>
       sys.traceValid_full hComplete hpos hupd x _
         (hE ⟨toCommitted x.S0, toCommitted x.ST⟩ p hp)⟩
+
+/-- The paper-facing name for the headline theorem: the paper's `def:cte` (ch05)
+is stated over *full-memory* states, so plain `cte` means `cte_fullMemory`.
+The committed-memory statement `cte_committedMemory` is a Lean-side
+intermediate. -/
+alias cte := cte_fullMemory
 
 end System
 end TwoStep

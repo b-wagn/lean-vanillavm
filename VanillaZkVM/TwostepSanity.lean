@@ -5,7 +5,7 @@ import VanillaZkVM.Twostep
 # Consistency-floor model for full-memory two-step CTE
 
 A one-segment, one-step system over `MemorySanity.exactVC` witnesses that all
-hypotheses of `TwoStep.System.cte_full` are jointly satisfiable (I6). Its proof
+hypotheses of `TwoStep.System.cte_fullMemory` are jointly satisfiable (I6). Its proof
 objects are relation witnesses, so both argument systems are knowledge-sound by
 the identity extractor. A concrete final proof is accepted, and the step is a
 genuine `.other` transition rather than an everywhere-true relation.
@@ -66,12 +66,12 @@ private def finalWitness : FinalWitness exactVC (SegWitness exactVC) where
   boundary := fun _ => committedState
   proofs := fun _ => segmentWitness
 
-example : system.toZkVMFull.verify ⟨fullState, fullState⟩ finalWitness := by
-  simp [TwoStep.System.toZkVMFull, system, finalVerify, finalWitness,
+example : system.toZkVMFullMemory.verify ⟨fullState, fullState⟩ finalWitness := by
+  simp [TwoStep.System.toZkVMFullMemory, system, finalVerify, finalWitness,
     segmentWitness, segVerify, committedState, memFree, CommittedMemory.step]
 
-example : system.toZkVMFull.CTE := by
-  exact system.cte_full (by simp [system]) assumptions exactVC_complete
+example : system.toZkVMFullMemory.CTE := by
+  exact system.cte_fullMemory (by simp [system]) assumptions exactVC_complete
     exactVC_positionBinding exactVC_updateBinding
 
 end TwoStepSanity

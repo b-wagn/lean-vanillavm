@@ -100,8 +100,8 @@ non-vacuous, and necessary.
 
 The goal of this file is to integrate memory reconstruction into a minimal
 two-layer zkVM. Knowledge soundness of the final and segment argument systems
-extracts and flattens a valid committed-state trace, proving `cte`. The memory
-results then reconstruct a valid full-memory trace, proving `cte_full`. This is
+extracts and flattens a valid committed-state trace, proving `cte_committedMemory`. The memory
+results then reconstruct a valid full-memory trace, proving `cte_fullMemory`. This is
 the full-memory CTE theorem for the two-layer toy system, not yet the complete
 Vanilla VM with its ISA, bus, and recursive proof layers.
 
@@ -117,18 +117,18 @@ Vanilla VM with its ISA, bus, and recursive proof layers.
   `MemStep` witness to satisfy `CommittedMemory.step`.
 - `RFinal` requires the outer boundaries to match and every chained segment
   proof to verify.
-- `toZkVM` and `toZkVMFull` instantiate the frozen abstract `ZkVM` with,
-  respectively, committed and full-memory state semantics.
+- `toZkVMCommittedMemory` and `toZkVMFullMemory` instantiate the frozen abstract `ZkVM`
+  with, respectively, committed and full-memory state semantics.
 - `memoryStepInterface` instantiates the frozen committed-step interface, and
   `memoryBridge` proves its constructive bridge using `step_reconstruct`.
 - `traceValid_full` turns a valid committed trace into a valid reconstructed
   full-memory trace with the correct endpoints.
-- `cte` proves correct-trace extractability for the committed-state toy zkVM.
-- `cte_full` proves correct-trace extractability for the full-memory toy zkVM.
+- `cte_committedMemory` proves correct-trace extractability for the committed-state toy zkVM.
+- `cte_fullMemory` proves correct-trace extractability for the full-memory toy zkVM.
 
 ## `TwostepSanity.lean`
 
-The goal of this file is to show that all hypotheses of `cte_full` can hold
+The goal of this file is to show that all hypotheses of `cte_fullMemory` can hold
 simultaneously in a concrete system. It constructs a one-segment, one-step
 system over `exactVC`, uses relation witnesses as proofs with identity
 extractors, exhibits an accepted final proof, and derives full-memory CTE. All
