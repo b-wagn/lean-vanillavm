@@ -332,7 +332,7 @@ running time), `VectorCommitment` with `Complete`, `PositionBinding`, and
 `UpdateBinding` (perfect), and `HashCommitment` with `CollisionResistant`
 (perfect: injective `hash`). `Memory.lean` reconstructs full memory from a
 known initial memory and per-step `MemStep` witnesses, proves the constructive
-frozen `MemoryBridge`, and `Twostep.lean` composes that fold into
+frozen `MemoryBridge`, and `Twostep.lean` composes that reconstruction into
 `TwoStep.System.cte_full`. The concrete ISA and bus remain absent.
 `Bus.lean`: leaf/
 segment layer only (`RInnerStep/Keccak/Poseidon/Range`, `RSegment`,
@@ -347,7 +347,7 @@ semantic wiring still open.** `Memory.lean` now formalizes the perfect
 position/update-binding memory slice: committed/full read and write equations,
 the `CommitInv` reconstruction invariant, conditional `step_mem_extract`,
 constructive `step_reconstruct`/`TwoStep.System.memoryBridge`, and
-`trace_mem_extract`; `TwoStep.System.cte_full` composes the fold with the
+`trace_mem_extract`; `TwoStep.System.cte_full` composes it with the
 two-layer toy. `TwostepSanity.lean` gives a permanent accepting joint model for
 the theorem's hypotheses. The append-bit countermodel demonstrates that the punctured
 non-equivocation condition does not provide update binding. Remaining:

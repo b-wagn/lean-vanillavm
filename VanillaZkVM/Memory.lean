@@ -28,8 +28,9 @@ is an actual `commit` output, which non-equivocation binding notions cannot give
   *establish* the commitment invariant across a write.
 * **Constructive bridge:** `step_reconstruct`, which constructs the represented
   full-memory post-state required by `StepInterface.MemoryBridge`.
-* **Trace fold:** `trace_mem_extract`, folding the per-step lemmas along a whole
-  committed trace (with `stepReconstruct`/`reconstructTrace`/`chooseMemStep`).
+* **Whole-trace extractability:** `trace_mem_extract`, chaining the per-step
+  lemmas by induction along a whole committed trace (with
+  `stepReconstruct`/`reconstructTrace`/`chooseMemStep`).
 
 In the perfect/probability-free style of `Crypto.lean`, "except with probability
 `Adv`" collapses to "always", so the two binding hypotheses are consumed as plain
@@ -318,13 +319,13 @@ private theorem commitInv_write
   exact ⟨hpc, hreg,
     commit_update hComplete hpos hupd S₁.mem S₂.mem Ŝ₂.mem addr v vOld π h2addr h2off hv1 hv2⟩
 
-/-! ## Folding the per-step lemmas along a committed trace
+/-! ## Chaining the per-step lemmas along a committed trace
 
 `commitInv_step` and the reconstructed-state semantics are single-step.
-`trace_mem_extract` folds them along a whole committed trace: it reconstructs
-the full-memory trace from an initial full state, carries the commitment
-invariant across every step, and lifts each committed step to a full-memory
-step. A concrete system composes this to strengthen a committed-trace
+`trace_mem_extract` chains them by induction along a whole committed trace: it
+reconstructs the full-memory trace from an initial full state, carries the
+commitment invariant across every step, and lifts each committed step to a
+full-memory step. A concrete system composes this to strengthen a committed-trace
 extractability statement to full memory (see `TwoStep.System.cte_full`). -/
 
 open Classical in
@@ -349,9 +350,9 @@ noncomputable def reconstructTrace (Ŝ : ℕ → CommittedVMState VC) (w : ℕ �
   | 0       => S₀
   | (k + 1) => stepReconstruct (reconstructTrace Ŝ w S₀ k) (Ŝ (k + 1)) (w k)
 
-/-- One fold step: across any committed step, the commitment invariant passes
-from the pre-state to the reconstructed post-state. Reads/non-memory steps keep
-memory (and the invariant) unchanged; writes invoke `commitInv_write`.
+/-- One induction step: across any committed step, the commitment invariant
+passes from the pre-state to the reconstructed post-state. Reads/non-memory
+steps keep memory (and the invariant) unchanged; writes invoke `commitInv_write`.
 
 Paper: induction step in `rem:mem-inheritance` (ch05). -/
 private theorem commitInv_step
@@ -444,12 +445,12 @@ theorem step_reconstruct
   exact ⟨S₂, hInv₂, w,
     reconstructed_step_full hComplete hpos memFreePred S₁ Ŝ₁ Ŝ₂ w hInv hw⟩
 
-/-- **Trace fold.** Given a committed trace `Ŝ`, its sequence
-`w : ℕ → MemStep VC` (each value certifying a committed step), and an initial
-full state `S₀` matching `Ŝ 0` under the commitment invariant, the reconstructed
-full-memory trace `reconstructTrace Ŝ w S₀` (i) satisfies the commitment invariant
-at every state and (ii) realizes every committed step as a full-memory step. This
-is the whole-trace form of memory extractability.
+/-- **Memory extractability, whole trace.** Given a committed trace `Ŝ`, its
+sequence `w : ℕ → MemStep VC` (each value certifying a committed step), and an
+initial full state `S₀` matching `Ŝ 0` under the commitment invariant, the
+reconstructed full-memory trace `reconstructTrace Ŝ w S₀` (i) satisfies the
+commitment invariant at every state and (ii) realizes every committed step as a
+full-memory step. Proved by induction on the trace index via `commitInv_step`.
 
 Paper: `prop:memory-extractability` and `rem:mem-inheritance` (ch05), restricted
 to the memory-only step interface. -/

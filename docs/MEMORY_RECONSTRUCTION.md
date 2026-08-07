@@ -74,7 +74,7 @@ public theorem `step_reconstruct` packages the constructive one-step bridge.
   `CommitInv Ŝ₁ S₁` and a committed transition from `Ŝ₁` to `Ŝ₂`, it
   constructs a full state `S₂` and `MemStep` witness `w` such that both
   `CommitInv Ŝ₂ S₂` and `FullMemory.step S₁ S₂ w` hold.
-- `trace_mem_extract` folds the preceding result across a sequence of committed
+- `trace_mem_extract` chains the preceding result, by induction, across a sequence of committed
   states. The reconstructed states satisfy both the commitment invariant and
   the full-memory transition relation at every index in the trace.
 

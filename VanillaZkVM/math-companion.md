@@ -308,7 +308,7 @@ memory-extractability reduction and its reconstruction invariant. It assumes
 the binding properties directly; explicit bad-event reductions and advantage
 accounting remain assigned to Issues 2 and 6.
 *Lean:* public `step_reconstruct`, `reconstructTrace`, and
-`trace_mem_extract` (the root-update and single-step fold lemmas are private),
+`trace_mem_extract` (the root-update and single-step lemmas are private),
 `TwoStep.System.memoryStepInterface`, `TwoStep.System.memoryBridge`.
 
 ### 1.4 Full-memory CTE for the two-step toy
