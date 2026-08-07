@@ -345,3 +345,54 @@ make the frozen bridge conclusion false, not merely harder to prove.
 This is not yet the full VanillaVM theorem: `memFreePred` is abstract, and the
 concrete ISA, bus, recursion, and explicit quantitative reductions are later
 issues in `docs/PLAN.md`.
+
+## 2. Reduction vocabulary (extract-or-break) — Issue 2
+
+The lightweight reduction discipline (I9) shared by every security layer
+(`lem:segment`, ch05 §5.2).
+
+### 2.1 Assumptions as break witnesses
+
+An **assumption** `A` is a pair `(Break, IsBreak)`: a type of candidate break
+witnesses and the predicate recognizing a genuine break. `A` **holds** when no
+genuine break exists — the perfect, probability-free (I8) reading of "advantage 0":
+$$A.\mathsf{Holds} \;:=\; \forall w,\ \lnot\, A.\mathsf{IsBreak}(w).$$
+*Lean:* `Reduction.Assumption`, `Reduction.Assumption.Holds`.
+
+### 2.2 Extract-or-break
+
+For an argument system `Π` for relation `R` and assumption `A`, an
+**extract-or-break reduction** is a witness-extractor `E` and a break-extractor
+`B` such that, for every accepting `(x,π)`,
+$$\Pi.\mathsf{Verify}(x,\pi) \;\Rightarrow\; (x; E(x,\pi)) \in R \ \ \lor\ \ A.\mathsf{IsBreak}(B(x,\pi)).$$
+The assumption is never used to *build* the reduction; it is applied once, in the
+corollary: if `A` holds, the break branch is impossible, so `E` is a
+knowledge-soundness extractor.
+A layer states its guarantee as `ReducesTo AS A := ∃ E B, ExtractOrBreak AS A E B`.
+*Lean:* `Reduction.ExtractOrBreak`, `Reduction.ReducesTo`,
+`Reduction.knowledgeSound_of_extractOrBreak`.
+
+### 2.3 Collision resistance, keyed
+
+`Com_bus` collision resistance (`Adv^cr`, `def:bus-cr`), stated over a **keyed**
+hash family and **finders**: no finder — a plain function that, handed the key
+`k`, returns a candidate pair — outputs a collision under `k`,
+$$\mathsf{CollisionResistant}(H) := \forall\, \mathit{finder}\ \forall k,\ \lnot\big(\mathit{finder}(k).1 \neq \mathit{finder}(k).2 \ \land\ H.\mathsf{hash}(k, \mathit{finder}(k).1)=H.\mathsf{hash}(k, \mathit{finder}(k).2)\big).$$
+Keying is what separates "collisions *exist*" (true for any compressing hash) from
+"collisions are *hard to find* for a fresh key" (the actual content of CR). In the
+perfect model (I8) this is still **equivalent to per-key injectivity** of `hash`;
+efficiency (a cost bound) and negligible probability — what make it genuinely
+distinct from injectivity — are deferred to Issue 6. As an `Assumption` at a key
+`k`, a break is a colliding pair under `k`.
+*Lean:* `CollisionResistant`, `CryptoSanity.collisionResistant_iff_injective`,
+`Reduction.crAssumption`; non-vacuity
+`CryptoSanity.collisionResistant_idHashCommitment`.
+
+### 2.4 Applying the vocabulary
+
+The worked instance is collision resistance (`crAssumption`). The first layer to
+apply the vocabulary end-to-end — a segment extraction returning a valid trace or
+a disagreeing bus copy as a collision (`lem:segment`) — is built in Issue 5, over
+the rebuilt bus layer.
+*Lean:* `Reduction.crAssumption` (instance); the segment/bus application is deferred
+to Issue 5.

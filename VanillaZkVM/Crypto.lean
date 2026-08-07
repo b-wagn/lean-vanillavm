@@ -22,10 +22,10 @@ These binding/CR notions are **not** frozen. `UpdateBinding` is the
 commitment-realizability property used by memory reconstruction; the earlier
 condition on openings away from an updated address did not rule out
 commitments that pass `verify` but are not equal to `commit m` for any memory
-`m`.
-`CollisionResistant` may gain a keyed/algorithmic variant. These declarations
-may change without a constitutional amendment; see
-the `provisional` note on each.
+`m`. `CollisionResistant` is stated in its keyed, finder-based form; the
+efficiency (cost) and probability layers that make it fully realistic are
+deferred to Issue 6. These declarations may change without a constitutional
+amendment; see the `provisional` note on each.
 
 ## Soundness is modeled as *perfect straight-line extraction* (no probabilities)
 
@@ -192,23 +192,43 @@ def IsUpdateBindingBreak (VC : VectorCommitment)
 
 /-! ## Provisional — collision-resistant (bus) commitment -/
 
-/-- A hash-style commitment `hash : Domain → Digest`.
+/-- A **keyed** hash-style commitment: a family `hash : Key → Domain → Digest`,
+one hash function per key.
 
 Paper: `def:bus-cr`.
 
-**Provisional** (I4): may gain a keyed/algorithmic variant. -/
+**Provisional** (I4): keyed collision resistance below; efficiency/probability
+land in Issue 6. -/
 structure HashCommitment where
+  Key : Type
   Domain : Type
   Digest : Type
-  hash : Domain → Digest
+  hash : Key → Domain → Digest
 
-/-- **Collision-resistance** (perfect): the commitment map is injective.
+/-- **Collision-resistance** (perfect, keyed, finder-based): no *finder* — a plain
+function that, handed the key `k`, returns a candidate pair — outputs a genuine
+collision (distinct preimages with equal digest under `k`).
 
-Paper: `def:bus-cr`. Lean deliberately uses the probability-free
-specialization required by I8.
+Keying is what makes collision-resistance a *meaningful* property rather than
+plain injectivity: a real hash compresses, so collisions **exist** for every key;
+the content is that a finder handed a *fresh* key cannot **produce** one (it
+cannot precompute or hardcode against an unknown key). Unkeyed, "collision-
+resistant" could only mean "has no collisions" = injective, which is false for any
+real hash.
 
-**Provisional** (I4): may gain a keyed/algorithmic variant. -/
+The finder is a plain function (`docs/CONVENTIONS.md` §1); efficiency (a cost
+bound) and the probabilistic "except with negligible probability" are a separate
+concern, **deferred to Issue 6**. In this perfect model the statement is still
+equivalent to per-key injectivity of `hash`
+(`CryptoSanity.collisionResistant_iff_injective`): keying fixes the *structure*,
+but full realism needs the Issue-6 probabilistic layer.
+
+Paper: `def:bus-cr`. Lean deliberately uses the probability-free specialization
+required by I8.
+
+**Provisional** (I4): the keyed collision-resistance notion. -/
 def CollisionResistant (H : HashCommitment) : Prop :=
-  ∀ b b' : H.Domain, H.hash b = H.hash b' → b = b'
+  ∀ (finder : H.Key → H.Domain × H.Domain) (k : H.Key),
+    ¬ ((finder k).1 ≠ (finder k).2 ∧ H.hash k (finder k).1 = H.hash k (finder k).2)
 
 end VanillaZkVM

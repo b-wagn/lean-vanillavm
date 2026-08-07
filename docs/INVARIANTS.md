@@ -39,8 +39,8 @@ the invariant number (I1, I2, …) when a decision depends on it. Modeled on the
   `VectorCommitment`'s binding predicates in particular. `PuncturedBinding` is **known to be
   insufficient** and is removed by Issue 1 in favor of the paper's independent
   `PositionBinding` and `UpdateBinding` properties; `Complete` is explicit in `Crypto.lean`; and
-  `CollisionResistant` may gain a keyed/algorithmic variant (Jessica's `cr-algorithmic`). These
-  declarations live in `Crypto.lean`
+  `CollisionResistant` is now keyed and finder-based (Issue 2; the efficiency and probability
+  layers are deferred to Issue 6). These declarations live in `Crypto.lean`
   but carry a "provisional" note in their docstrings and may change without a constitutional
   amendment. Freezing the commitment layer now would be premature (do not over-freeze —
   over-restriction was flagged as a risk).
