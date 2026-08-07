@@ -267,9 +267,8 @@ a per-step memory argument
    and combine the four predicates via Eq. `eq:step-bus2` to get full
    `φ̂_step`. Bound: `Adv^seg_{E_1}(A) ≤ Adv^ks_{Π_1} + Adv^ks_{Π_{0,step}}
    + Adv^ks_{Π_{0,keccak}} + Adv^ks_{Π_{0,poseidon}} + Adv^ks_{Π_{0,range}}
-   + Adv^cr_{Com_bus}`. **This is exactly Lean's `Bus.System.segment_extract`**
-   — same six assumptions bundled as `Bus.System.Assumptions`, same
-   bus-unification argument (`hbus`).
+   + Adv^cr_{Com_bus}`. The active Lean tree does not yet formalize this
+   segment/bus reduction; it is assigned to Issues 2 and 5.
 
 5. **Inner-circuit** (`lem:inner`): each `Π_{0,j}` KS directly gives its
    extractor; `Adv^inner_{j,E_{0,j}}(A) = Adv^ks_{Π_{0,j}}(A)` — no reduction
@@ -284,8 +283,9 @@ a per-step memory argument
      (`Adv^upd_{Com}(A):=Pr[Verify(C,addr,m[addr],π)=1 ∧ Verify(C',addr,x,π)=1
      ∧ C'≠Commit(m[addr↦x])]` negl.). Remark: Merkle trees get both from
      hash collision-resistance.
-   - Statement: given `A` outputting `(Ŝ1,Ŝ2,mem1,mem2,B̂,π^mem)` with the
-     commitment invariant, `φ̂_step` holding, but `φ_step(S1,S2)` (for
+   - Statement: given `A` outputting `(Ŝ1,Ŝ2,mem1,mem2,B̂,π^mem)` with matching
+     program counters/registers and `Ŝ_j.mem=Commit(mem_j)`, with `φ̂_step`
+     holding but `φ_step(S1,S2)` (for
      `S_j:=(Ŝ_j.pc,Ŝ_j.regs,mem_j)`) failing with prob. `ε`, then
      `ε ≤ Adv^pos_{Com_mem}(D^pos) + Adv^upd_{Com_mem}(D^upd)`.
    - Proof: two bad events `E_pos,E_upd` (position/update collisions), one
@@ -296,7 +296,9 @@ a per-step memory argument
    - Used in `thm:main` Step 6 to inductively rebuild `mem_0..mem_T` from the
      committed-state chain + per-step memory-opening witnesses `{π^mem_k}`
      extracted at the Segment layer, contributing the
-     `Σ_{k=1}^T(Adv^pos_k+Adv^upd_k)` tail. **Entirely absent from Lean** (§6).
+     `Σ_{k=1}^T(Adv^pos_k+Adv^upd_k)` tail. Issue 1 formalizes the
+     perfect, probability-free reconstruction statement; the explicit
+     reductions and advantage sum remain absent (§6).
 
 ### 5.3 Composition and running time
 
@@ -323,39 +325,37 @@ not a concrete security level.
 
 ## 6. Gap list for Lean formalization
 
-Baseline (`VanillaZkVM/{Zkvm,Bus,Twostep,Crypto}.lean`): `Zkvm.lean` has the
+Current Issue-1 development (`VanillaZkVM/*.lean`): `Zkvm.lean` has the
 abstract `ZkVM` structure, `R*=ZkVM.Rstar`, `CTE=ZkVM.CTE`, keystone
-`cte_iff_knowledgeSound`, plus `concatTrace`/`chain_flatten`. `Crypto.lean`
+`cte_iff_knowledgeSound`; `Trace.lean` has `concatTrace`/`chain_flatten`. `Crypto.lean`
 has `Relation`, `ArgumentSystem` (verifier-only), `Extractor`,
 `KnowledgeSound` (**perfect**: `∃E,∀ x p, verify → rel`, no `λ`/`negl`/
-running time), `VectorCommitment` with `PositionBinding`/`PuncturedBinding`
-(perfect), `HashCommitment` with `CollisionResistant` (perfect: injective
-`hash`). `Twostep.lean`: 2-layer toy (`RSeg→RFinal`), `TwoStep.System.cte`
-from `Assumptions:={ksSeg,ksFinal}` — no bus, no inner circuits,
-`Com_mem`/`VC` declared but its binding never invoked. `Bus.lean`: leaf/
-segment layer only (`RInnerStep/Keccak/Poseidon/Range`, `RSegment`,
-`RSegmentTrace`), `Bus.System.segment_extract` proves `KnowledgeSound
-ASSegmentTrace` from `Assumptions:={busCR,ksInnerStep,ksInnerKeccak,
-ksInnerPoseidon,ksInnerRange,ksSegment}` — a faithful perfect-probability
-analogue of `lem:segment`; states are `CommittedVMState`, but memory-opening
-witnesses (`StepAux`) are an opaque type parameter.
+running time), `VectorCommitment` with `Complete`, `PositionBinding`, and
+`UpdateBinding` (perfect), and `HashCommitment` with `CollisionResistant`
+(perfect: injective `hash`). `Memory.lean` reconstructs full memory from a
+known initial memory and per-step `MemStep` witnesses, realizes the frozen
+`MemoryBridge` by constructing each next full-memory state, and `Twostep.lean`
+composes that reconstruction into
+`TwoStep.System.cte_fullMemory`. The concrete ISA and bus remain absent. The
+former playground `Bus.lean` prototype has been deleted from the active tree;
+its git history is reference material only for Issue 5.
 
-**(a) Committed memory / memory-commitment properties — largest gap.** Lean
-has `PositionBinding` + `PuncturedBinding` (shared opening at `addr` under
-`C,C'` ⇒ agreement at every *other* index). The paper's **update-binding**
-is different and more direct: an opening at `addr` valid under honest
-`C=Commit(m)` and some `C'` forces `C'=Commit(m[addr↦x])` outright (full
-re-commitment equality). Related (Merkle trees get both from hash CR per the
-paper's Remark) but not interchangeable; no Lean lemma derives one from the
-other or reconstructs a full memory vector. Missing: (i) `prop:memory-
-extractability` itself — no bridge from `CommittedVMState` back to `VMState`
-(full `Addr→Byte` memory); `VMState`/`memUpdate` exist in `Zkvm.lean` but are
-never connected to `CommittedVMState` by any theorem; (ii) no per-op
-predicates `φ_read/write`, `φ'_read/write`, the commitment-opening equations
-(`eq:op-mem-comm-read/write`), or the memory-reconstruction invariant
-(`rem:mem-inheritance`) — `Bus.lean`'s `stepBus`/`StepAux` are fully
-abstract, so read/write aren't distinguished from any other opcode; (iii) no
-per-step probability accounting (see (e)).
+**(a) Committed memory / memory-commitment properties — memory core implemented,
+semantic wiring still open.** `Memory.lean` now formalizes the perfect
+position/update-binding memory slice: committed/full read and write equations,
+the `CommitInv` relation, conditional `step_mem_extract`,
+`step_reconstruct`/`TwoStep.System.memoryBridge` (which produce each next
+represented state), and
+`trace_mem_extract`; `TwoStep.System.cte_fullMemory` composes it with the
+two-layer toy. `TwostepSanity.lean` gives a permanent accepting joint model for
+the theorem's hypotheses. The append-bit countermodel demonstrates that
+agreement of accepted openings away from the updated address does not provide
+update binding. Remaining:
+(i) `MemFreePredicate` does not yet tie `MemStep` address/value fields to
+registers or program fetch; (ii) the five-class ISA and bus-deferred step
+predicate must conjoin those semantic equations (Issues 3 and 5); and
+(iii) the paper's explicit bad-event reductions, probability/advantage
+accounting, and runtime bounds remain Issues 2, 6, and 8.
 
 **(b) Multi-layer recursion — capped at 2 layers.** `Twostep.lean` has only
 `RSeg→RFinal`; the paper has leaf(`inner-*`)→`segment`(`R_1`)→
@@ -372,28 +372,25 @@ single segment" argument); the binary-tree topology itself (Fig.
 `fig:topo`) is nowhere represented as data — `Twostep`'s indexing is a flat
 list, not a tree.
 
-**(c) Additional ISA ops (arithmetic, hash calls) — currently fully opaque.**
-`Bus.lean`'s `stepBus`, `keccak`, `poseidon`, `range` are abstract
-`Prop`-valued fields, matching the paper's "treat as black box" stance for op
-*semantics*, but the paper still names/structures `read`, `write`,
+**(c) Additional ISA ops (arithmetic, hash calls) — absent.**
+The paper names and structures `read`, `write`,
 `op_1..op_10` (arithmetic, no range check), `op_11..op_20` (arithmetic +
 range check, `φ_op_i=φ'_op_i∧φ_range(S1)`), and the disjunctive
 `φ_step:=⋁_op φ_op`. None of this taxonomy, nor the bus-membership
 disjunction `φ_step,bus` (Eq. `eq:step-expanded`) routing each op-class to
-inline-vs-deferred, is represented — `Bus.System.step` just conjuncts
-`stepBus ∧ keccak ∧ poseidon ∧ range` without modeling why a given step
-contributes to which chip/bus entry. Would need a concrete (even parametric)
-opcode enumeration, per-class `φ_op`/`φ'_op` splits, and the disjunctive step
-predicate rebuilt from those pieces.
+inline-vs-deferred, is represented. This requires the representative opcode
+enumeration, per-class `φ_op`/`φ'_op` splits, and the disjunctive step predicate
+assigned to Issue 3.
 
-**(d) Bus per segment.** `Bus.lean` already models *one* segment's bus
-faithfully to `lem:segment` (good shape). Missing: *lifting* it across a
-whole execution — `thm:main` Step 4 applies the segment lemma **m times**
+**(d) Bus per segment.** No bus implementation is retained in the active tree.
+The former prototype can inform Issue 5, but was neither authoritative nor an
+audited realization of `lem:segment`. The required implementation must apply
+the segment lemma **m times**
 (once per segment) and Step 5 concatenates the resulting per-segment
 bus-satisfying chains into one length-`T` chain, carrying a *distinct* bus
 `B̂_i` per segment (segments' buses are never claimed equal to each other,
-only internally self-consistent). No Lean code combines `Bus.System` with
-`concatTrace`/`chain_flatten`, nor extends `Twostep`-style concatenation to
+only internally self-consistent), combine the result with
+`concatTrace`/`chain_flatten`, and extend `Twostep`-style concatenation to
 carry per-segment `StepAux`/bus data into a full-VM memory reconstruction.
 
 **(e) Explicit reductions to hardness assumptions — systematically absent.**
@@ -403,8 +400,8 @@ Consequences: no notion of advantage (`Adv^ks_Π`, `Adv^pos_Com`,
 `Adv^upd_Com`, `Adv^cr_Com`) anywhere, so `thm:main`'s weighted sum of
 advantage terms (each with an explicit reduction adversary and running time
 `Time(A)+poly(λ)`) has no Lean counterpart — the *qualitative* skeleton
-(compose extractors layer by layer) exists in `Bus.segment_extract`/
-`Twostep.cte`, but with no error accumulation: a perfect-KS proof composes
+(compose extractors layer by layer) exists in
+`Twostep.cte_committedMemory`, but with no error accumulation: a perfect-KS proof composes
 "for free" (no union bound needed), unlike the real bound's scaling with `m`
 and `T`. No PPT-adversary type, no security-parameter families, no
 negligibility predicate, no explicit reduction-adversary construction (the
@@ -429,11 +426,8 @@ straight-line extraction, non-existent relativized SNARKs for PCD
 composition) has no Lean counterpart since perfect KS sidesteps
 rewinding-vs-straight-line distinctions by fiat.
 
-**Implementation-priority ordering** (not requested, but useful): (c) and
-(d) are least structural (bookkeeping/plumbing on `Bus.lean`); (b) needs new
-relation types (`convert`,`combine`,`embed`) + a tree-induction lemma
-generalizing `chain_flatten`; (a) needs new definitions (`UpdateBinding`,
-full-memory reconstruction, `prop:memory-extractability`) on top of (b)+(d);
-(e) is deepest — a probabilistic re-foundation of `Crypto.lean` is a
-prerequisite before any other gap's lemmas can carry real quantitative
-bounds.
+**Implementation ordering:** [`PLAN.md`](PLAN.md) is authoritative. Issue 1
+implements the memory-only reconstruction slice in (a); the ISA, recursion,
+and bus gaps in (b)–(d) remain Issues 3–5. The quantitative re-foundation in
+(e) is the separate Issue-8 study and is not a prerequisite for the current
+perfect model.

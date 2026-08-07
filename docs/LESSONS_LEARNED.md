@@ -24,10 +24,10 @@ guard; when a guard becomes a CI check, note that.
   stale branch.
   **Guard:** CONVENTIONS.md §4; branch dispositions in `docs/branch-analysis.md`.
 
-- **`main-temp`'s `Bus.lean` is a prototype, not ground truth.** Its `segment_extract`
-  etc. are Yavor's playground and are redone in Issue 5. Do not build on them or treat
-  their CORRESPONDENCE rows as audited.
-  **Guard:** CONVENTIONS.md §4; the "⚠ PROTOTYPE" banner in CORRESPONDENCE.md.
+- **The deleted `Bus.lean` prototype was not ground truth.** Its declarations
+  were Yavor's playground and are redone in Issue 5. Do not restore or build on
+  them as if they were an audited checkpoint.
+  **Guard:** CONVENTIONS.md §4; the planned Issue-5 rows in CORRESPONDENCE.md.
 
 ## Definitions / abstraction (the load-bearing 80%, I3)
 
@@ -42,10 +42,67 @@ guard; when a guard becomes a CI check, note that.
   separate reviewer columns for a reason.
   **Guard:** CORRESPONDENCE.md `Fidelity` **and** `Complete` columns; CONVENTIONS.md §6.1.
 
+- **"Needed for this reduction" does not mean logical implication.** The paper
+  defines position binding and update binding as independent properties.
+  `appendBitVC` proves that the punctured non-equivocation condition plus position
+  binding does not imply update binding; it does not prove that update binding
+  implies position binding.
+  **Guard:** the `def:binding` companion text and the append-bit countermodel;
+  reject "strictly stronger" wording unless both implication directions have
+  actually been checked.
+
+- **An opaque predicate cannot constrain values absent from its type.**
+  `MemFreePredicate` sees only PCs and register files, so it cannot by itself tie a
+  separate `MemStep.addr`/`value` field to particular registers. The current
+  theorem is therefore a memory-only slice; the ISA layer must add those equations.
+  In prose, name this formal type as `MemStep` or a “`MemStep` witness”; the
+  generic term “descriptor” is neither a Lean declaration nor paper vocabulary.
+  **Guard:** explicit limitation in `Memory.lean` and `CORRESPONDENCE.md`; Issue 3
+  owns the concrete `MemStep`/register wiring, and review rejects generic
+  synonyms for formal witness types.
+
+- **A two-endpoint refinement is not an inductive reconstruction theorem.**
+  `step_mem_extract` faithfully proves the paper's conditional proposition when
+  `CommitInv` is supplied for both endpoint states. A trace extractor additionally
+  needs to construct the next full memory and prove `CommitInv` for it from the
+  current represented state; assuming that conclusion would hide the
+  commitment-swap gap.
+  **Guard:** frozen `StepInterface.MemoryBridge`; Issue 1's `step_reconstruct` and
+  `TwoStep.System.memoryBridge` existentially produce the represented next state.
+
 - **Agents anchor on training-data analogues for novel-but-familiar notions.** A
   definition that "looks like" a standard one may be silently bent toward the textbook
   version. Novel material (I3) is written interactively or with heavy up-front docs.
   **Guard:** INVARIANTS.md I11; human definition audit (CONVENTIONS.md §6.1).
+
+## Naming / documentation
+
+- **Parallel predicate families get namespaces, not letter suffixes.** `stepC`/`stepF`
+  made every reader carry a decoder ring; `CommittedMemory.step` / `FullMemory.step`
+  names the state type at each use site, and the type checker already enforces the
+  split. Corollary: never `open` such a namespace — opening erases exactly the
+  distinction it encodes.
+  **Guard:** "use qualified names, do not `open`" notes in `Memory.lean`; review
+  rejects new one-letter variant suffixes on paired declarations (CONVENTIONS.md §1).
+
+- **Comments must survive without the conversation that produced them.** Session-local
+  metaphors ("the two worlds") and undefined adjectives ("classified", 12 occurrences)
+  read as jargon to a fresh reader — the target reader had to ask what "classified"
+  meant. Use paper vocabulary (citable in the `Paper:` line) or describe the mechanism
+  ("a case split over the `MemStep` witness"). Same family as the "descriptor" rule
+  above.
+  **Guard:** docstring review checks vocabulary against the paper and Lean identifiers
+  (CONVENTIONS.md §6).
+
+- **A rename's risk lives in the docs, not the Lean.** `lake build` fully verifies the
+  code side of a pure rename; drift lands in prose. Update living docs
+  (CORRESPONDENCE.md, MEMORY_RECONSTRUCTION.md, math-companion.md); leave historical
+  records (docs/sessions/, branch-analysis.md) describing old states. Footgun: in a
+  CORRESPONDENCE.md name cell, a bare name inherits the namespace of the *previous*
+  dotted name, so rows mixing namespaces must fully qualify every name.
+  **Guard:** `ci_checks.py --check-correspondence` elaborates every audited row
+  (caught the `committedStep` mis-prefix live); repo-wide grep for the old name
+  before declaring a rename done.
 
 ## Vacuity / axioms
 

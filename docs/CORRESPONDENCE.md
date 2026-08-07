@@ -42,9 +42,9 @@ change (see notes below the table).
 | Correct-trace extractability (`def:cte`) | `VanillaZkVM.ZkVM.CTE` | frozen | proved | ✓ | ✗ (see †) | Dmitry 2026-07-29 |
 | CTE ⇔ KS (`rem:cte-ks`) | `VanillaZkVM.ZkVM.cte_iff_knowledgeSound` | frozen | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 | Merkle memory commitment `Com_mem` (ch02) | `VanillaZkVM.VectorCommitment` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
-| Position binding (`def:binding`) | `VanillaZkVM.PositionBinding` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
-| ~~Punctured binding~~ **INSUFFICIENT — retire** | `VanillaZkVM.PuncturedBinding` | deprecated | to be removed | — | — | Issue 1 |
-| Update binding (`def:binding`) — replaces punctured | _planned — Issue 1_ (`UpdateBinding`) | provisional | planned | — | — | — |
+| Commitment completeness (instruction before `def:binding`) | `VanillaZkVM.VectorCommitment.Complete` | provisional | proved | — | — | _unreviewed_ |
+| Position binding (`def:binding`) | `VanillaZkVM.VectorCommitment.PositionBinding` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
+| Update binding (`def:binding`) | `VanillaZkVM.VectorCommitment.UpdateBinding` | provisional | proved | — | — | _unreviewed_ |
 | Bus commitment `Com_bus` (`def:bus-cr`) | `VanillaZkVM.HashCommitment` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 | Collision resistance (`Adv^cr`) | `VanillaZkVM.CollisionResistant` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 
@@ -61,37 +61,47 @@ change (see notes below the table).
 > refactor happens, claiming completeness against the current paper text would be signing off on a
 > statement we expect to restate. Re-open this row once `def:cte` is tightened.
 
-> **Note (I4).** `PuncturedBinding` is known to be insufficient and is replaced by `UpdateBinding`
-> in Issue 1. The whole `VectorCommitment` binding layer and `CollisionResistant` are *provisional*
-> (may gain a keyed/algorithmic variant); do not depend on their exact current shape.
+> **Note (I4).** The paper states position binding and update binding as
+> **independent** properties. Update binding supplies the commitment-realizability
+> guarantee needed after a write; the punctured non-equivocation condition did
+> not. The entire `VectorCommitment` binding layer and `CollisionResistant` remain
+> *provisional* and may gain keyed/algorithmic variants.
 
-## Leaf / segment / bus (ch04) — ⚠ PROTOTYPE, NOT GROUND TRUTH
+## Memory extractability (Issue 1)
 
-> `main-temp`'s `Bus.lean` is **Yavor's playground prototype**, not authoritative. These rows are
-> **not** audited checkpoints; the layer is **redone properly in Issue 5** (over the frozen kernel
-> and the Issue-3 ISA). Treat the current declarations as reference only.
+These declarations formalize the memory component only. `MemFreePredicate`
+abstracts the PC/register transition and does not yet connect `MemStep` fields
+to registers; the concrete ISA, bus, and their conjunction with this component
+remain Issues 3 and 5. Human review must therefore judge fidelity to the memory
+slice separately from completeness of the eventual `φ_step`.
 
-| Paper label | Lean declaration (prototype) | Status | Fidelity | Complete | Reviewer |
+| Paper label | Lean declaration | Status | Fidelity | Complete | Reviewer |
 |---|---|---|---|---|---|
-| `R_{0,step}` (inner-step) | `Bus.System.RInnerStep` | prototype | — | — | Issue 5 |
-| `R_{0,keccak/poseidon/range}` (chips) | `Bus.System.RInner{Keccak,Poseidon,Range}` | prototype | — | — | Issue 5 |
-| `R_1` (segment) | `Bus.System.RSegment` | prototype | — | — | Issue 5 |
-| segment extraction (`lem:segment`) | `Bus.System.segment_extract` | prototype | — | — | Issue 5 |
-| bus unification / extract-or-collision | _Issue 2 (shape) → Issue 5 (wired)_ | planned | — | — | — |
+| full/committed memory invariant (`rem:mem-inheritance`) | `VanillaZkVM.CommitInv` | proved | — | — | _unreviewed_ |
+| committed memory read/write (`eq:op-mem-comm-read`, `eq:op-mem-comm-write`) | `VanillaZkVM.CommittedMemory.read` / `CommittedMemory.write` | proved | — | — | _unreviewed_ |
+| full-memory read/write (`eq:mem-op-read`, `eq:mem-op-write`) | `VanillaZkVM.FullMemory.read` / `FullMemory.write` | proved | — | — | _unreviewed_ |
+| committed/full memory step (memory component of `φ̂_step`/`φ_step`) | `VanillaZkVM.CommittedMemory.step` / `FullMemory.step` / `VanillaZkVM.committedStep` | proved | — | — | _unreviewed_ |
+| one-step memory lift (`prop:memory-extractability`) | `VanillaZkVM.step_mem_extract` | proved | — | — | _unreviewed_ |
+| memory-inheritance step constructing the next full state (`rem:mem-inheritance`, `thm:main` Step 6) | `VanillaZkVM.step_reconstruct` / `VanillaZkVM.TwoStep.System.memoryBridge` | proved | — | — | _unreviewed_ |
+| trace reconstruction invariant (`rem:mem-inheritance`) | `VanillaZkVM.trace_mem_extract` | proved | — | — | _unreviewed_ |
+| — (joint satisfiability model, I6) | `VanillaZkVM.MemorySanity.exactVC_bindingAssumptions` | proved (n/a) | — | — | _unreviewed_ |
+| — (punctured-condition countermodel, I6) | `VanillaZkVM.MemorySanity.appendBitVC_not_updateBinding` | proved (n/a) | — | — | _unreviewed_ |
 
 ## Two-step toy (intermediate)
 
 | Paper label | Lean declaration | Status | Fidelity | Complete | Reviewer |
 |---|---|---|---|---|---|
 | segment/final toy relations | `TwoStep.System.RSeg` / `RFinal` | proved | — | — | _unreviewed_ |
-| toy CTE | `VanillaZkVM.TwoStep.System.cte` | proved | — | — | _unreviewed_ |
+| toy CTE (committed memory) | `VanillaZkVM.TwoStep.System.cte_committedMemory` | proved | — | — | _unreviewed_ |
+| toy CTE over full memory (`def:cte`, `prop:memory-extractability`) | `VanillaZkVM.TwoStep.System.cte_fullMemory` | proved | — | — | _unreviewed_ |
 
 ## Planned (owned by issues — see PLAN.md)
 
 | Paper label | Lean declaration (planned name) | Owner issue |
 |---|---|---|
-| memory-extractability (`prop:memory-extractability`) | `Memory.step_mem_extract` / `trace_mem_extract` | Issue 1 |
-| Update binding replaces punctured binding | `UpdateBinding` | Issue 1 |
+| `R_{0,step}` and the inner chip relations | _name pending Issue-5 definition review_ | Issue 5 |
+| `R_1` segment relation and extraction (`lem:segment`) | _name pending Issue-5 definition review_ | Issue 5 |
+| bus unification / extract-or-break | _name pending Issue-2/5 definition review_ | Issue 2/5 |
 | ISA op set `{read, write, arith, hash, bin}` + `φ'_op` split (ch03, simplified) | `ISA.*` | Issue 3 |
 | `R_2` convert (`lem:convert`) | `MultiStep.RConvert` | Issue 4 |
 | `R_3` combine + tree unrolling (`lem:combine`) | `MultiStep.RCombine` / `combine_tree` | Issue 4 |

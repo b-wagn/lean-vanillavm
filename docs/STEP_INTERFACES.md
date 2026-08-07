@@ -28,9 +28,9 @@ stepCommitted
 must not create a second, disconnected top-level execution relation.
 
 `stepCommitted` is the canonical binary relation exposed by the memory layer.
-Concrete operation descriptors and opening proofs may be carried by internal
-predicates; the concrete Issue 1 instantiation must existentially project them
-when it supplies this public relation.
+Operation-specific auxiliary witnesses and opening proofs may be carried by
+internal predicates; the concrete Issue 1 instantiation uses `MemStep` and must
+existentially project it when supplying this public relation.
 
 Issue 5 separately supplies
 
@@ -58,10 +58,15 @@ I.MemoryBridge :=
       represents C2 S2 and V.step S1 S2.
 ```
 
-The existential post-state is essential. A lemma that merely assumes
-`represents C2 S2` and concludes `V.step S1 S2` does not establish the invariant
-needed to reconstruct a whole trace; this is precisely the gap exposed by the
-commitment-swap / out-of-image-commitment counterexamples.
+The existentially produced `S2` is essential. A lemma that merely assumes
+`represents C2 S2` and concludes `V.step S1 S2` does not establish the
+representation relation needed to reconstruct a whole trace; this is precisely
+the gap exposed by examples where verification accepts `C2` even though no
+full state `S2` represents it.
+
+Put differently, the bridge must construct a state `S2` corresponding to `C2`;
+it may not ask the caller to provide that state and prove the correspondence in
+advance.
 
 The bus bridge is
 
@@ -80,7 +85,7 @@ implication under collision resistance.
 
 | Layer | Designated module | Required realization |
 |---|---|---|
-| Memory reconstruction | `VanillaZkVM/Memory.lean` (Issue 1 / #7) | Instantiate `represents` with the commitment invariant, define `stepCommitted`, and prove `MemoryBridge`; derive `step_mem_extract` and `trace_mem_extract`. |
+| Memory reconstruction | `VanillaZkVM/Memory.lean` + concrete VM module (Issue 1 / #7) | `Memory.lean` defines `CommitInv`, `committedStep`, `step_mem_extract`, `step_reconstruct`, and `trace_mem_extract`. The module owning a concrete full-memory `ZkVM` packages these as a `StepInterface` and proves `MemoryBridge`; `Twostep.lean` supplies the Issue-1 instance. |
 | Plain ISA semantics | `VanillaZkVM/ISA.lean` (Issue 3 / #9) | Define `ISA.stepPlain` and use it as the concrete `ZkVM.step`. |
 | Bus unification | `VanillaZkVM/Bus.lean` (Issue 5 / #11) | Define `stepWithBus` and prove `BusBridge` from extracted witnesses and bus-commitment security. |
 
