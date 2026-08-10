@@ -16,9 +16,9 @@ recursion layers all reduce through one interface.
   predicate recognizing a genuine break.
 * `Assumption.Holds` — the assumption is true: no genuine break exists (perfect,
   probability-free, I8).
-* `ExtractOrBreak` — the reduction shape: a witness-extractor `E` and a
-  break-extractor `B` such that every accepting proof either extracts a valid
-  witness or produces a genuine break.
+* `ExtractOrBreak` — the reduction shape: an extractor `E` and a reduction `B`
+  such that every accepting proof either extracts a valid witness or produces
+  a genuine break.
 * `ReducesTo` — the reusable existential (`∃ E B, ExtractOrBreak …`) a layer
   states as its guarantee.
 
@@ -51,27 +51,22 @@ structure Assumption where
 probability-free (I8) reading of "the advantage is zero". -/
 def Assumption.Holds (A : Assumption) : Prop := ∀ w, ¬ A.IsBreak w
 
-/-- **Extract-or-break** for an argument system `AS` against assumption `A`: a
-witness-extractor `E` and a break-extractor `B` such that on every accepting proof
+/-- **Extract-or-break** for an argument system `AS` against assumption `A`: an
+extractor `E` and a reduction `B` such that on every accepting proof
 `(x, p)`, either `E` returns a valid `R`-witness, or `B` produces a genuine break
-of `A`. The reduction never assumes `A`; it *exhibits* a break when extraction
+of `A`. The reduction `B` never assumes `A`; it *exhibits* a break when extraction
 fails (`lem:segment` bad-event structure). -/
 def ExtractOrBreak {R : Relation} (AS : ArgumentSystem R) (A : Assumption)
     (E : R.Stmt → AS.Proof → R.Wit) (B : R.Stmt → AS.Proof → A.Break) : Prop :=
   ∀ x p, AS.verify x p → R.rel x (E x p) ∨ A.IsBreak (B x p)
 
-/-- The reusable existential form: `AS` **reduces to** `A` when some
-witness-extractor and break-extractor form an extract-or-break reduction. A layer
-states its guarantee as `ReducesTo AS A` rather than re-spelling the
-two-extractor existential each time. -/
+/-- `AS` reduces to assumption `A` -/
 def ReducesTo {R : Relation} (AS : ArgumentSystem R) (A : Assumption) : Prop :=
   ∃ (E : R.Stmt → AS.Proof → R.Wit) (B : R.Stmt → AS.Proof → A.Break),
     ExtractOrBreak AS A E B
 
-/-- **Thin corollary.** If the assumption holds, an extract-or-break reduction is
-knowledge-sound: the break branch is impossible, so `E` always succeeds. This is
-the one place the assumption is consumed — cf. `lem:segment`, where collision
-resistance is applied only after the reduction is built. -/
+/-- If `E`, `B` satisfy extract-or-break for `AS`, and the assumption `A`
+actually holds, then `AS` is knowledge-sound. -/
 theorem knowledgeSound_of_extractOrBreak {R : Relation} {AS : ArgumentSystem R}
     {A : Assumption} {E : R.Stmt → AS.Proof → R.Wit} {B : R.Stmt → AS.Proof → A.Break}
     (h : ExtractOrBreak AS A E B) (hA : A.Holds) : KnowledgeSound AS :=
