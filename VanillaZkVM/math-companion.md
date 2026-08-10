@@ -343,6 +343,97 @@ the committed-memory write verifies, but the second commitment has no
 full-memory representative. Thus dropping update binding would
 make the frozen bridge conclusion false, not merely harder to prove.
 
-This is not yet the full VanillaVM theorem: `memFreePred` is abstract, and the
-concrete ISA, bus, recursion, and explicit quantitative reductions are later
-issues in `docs/PLAN.md`.
+This is not yet the full VanillaVM theorem: `memFreePred` remains abstract in
+the two-step toy. The representative plain ISA is defined below; its
+composition with committed witnesses and the bus, recursion, and explicit
+quantitative reductions remain later issues in `docs/PLAN.md`.
+
+---
+
+## 3. Representative ISA operations (Issue 3)
+
+Paper: `eq:phiop`, `eq:phi-read-decomp`, and `eq:phi-write-decomp` (ch01),
+and the operation taxonomy and `eq:step` (ch03). The formalization deliberately
+uses the five operation classes required by Issue 3 rather than the paper's
+complete RV32IM/precompile taxonomy.
+
+### 3.1 Fixed program and memory-free predicates
+
+Let
+
+    OperationClass := {read, write, arith, hash, bin}.
+
+An ISA system fixes the operation class at each program counter:
+
+    code : Word → OperationClass
+
+Here `code(pc)` records only the class of the instruction at `pc`; it is not an
+opcode decoder. A family `φ'_op` of predicates over the two program counters
+and register files supplies the remaining requirements. Because these
+predicates receive `pc`, they may still describe the exact fixed instruction at
+that location. Their internal arithmetic and hash computations remain opaque.
+For reads and writes, this is also where the address-bound check belongs: it
+depends on the address register, not on memory contents.
+
+*Lean:* `ISA.OperationClass`, `ISA.System`, and `ISA.System.memFreePred`.
+
+### 3.2 Full operation predicates
+
+For full states `S₁=(pc₁,regs₁,mem₁)` and
+`S₂=(pc₂,regs₂,mem₂)`, every operation predicate includes the fetch equation
+`code(pc₁)=op`. The memory operations are
+
+    φ_read(S₁,S₂)
+      := code(pc₁)=read
+         ∧ φ'_read(pc₁,regs₁,pc₂,regs₂)
+         ∧ mem₁(regs₁(0))=regs₂(1)
+         ∧ mem₂=mem₁,
+
+    φ_write(S₁,S₂)
+      := code(pc₁)=write
+         ∧ φ'_write(pc₁,regs₁,pc₂,regs₂)
+         ∧ mem₂(regs₁(0))=regs₁(1)
+         ∧ ∀ j≠regs₁(0), mem₂(j)=mem₁(j).
+
+The write equation is the pointwise form of
+`mem₂ = mem₁[regs₁(0) ↦ regs₁(1)]`. For
+`op ∈ {arith,hash,bin}`,
+
+    φ_op(S₁,S₂)
+      := code(pc₁)=op
+         ∧ φ'_op(pc₁,regs₁,pc₂,regs₂)
+         ∧ mem₂=mem₁.
+
+The read and write cases reuse `FullMemory.read` and `FullMemory.write`; they
+are not second copies of the Issue 1 memory equations.
+
+The pinned paper's `eq:phi-read-decomp` omits the explicit `mem₂=mem₁`
+condition, although `eq:mem-op-read` and ch03 say that a read does not change
+memory. The Lean definition makes that intended behavior explicit. The
+whitepaper's current `proof` branch makes the same correction in commit
+`aa33ed3`; updating the normative pin remains a human review decision.
+
+*Lean:* `ISA.System.operation`.
+
+### 3.3 Plain step predicate
+
+The canonical plain-state step is exactly the five-way disjunction
+
+    stepPlain(S₁,S₂)
+      := φ_read(S₁,S₂) ∨ φ_write(S₁,S₂) ∨ φ_arith(S₁,S₂)
+         ∨ φ_hash(S₁,S₂) ∨ φ_bin(S₁,S₂).
+
+Consequently, whenever `φ_op(S₁,S₂)` holds and `op ≠ write`, memory is
+unchanged. In particular, a read cannot silently alter memory.
+
+*Lean:* `ISA.System.stepPlain`,
+`ISA.System.operation_preserves_memory_unless_write`.
+
+`ISASanity.lean` gives private accepted examples for a read and a write whose
+output memory differs from its input. It also rejects a step when the program
+contains a different operation class and rejects a write with the wrong output
+memory. Finally, it instantiates a private `ZkVM` whose `step` field is
+`ISA.System.stepPlain`. Issue 5 will connect the selected operation to the
+`MemStep` data and bus evidence extracted from a proof. This section defines the
+plain step predicate that the eventual `R*` trace relation will use; it does not
+verify concrete RV32IM opcode implementations.

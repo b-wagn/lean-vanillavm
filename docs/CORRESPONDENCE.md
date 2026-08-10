@@ -70,10 +70,12 @@ change (see notes below the table).
 ## Memory extractability (Issue 1)
 
 These declarations formalize the memory component only. `MemFreePredicate`
-abstracts the PC/register transition and does not yet connect `MemStep` fields
-to registers; the concrete ISA, bus, and their conjunction with this component
-remain Issues 3 and 5. Human review must therefore judge fidelity to the memory
-slice separately from completeness of the eventual `φ_step`.
+abstracts the PC/register transition and cannot itself connect a separate
+`MemStep` value to registers. Issue 3 supplies the plain ISA equations that use
+registers 0 and 1 directly; Issue 5 must still combine the selected operation,
+its extracted memory witness, and the bus predicate. Human review must therefore
+judge fidelity to the memory slice separately from completeness of the eventual
+committed `φ̂_step`.
 
 | Paper label | Lean declaration | Status | Fidelity | Complete | Reviewer |
 |---|---|---|---|---|---|
@@ -86,6 +88,28 @@ slice separately from completeness of the eventual `φ_step`.
 | trace reconstruction invariant (`rem:mem-inheritance`) | `VanillaZkVM.trace_mem_extract` | proved | — | — | _unreviewed_ |
 | — (joint satisfiability model, I6) | `VanillaZkVM.MemorySanity.exactVC_bindingAssumptions` | proved (n/a) | — | — | _unreviewed_ |
 | — (punctured-condition countermodel, I6) | `VanillaZkVM.MemorySanity.appendBitVC_not_updateBinding` | proved (n/a) | — | — | _unreviewed_ |
+
+## Representative ISA (Issue 3)
+
+The paper's full opcode taxonomy is deliberately reduced to five representative
+operation classes. `code` records only the class at each program counter, while
+the PC/register predicates may still specify the exact fixed instruction there.
+The class check and every memory equation are explicit. This issue therefore
+specifies the five-way step structure, not an opcode decoder or an RV32IM
+correctness proof. The `ISASanity` module gives private accepted and rejected
+examples and checks that `stepPlain` can be used directly as `ZkVM.step`.
+The read clause also requires unchanged memory, as stated by `eq:mem-op-read`
+and the ch03 prose. The pinned `eq:phi-read-decomp` formula omits
+that explicit condition; whitepaper proof-branch commit `aa33ed3` corrects it.
+The affected fidelity review must account for this pending paper-pin update.
+
+| Paper label | Lean declaration | Status | Fidelity | Complete | Reviewer |
+|---|---|---|---|---|---|
+| operation taxonomy (ch03, deliberately simplified) | `VanillaZkVM.ISA.OperationClass` | proved | — | — | _unreviewed_ |
+| fixed `code` class and per-operation `φ'_op` (`eq:phiop`) | `VanillaZkVM.ISA.System` | proved | — | — | _unreviewed_ |
+| `φ_op`, including fetch and memory equations (`eq:phiop`, `eq:phi-read-decomp`, `eq:phi-write-decomp`) | `VanillaZkVM.ISA.System.operation` | proved | — | — | _unreviewed_ |
+| disjunctive `φ_step` (`eq:step`) | `VanillaZkVM.ISA.System.stepPlain` | proved | — | — | _unreviewed_ |
+| non-write operations preserve memory (ch01/ch03) | `VanillaZkVM.ISA.System.operation_preserves_memory_unless_write` | proved | — | — | _unreviewed_ |
 
 ## Two-step toy (intermediate)
 
@@ -102,7 +126,6 @@ slice separately from completeness of the eventual `φ_step`.
 | `R_{0,step}` and the inner chip relations | _name pending Issue-5 definition review_ | Issue 5 |
 | `R_1` segment relation and extraction (`lem:segment`) | _name pending Issue-5 definition review_ | Issue 5 |
 | bus unification under CR of `Com_bus` | _name pending Issue-5 definition review_ | Issue 5 |
-| ISA op set `{read, write, arith, hash, bin}` + `φ'_op` split (ch03, simplified) | `ISA.*` | Issue 3 |
 | `R_2` convert (`lem:convert`) | `MultiStep.RConvert` | Issue 4 |
 | `R_3` combine + tree unrolling (`lem:combine`) | `MultiStep.RCombine` / `combine_tree` | Issue 4 |
 | `R_4` embed (`lem:embed`) | `MultiStep.REmbed` | Issue 4 |

@@ -24,8 +24,10 @@ stepCommitted
 ```
 
 `V.step` is the single canonical **plain** step predicate. Issue 3's
-`ISA.stepPlain` supplies that field when it constructs the concrete `ZkVM`; it
-must not create a second, disconnected top-level execution relation.
+`ISA.System.stepPlain` is the predicate assigned to that field by a concrete
+Vanilla `ZkVM`; it must not become a second, disconnected top-level execution
+relation. `ISASanity.lean` checks this assignment on a private instance, while
+the assembled public instance remains Issue 7.
 
 `stepCommitted` is the canonical binary relation exposed by the memory layer.
 Operation-specific auxiliary witnesses and opening proofs may be carried by
@@ -86,7 +88,7 @@ The concrete proof unifies the extracted per-chip buses into one common
 | Layer | Designated module | Required realization |
 |---|---|---|
 | Memory reconstruction | `VanillaZkVM/VMs/Memory.lean` + concrete VM module (Issue 1 / #7) | `VMs/Memory.lean` defines `CommitInv`, `committedStep`, `step_mem_extract`, `step_reconstruct`, and `trace_mem_extract`. The module owning a concrete full-memory `ZkVM` packages these as a `StepInterface` and proves `MemoryBridge`; `VMs/TwoStep/TwoStep.lean` supplies the Issue-1 instance. |
-| Plain ISA semantics | `VanillaZkVM/VMs/ISA.lean` (Issue 3 / #9) | Define `ISA.stepPlain` and use it as the concrete `ZkVM.step`. |
+| Plain ISA semantics | `VanillaZkVM/VMs/ISA.lean` (Issue 3 / #9) | Define `ISA.System.stepPlain`; assign it directly to the concrete `ZkVM.step` (privately checked in `VMs/ISASanity.lean`, with the public full-VM instance left to Issue 7). |
 | Bus unification | `VanillaZkVM/VMs/Bus.lean` (Issue 5 / #11) | Define `stepWithBus` and prove `BusBridge` from extracted witnesses and bus-commitment security. |
 
 No other module should introduce a competing public binary execution predicate.

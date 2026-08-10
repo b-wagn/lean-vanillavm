@@ -157,22 +157,31 @@ Use qualified names (`FullMemory.step`); do not `open` this namespace. -/
 namespace FullMemory
 
 /-- Full-memory read `φ_read`: register part holds, `addr` really holds `v`, and
-memory is unchanged.
+memory is unchanged. The index and value types are parameters, so this same
+equation applies both to the memory types chosen by a commitment scheme and to
+the plain VM memory `Addr → Byte`.
+
+The pinned paper's `eq:phi-read-decomp` omits the explicit condition
+`S₂.mem = S₁.mem`, although `eq:mem-op-read` and ch03 say that a read does not
+change memory. This definition includes the condition so the intended read
+semantics are complete. The pending paper-side correction is recorded in
+`docs/PAPER_REVISION.md`.
 
 Paper: `eq:mem-op-read` and `eq:phi-read-decomp` (ch01). -/
-def read (memFreePred : MemFreePredicate) (addr : VC.Index) (v : VC.Value)
-    (S₁ S₂ : FullVMState VC) : Prop :=
+def read {Index Value : Type} (memFreePred : MemFreePredicate) (addr : Index) (v : Value)
+    (S₁ S₂ : VMStateWith (Index → Value)) : Prop :=
   memFreePred S₁.pc S₁.regs S₂.pc S₂.regs ∧ S₁.mem addr = v ∧ S₂.mem = S₁.mem
 
 /-- Full-memory write `φ_write`: the register part holds and `S₂.mem` is
 `S₁.mem` updated at `addr` to `v` (stated point-wise to avoid a `DecidableEq`
-requirement on `VC.Index`).
+requirement on the index type). As with `FullMemory.read`, this single
+definition serves both commitment-specific memory types and plain VM memory.
 
 Paper: `eq:mem-op-write` and `eq:phi-write-decomp` (ch01). -/
-def write (memFreePred : MemFreePredicate) (addr : VC.Index) (v : VC.Value)
-    (S₁ S₂ : FullVMState VC) : Prop :=
+def write {Index Value : Type} (memFreePred : MemFreePredicate) (addr : Index) (v : Value)
+    (S₁ S₂ : VMStateWith (Index → Value)) : Prop :=
   memFreePred S₁.pc S₁.regs S₂.pc S₂.regs ∧
-  S₂.mem addr = v ∧ (∀ j : VC.Index, j ≠ addr → S₂.mem j = S₁.mem j)
+  S₂.mem addr = v ∧ (∀ j : Index, j ≠ addr → S₂.mem j = S₁.mem j)
 
 /-- Full-memory step `φ_step`: the same case split over the `MemStep` witness as
 `CommittedMemory.step`, but interpreted over states containing the complete

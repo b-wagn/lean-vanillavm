@@ -15,6 +15,8 @@ import VanillaZkVM.VMs.Step                            -- canonical plain/commit
 import VanillaZkVM.VMs.StepSanity                      -- accepting one-step non-vacuity model (private examples)
 import VanillaZkVM.VMs.Memory                          -- committed/full-memory step lift and trace reconstruction
 import VanillaZkVM.VMs.MemorySanity                    -- satisfiable binding model and append-bit countermodel
+import VanillaZkVM.VMs.ISA                             -- representative five-class plain ISA
+import VanillaZkVM.VMs.ISASanity                       -- accepted and rejected ISA examples
 import VanillaZkVM.VMs.TwoStep.TwoStep                 -- minimal two-relation zkVM instantiating the abstract one
 import VanillaZkVM.VMs.TwoStep.TwoStepSanity           -- accepting model for the full-memory two-step theorem
 
@@ -30,6 +32,6 @@ list; there are no back-edges.
 * `Specification/` — what a zkVM is and what it must prove (the frozen kernel:
   `ZkVM`, `TraceValid`, `Rstar`, `CTE`, `cte_iff_knowledgeSound`).
 * `VMs/` — concrete VM machinery: state vocabulary, the step-interface contract,
-  committed-memory reconstruction, and the two-step toy that instantiates the
-  specification.
+  committed-memory reconstruction, the representative ISA, and the two-step toy
+  that instantiates the specification.
 -/

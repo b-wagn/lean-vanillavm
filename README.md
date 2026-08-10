@@ -54,6 +54,8 @@ Each `*Sanity.lean` file holds concrete models and countermodels witnessing that
 beside it are satisfiable and the theorems consuming them non-vacuous — kept separate so the
 definition files stay definitions-only.
 
+The representative five-class ISA introduced by Issue 3 is documented in
+[`docs/ISA.md`](docs/ISA.md).
 
 ## Idealization
 
