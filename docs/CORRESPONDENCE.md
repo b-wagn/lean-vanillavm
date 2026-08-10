@@ -74,7 +74,7 @@ The extract-or-break discipline (I9); ch05 §5.2 / `lem:segment`.
 
 | Paper label | Lean declaration | Tier | Status | Fidelity | Complete | Reviewer |
 |---|---|---|---|---|---|---|
-| hardness assumption / break witness | `VanillaZkVM.Reduction.Assumption` (+ `.Holds`) | — | proved | — | — | _unreviewed_ |
+| hardness assumption / break witness | `VanillaZkVM.Reduction.HardnessAssumption` (+ `.Holds`) | — | proved | — | — | _unreviewed_ |
 | extract-or-break reduction (ch05 §5.2) | `VanillaZkVM.Reduction.ExtractOrBreak` (+ `ReducesTo`) | — | proved | — | — | _unreviewed_ |
 | reduction ⇒ knowledge soundness | `VanillaZkVM.Reduction.knowledgeSound_of_extractOrBreak` | — | proved | — | — | _unreviewed_ |
 | collision assumption at a key (`Adv^cr`) | `VanillaZkVM.Reduction.crAssumption` | — | proved | — | — | _unreviewed_ |

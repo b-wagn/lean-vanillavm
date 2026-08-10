@@ -12,9 +12,9 @@ memory (position/update binding), the bus (collision resistance), and the later
 recursion layers all reduce through one interface.
 
 ## Main definitions
-* `Assumption` — a hardness assumption, given by its *break-witness* type and the
-  predicate recognizing a genuine break.
-* `Assumption.Holds` — the assumption is true: no genuine break exists (perfect,
+* `HardnessAssumption` — a hardness assumption, given by its *break-witness* type
+  and the predicate recognizing a genuine break.
+* `HardnessAssumption.Holds` — the assumption is true: no genuine break exists (perfect,
   probability-free, I8).
 * `ExtractOrBreak` — the reduction shape: an extractor `E` and a reduction `B`
   such that every accepting proof either extracts a valid witness or produces
@@ -25,8 +25,8 @@ recursion layers all reduce through one interface.
 ## Main results
 * `knowledgeSound_of_extractOrBreak` — the thin corollary: if the assumption
   holds, extract-or-break gives knowledge soundness.
-* `crAssumption` — collision resistance (at a fixed key) packaged as an
-  `Assumption`; the canonical worked instance. A segment/bus layer applies it
+* `crAssumption` — collision resistance (at a fixed key) packaged as a
+  `HardnessAssumption`; the canonical worked instance. A segment/bus layer applies it
   end-to-end in Issue 5 (at the execution's bus key).
 
 Both `E` and `B` are **plain functions** (`docs/CONVENTIONS.md`: adversaries and
@@ -43,47 +43,47 @@ predicate `IsBreak` recognizing a genuine break. The assumption is a black box;
 
 Paper: ch05 §5.2 — the assumptions the security reductions break (`Adv^cr`,
 `Adv^pos`, `Adv^upd`), each here in its perfect (probability-free) form. -/
-structure Assumption where
+structure HardnessAssumption where
   Break : Type
   IsBreak : Break → Prop
 
 /-- The assumption **holds**: no genuine break exists. This is the perfect,
 probability-free (I8) reading of "the advantage is zero". -/
-def Assumption.Holds (A : Assumption) : Prop := ∀ w, ¬ A.IsBreak w
+def HardnessAssumption.Holds (A : HardnessAssumption) : Prop := ∀ w, ¬ A.IsBreak w
 
 /-- **Extract-or-break** for an argument system `AS` against assumption `A`: an
 extractor `E` and a reduction `B` such that on every accepting proof
 `(x, p)`, either `E` returns a valid `R`-witness, or `B` produces a genuine break
 of `A`. The reduction `B` never assumes `A`; it *exhibits* a break when extraction
 fails (`lem:segment` bad-event structure). -/
-def ExtractOrBreak {R : Relation} (AS : ArgumentSystem R) (A : Assumption)
+def ExtractOrBreak {R : Relation} (AS : ArgumentSystem R) (A : HardnessAssumption)
     (E : R.Stmt → AS.Proof → R.Wit) (B : R.Stmt → AS.Proof → A.Break) : Prop :=
   ∀ x p, AS.verify x p → R.rel x (E x p) ∨ A.IsBreak (B x p)
 
 /-- `AS` reduces to assumption `A` -/
-def ReducesTo {R : Relation} (AS : ArgumentSystem R) (A : Assumption) : Prop :=
+def ReducesTo {R : Relation} (AS : ArgumentSystem R) (A : HardnessAssumption) : Prop :=
   ∃ (E : R.Stmt → AS.Proof → R.Wit) (B : R.Stmt → AS.Proof → A.Break),
     ExtractOrBreak AS A E B
 
 /-- If `E`, `B` satisfy extract-or-break for `AS`, and the assumption `A`
 actually holds, then `AS` is knowledge-sound. -/
 theorem knowledgeSound_of_extractOrBreak {R : Relation} {AS : ArgumentSystem R}
-    {A : Assumption} {E : R.Stmt → AS.Proof → R.Wit} {B : R.Stmt → AS.Proof → A.Break}
+    {A : HardnessAssumption} {E : R.Stmt → AS.Proof → R.Wit} {B : R.Stmt → AS.Proof → A.Break}
     (h : ExtractOrBreak AS A E B) (hA : A.Holds) : KnowledgeSound AS :=
   ⟨⟨E⟩, fun x p hp => (h x p hp).resolve_right (hA _)⟩
 
 /-! ## Worked instance: collision resistance -/
 
 /-- Collision resistance of a keyed bus commitment `H` **at a fixed key `k`**,
-packaged as an `Assumption`: a break is a colliding pair under `k` (distinct
-preimages with equal digest). A reduction to this `Assumption` returns such a pair
+packaged as a `HardnessAssumption`: a break is a colliding pair under `k` (distinct
+preimages with equal digest). A reduction to this `HardnessAssumption` returns such a pair
 as its break — e.g. the segment/bus layer built in Issue 5, instantiated at the
 execution's bus key. A consumer discharges the break branch from
 `(crAssumption H k).Holds` ("no pair collides under `k`"), which
 `CollisionResistant H` supplies at every key.
 
 Paper: `def:bus-cr` / `Adv^cr`. -/
-def crAssumption (H : HashCommitment) (k : H.Key) : Assumption where
+def crAssumption (H : HashCommitment) (k : H.Key) : HardnessAssumption where
   Break := H.Domain × H.Domain
   IsBreak := fun bb => bb.1 ≠ bb.2 ∧ H.hash k bb.1 = H.hash k bb.2
 

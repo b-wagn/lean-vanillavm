@@ -357,13 +357,13 @@ An **assumption** `A` is a pair `(Break, IsBreak)`: a type of candidate break
 witnesses and the predicate recognizing a genuine break. `A` **holds** when no
 genuine break exists — the perfect, probability-free (I8) reading of "advantage 0":
 $$A.\mathsf{Holds} \;:=\; \forall w,\ \lnot\, A.\mathsf{IsBreak}(w).$$
-*Lean:* `Reduction.Assumption`, `Reduction.Assumption.Holds`.
+*Lean:* `Reduction.HardnessAssumption`, `Reduction.HardnessAssumption.Holds`.
 
 ### 2.2 Extract-or-break
 
 For an argument system `Π` for relation `R` and assumption `A`, an
-**extract-or-break reduction** is a witness-extractor `E` and a break-extractor
-`B` such that, for every accepting `(x,π)`,
+**extract-or-break reduction** is an extractor `E` and a reduction `B` (to `A`)
+such that, for every accepting `(x,π)`,
 $$\Pi.\mathsf{Verify}(x,\pi) \;\Rightarrow\; (x; E(x,\pi)) \in R \ \ \lor\ \ A.\mathsf{IsBreak}(B(x,\pi)).$$
 The assumption is never used to *build* the reduction; it is applied once, in the
 corollary: if `A` holds, the break branch is impossible, so `E` is a
@@ -382,7 +382,7 @@ Keying is what separates "collisions *exist*" (true for any compressing hash) fr
 "collisions are *hard to find* for a fresh key" (the actual content of CR). In the
 perfect model (I8) this is still **equivalent to per-key injectivity** of `hash`;
 efficiency (a cost bound) and negligible probability — what make it genuinely
-distinct from injectivity — are deferred to Issue 6. As an `Assumption` at a key
+distinct from injectivity — are deferred to Issue 6. As a `HardnessAssumption` at a key
 `k`, a break is a colliding pair under `k`.
 *Lean:* `CollisionResistant`, `CryptoSanity.collisionResistant_iff_injective`,
 `Reduction.crAssumption`; non-vacuity

@@ -3,8 +3,9 @@
 > **Superseded in part (2026-08-07).** The *algorithmic, unkeyed* `CollisionResistant`
 > recorded below was later replaced by a **keyed, finder-based** one; `Cost.lean`/`Alg`
 > and `crAssumption_holds_iff` were dropped, and `crAssumption` gained a key argument.
-> The reduction vocabulary itself (`Assumption`/`ExtractOrBreak`/`ReducesTo`/
-> `knowledgeSound_of_extractOrBreak`) is unchanged. See
+> The reduction vocabulary itself (`ExtractOrBreak`/`ReducesTo`/
+> `knowledgeSound_of_extractOrBreak`) is unchanged in substance, though `Assumption`
+> was later renamed to `HardnessAssumption` (2026-08-10). See
 > `2026-08-07-keyed-cr.md`. This ledger is kept as the historical record of that session.
 
 ## Bootstrap
