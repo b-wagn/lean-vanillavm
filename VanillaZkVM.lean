@@ -1,5 +1,7 @@
 import VanillaZkVM.Crypto        -- generic cryptography (defs only): relations, arguments, commitments
 import VanillaZkVM.CryptoSanity  -- non-vacuity models for the crypto kernel (trivialAS)
+import VanillaZkVM.Reduction     -- extract-or-break reduction vocabulary (Assumption / ExtractOrBreak)
+import VanillaZkVM.ReductionSanity -- a test use case for the reduction model
 import VanillaZkVM.Zkvm          -- abstract zkVM system, CTE, and CTE ↔ knowledge soundness
 import VanillaZkVM.Step          -- canonical plain/committed/bus step-interface contract
 import VanillaZkVM.ZkvmSanity    -- accepting one-step non-vacuity model (private examples)

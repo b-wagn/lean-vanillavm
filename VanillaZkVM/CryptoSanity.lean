@@ -8,10 +8,13 @@ Non-vacuity witnesses (`docs/INVARIANTS.md` I6) for the definitions in
 
 ## Main definitions
 * `trivialAS` — the honest degenerate argument system for any relation.
+* `idHashCommitment` — an injective hash model.
 
 ## Main results
 * `knowledgeSound_trivialAS` — it is knowledge-sound, so `KnowledgeSound` is
   satisfiable (not `False`).
+* `collisionResistant_idHashCommitment` — an injective hash is collision-resistant,
+  so `CollisionResistant` is satisfiable (not `False`).
 -/
 
 namespace VanillaZkVM
@@ -32,5 +35,17 @@ floor, not a security guarantee: it shows the assumption is not `False`, not tha
 any real (succinct) SNARK meets it. -/
 theorem knowledgeSound_trivialAS (R : Relation) : KnowledgeSound (trivialAS R) :=
   ⟨⟨fun _ w => w⟩, fun _ _ h => h⟩
+
+/-- An injective hash-commitment model (`hash := id`). -/
+def idHashCommitment : HashCommitment where
+  Domain := ℕ
+  Digest := ℕ
+  hash := id
+
+/-- **Non-vacuity of `CollisionResistant`.** `idHashCommitment` is
+collision-resistant (the identity is injective), so `CollisionResistant` is
+satisfiable (not `False`). -/
+theorem collisionResistant_idHashCommitment : CollisionResistant idHashCommitment :=
+  fun _ _ h => h
 
 end VanillaZkVM
