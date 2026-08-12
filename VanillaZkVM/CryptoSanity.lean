@@ -8,6 +8,8 @@ Non-vacuity witnesses (`docs/INVARIANTS.md` I6) for the definitions in
 
 ## Main definitions
 * `trivialAS` — the honest degenerate argument system for any relation.
+* `idHashCommitment` — an injective hash model (used in `ReductionSanity` to
+  witness the collision assumption `Reduction.crAssumption` is satisfiable).
 
 ## Main results
 * `knowledgeSound_trivialAS` — it is knowledge-sound, so `KnowledgeSound` is
@@ -32,5 +34,14 @@ floor, not a security guarantee: it shows the assumption is not `False`, not tha
 any real (succinct) SNARK meets it. -/
 theorem knowledgeSound_trivialAS (R : Relation) : KnowledgeSound (trivialAS R) :=
   ⟨⟨fun _ w => w⟩, fun _ _ h => h⟩
+
+/-- An injective keyed hash-commitment model (single key; `hash` ignores it and is
+the identity on the domain). Used in `ReductionSanity` to witness that the
+collision assumption `Reduction.crAssumption` is satisfiable (not `False`). -/
+def idHashCommitment : HashCommitment where
+  Key := Unit
+  Domain := ℕ
+  Digest := ℕ
+  hash := fun _ d => d
 
 end VanillaZkVM

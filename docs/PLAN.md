@@ -72,8 +72,8 @@ in lockstep. This is a hard deliverable, not optional.
   signatures `StepInterface`, `StepInterface.MemoryBridge`, and `StepInterface.BusBridge`.
   **Provisional (NOT frozen — expected to change):** `VectorCommitment`'s binding predicates —
   `PuncturedBinding` is known to be **insufficient** and is **replaced by `UpdateBinding`**
-  in Issue 1; `Complete` is made explicit there; and `CollisionResistant` may gain a
-  keyed/algorithmic variant (Jessica's `cr-algorithmic`). These live in `Crypto.lean` but are
+  in Issue 1; `Complete` is made explicit there; and there is no standalone `CollisionResistant`
+  predicate here (the bus collision assumption is `Reduction.crAssumption`). These live in `Crypto.lean` but are
   marked provisional in their docstrings and are free to change without a constitutional amendment.
 - **New public surface (3 source declarations).** `StepInterface` (whose three structure fields are
   its committed-step API), `StepInterface.MemoryBridge`, and `StepInterface.BusBridge`. These are
@@ -146,8 +146,8 @@ in lockstep. This is a hard deliverable, not optional.
 - **Assigned.** Jessica (her `extract-or-collision`/`cr-algorithmic` code). *Review: Benedikt/George.*
 - **Reuse.** **`extract-or-collision`** — Jessica's `segment_extract_or_collision` +
   `segment_knowledgeSound` corollary; generalize it into reusable vocabulary (it currently targets a
-  bus segment, but the *shape* is what we standardize). **`cr-algorithmic`** — her algorithmic/keyed
-  CR design, as the provisional CR variant if we adopt it.
+  bus segment, but the *shape* is what we standardize). **`cr-algorithmic`** — her keyed
+  CR design (an alternative CR notion, not adopted here; this branch defines no `CollisionResistant`).
 - **New public surface (max ~3).** A `Reduction`/break-witness shape (a `structure`; adversary as a
   plain function per VCVio), an `extract-or-break` combinator, and the generalized statement.
   Advantage *numbers* are **not** introduced here (that's Issue 6); stay perfect.

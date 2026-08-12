@@ -16,16 +16,17 @@ The file is split into two tiers (`docs/INVARIANTS.md` I4):
 
 ## Provisional — the commitment layer, expected to change
 * `VectorCommitment` with `Complete`, `PositionBinding`, and `UpdateBinding`.
-* `HashCommitment` with `CollisionResistant` (for the bus commitment).
+* `HashCommitment` (for the bus commitment; its collision assumption is
+  `Reduction.crAssumption`, not a predicate here).
 
 These binding/CR notions are **not** frozen. `UpdateBinding` is the
 commitment-realizability property used by memory reconstruction; the earlier
 condition on openings away from an updated address did not rule out
 commitments that pass `verify` but are not equal to `commit m` for any memory
-`m`.
-`CollisionResistant` may gain a keyed/algorithmic variant. These declarations
-may change without a constitutional amendment; see
-the `provisional` note on each.
+`m`. This branch defines **no** standalone `CollisionResistant` predicate: the bus
+commitment's collision assumption is packaged directly as a `HardnessAssumption`
+(`Reduction.crAssumption`), discharged via its `.Holds`. These declarations may
+change without a constitutional amendment; see the `provisional` note on each.
 
 ## Soundness is modeled as *perfect straight-line extraction* (no probabilities)
 
@@ -192,23 +193,17 @@ def IsUpdateBindingBreak (VC : VectorCommitment)
 
 /-! ## Provisional — collision-resistant (bus) commitment -/
 
-/-- A hash-style commitment `hash : Domain → Digest`.
+/-- A **keyed** hash-style commitment: a family `hash : Key → Domain → Digest`,
+one hash function per key.
 
 Paper: `def:bus-cr`.
 
-**Provisional** (I4): may gain a keyed/algorithmic variant. -/
+**Provisional** (I4): the bus commitment's collision assumption is packaged as
+`Reduction.crAssumption`, not a standalone predicate here. -/
 structure HashCommitment where
+  Key : Type
   Domain : Type
   Digest : Type
-  hash : Domain → Digest
-
-/-- **Collision-resistance** (perfect): the commitment map is injective.
-
-Paper: `def:bus-cr`. Lean deliberately uses the probability-free
-specialization required by I8.
-
-**Provisional** (I4): may gain a keyed/algorithmic variant. -/
-def CollisionResistant (H : HashCommitment) : Prop :=
-  ∀ b b' : H.Domain, H.hash b = H.hash b' → b = b'
+  hash : Key → Domain → Digest
 
 end VanillaZkVM

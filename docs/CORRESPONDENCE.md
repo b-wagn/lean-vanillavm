@@ -46,7 +46,6 @@ change (see notes below the table).
 | Position binding (`def:binding`) | `VanillaZkVM.VectorCommitment.PositionBinding` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 | Update binding (`def:binding`) | `VanillaZkVM.VectorCommitment.UpdateBinding` | provisional | proved | — | — | _unreviewed_ |
 | Bus commitment `Com_bus` (`def:bus-cr`) | `VanillaZkVM.HashCommitment` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
-| Collision resistance (`Adv^cr`) | `VanillaZkVM.CollisionResistant` | provisional | proved | ✓ | ✓ | Dmitry 2026-07-29 |
 
 > **‡ `Rstar` is an abstract relation skeleton, not yet the whole concrete `R*`.** Its witness is a
 > trace satisfying the selected `ZkVM.step` and boundary projections, but the current abstract
@@ -64,8 +63,20 @@ change (see notes below the table).
 > **Note (I4).** The paper states position binding and update binding as
 > **independent** properties. Update binding supplies the commitment-realizability
 > guarantee needed after a write; the punctured non-equivocation condition did
-> not. The entire `VectorCommitment` binding layer and `CollisionResistant` remain
-> *provisional* and may gain keyed/algorithmic variants.
+> not. The entire `VectorCommitment` binding layer remains *provisional* and may
+> change. This branch defines no standalone `CollisionResistant`; the bus
+> commitment's collision assumption is `Reduction.crAssumption`.
+
+## Reduction vocabulary (Issue 2)
+
+The extract-or-break discipline (I9); ch05 §5.2 / `lem:segment`.
+
+| Paper label | Lean declaration | Tier | Status | Fidelity | Complete | Reviewer |
+|---|---|---|---|---|---|---|
+| hardness assumption / break witness | `VanillaZkVM.Reduction.HardnessAssumption` (+ `.Holds`) | — | proved | — | — | _unreviewed_ |
+| extract-or-break reduction (ch05 §5.2) | `VanillaZkVM.Reduction.ExtractOrBreak` (+ `ReducesTo`) | — | proved | — | — | _unreviewed_ |
+| reduction ⇒ knowledge soundness | `VanillaZkVM.Reduction.knowledgeSound_of_extractOrBreak` | — | proved | — | — | _unreviewed_ |
+| collision assumption at a key (`Adv^cr`) | `VanillaZkVM.Reduction.crAssumption` | — | proved | — | — | _unreviewed_ |
 
 ## Memory extractability (Issue 1)
 
@@ -108,4 +119,4 @@ slice separately from completeness of the eventual `φ_step`.
 | `R_4` embed (`lem:embed`) | `MultiStep.REmbed` | Issue 4 |
 | bus-deferred step `φ̂_step` (`eq:step-expanded`) + per-execution bus lift (`thm:main` 4–5) | `Bus.*` (redone) + `concatTrace` glue | Issue 5 |
 | main theorem (`thm:main`) | `VanillaVM.cte_main` | Issue 7 |
-| advantage / reduction vocabulary | `Reduction.*` | Issue 2/6 |
+| advantage bookkeeping (numeric weights of `thm:main`) | `Reduction.*` advantages | Issue 6 |
