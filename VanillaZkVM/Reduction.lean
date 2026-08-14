@@ -87,5 +87,22 @@ def crAssumption (H : HashCommitment) (k : H.Key) : Assumption where
   Break := H.Domain × H.Domain
   IsBreak := fun bb => bb.1 ≠ bb.2 ∧ H.hash k bb.1 = H.hash k bb.2
 
+/-- Update binding of the memory commitment `VC`, packaged as an `Assumption`:
+a break is an `UpdateBindingBreak` record that is genuine in the sense of
+`IsUpdateBindingBreak`.
+
+Paper: `def:binding` / `Adv^upd`. -/
+def updAssumption (VC : VectorCommitment) : Assumption where
+  Break := UpdateBindingBreak VC
+  IsBreak := IsUpdateBindingBreak VC
+
+/-- Position binding of the memory commitment `VC`, packaged as an
+`Assumption`.
+
+Paper: `def:binding` / `Adv^pos`. -/
+def posAssumption (VC : VectorCommitment) : Assumption where
+  Break := PositionBindingBreak VC
+  IsBreak := IsPositionBindingBreak VC
+
 end Reduction
 end VanillaZkVM

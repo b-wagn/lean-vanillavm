@@ -190,6 +190,31 @@ def IsUpdateBindingBreak (VC : VectorCommitment)
   VC.verify b.postCommitment b.index b.newValue b.proof ∧
   b.postCommitment ≠ VC.commit b.postMemory
 
+/-! ## Provisional — position-binding break witness -/
+
+/-- The data needed to describe a possible position-binding failure: one
+commitment, one index, and two accepted openings of different values.
+
+`IsPositionBindingBreak` below states that both openings verify against the
+same commitment and index while the values differ. An explicit
+extract-or-break reduction can return this record when two reads disagree. -/
+structure PositionBindingBreak (VC : VectorCommitment) where
+  com : VC.Com
+  index : VC.Index
+  value : VC.Value
+  value' : VC.Value
+  proof : VC.OpenProof
+  proof' : VC.OpenProof
+
+/-- `IsPositionBindingBreak VC b` holds when `b`'s two openings are accepted at
+the same commitment and index but the values differ (the negation of the
+`PositionBinding` conclusion). -/
+def IsPositionBindingBreak (VC : VectorCommitment)
+    (b : PositionBindingBreak VC) : Prop :=
+  b.value ≠ b.value' ∧
+  VC.verify b.com b.index b.value b.proof ∧
+  VC.verify b.com b.index b.value' b.proof'
+
 /-! ## Provisional — collision-resistant (bus) commitment -/
 
 /-- A **keyed** hash-style commitment: a family `hash : Key → Domain → Digest`,
