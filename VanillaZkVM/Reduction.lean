@@ -21,13 +21,17 @@ recursion layers all reduce through one interface.
   a genuine break.
 * `ReducesTo` — the reusable existential (`∃ E B, ExtractOrBreak …`) a layer
   states as its guarantee.
+* `AssumptionFamily` — a system's assumption set: a named, finite set of
+  assumptions, with `Holds`, the packed `toAssumption`, and `ofList`.
+* `ReducesToFamily` — `ReducesTo` against a whole assumption family.
 
 ## Main results
 * `knowledgeSound_of_extractOrBreak` — the thin corollary: if the assumption
   holds, extract-or-break gives knowledge soundness.
 * `crAssumption` — collision resistance (at a fixed key) packaged as an
   `Assumption`; the canonical worked instance. A segment/bus layer applies it
-  end-to-end in Issue 5 (at the execution's bus key).
+  end-to-end in Issue 5 (at the execution's bus key). `updAssumption` and
+  `posAssumption` package the memory commitment's binding notions the same way.
 
 Both `E` and `B` are **plain functions** (`docs/CONVENTIONS.md`: adversaries and
 reductions are plain functions, efficiency a separate future concern). No
@@ -72,7 +76,56 @@ theorem knowledgeSound_of_extractOrBreak {R : Relation} {AS : ArgumentSystem R}
     (h : ExtractOrBreak AS A E B) (hA : A.Holds) : KnowledgeSound AS :=
   ⟨⟨E⟩, fun x p hp => (h x p hp).resolve_right (hA _)⟩
 
-/-! ## Worked instance: collision resistance -/
+/-! ## Assumption families -/
+
+/-- A system's **family of assumptions**: an index type of assumption names and
+a map giving each name its `Assumption`. -/
+structure AssumptionFamily where
+  Name : Type
+  assumption : Name → Assumption
+
+namespace AssumptionFamily
+
+variable (F : AssumptionFamily)
+
+/-- A break of the family: *which* assumption it breaks, plus that
+assumption's break data. -/
+def Break : Type := (i : F.Name) × (F.assumption i).Break
+
+/-- A family break is genuine when its data is a genuine break of the named
+assumption. -/
+def IsBreak (b : F.Break) : Prop := (F.assumption b.1).IsBreak b.2
+
+/-- The whole family holds: every named assumption holds. -/
+def Holds : Prop := ∀ i, (F.assumption i).Holds
+
+/-- The family packed as a single `Assumption` — internal plumbing: this is
+the break vocabulary a reduction's `B` targets. VM authors never write it. -/
+def toAssumption : Assumption where
+  Break := F.Break
+  IsBreak := F.IsBreak
+
+/-- The packed assumption holds iff the family holds. -/
+theorem toAssumption_holds {F : AssumptionFamily} :
+    F.toAssumption.Holds ↔ F.Holds :=
+  ⟨fun h i b hb => h ⟨i, b⟩ hb, fun h b hb => h b.1 b.2 hb⟩
+
+/-- Utility: build an assumption family from a list of assumptions, indexed
+positionally. -/
+def ofList (l : List Assumption) : AssumptionFamily where
+  Name := Fin l.length
+  assumption := l.get
+
+end AssumptionFamily
+
+/-- `AS` reduces to the assumption family `F`: explicit `E` and `B` such that every
+accepting proof yields a valid witness or a genuine break of some named
+assumption of `F`. -/
+def ReducesToFamily {R : Relation} (AS : ArgumentSystem R)
+    (F : AssumptionFamily) : Prop :=
+  ReducesTo AS F.toAssumption
+
+/-! ## Worked instances: collision resistance and commitment binding -/
 
 /-- Collision resistance of a keyed bus commitment `H` **at a fixed key `k`**,
 packaged as an `Assumption`: a break is a colliding pair under `k` (distinct
