@@ -1,4 +1,5 @@
 import VanillaZkVM.Crypto
+import VanillaZkVM.Reduction
 
 /-!
 # What a zkVM system is, and correct-trace extractability (the abstract heart)
@@ -16,6 +17,8 @@ This is the central file. It defines, abstractly:
 ## Main results
 * The keystone theorem `cte_iff_knowledgeSound`:
   `CTE V ↔ KnowledgeSound V.ASstar`.
+* `cte_of_reducesTo`: an extract-or-break reduction to an assumption family,
+  plus the family holding, gives `CTE`.
 
 Concrete systems (the two-step toy, later the full vanilla VM) instantiate
 `ZkVM` and prove `CTE` — typically by proving `KnowledgeSound ASstar` and
@@ -138,5 +141,18 @@ theorem cte_iff_knowledgeSound : V.CTE ↔ KnowledgeSound V.ASstar := by
     exact hE x p hp
 
 end ZkVM
+
+/-! ## CTE from extract-or-break -/
+
+/-- Generic bridge, once for all systems: if the system's final argument system
+reduces to a family of assumptions (`Reduction.ReducesToFamily`), and the
+family holds, the frozen `CTE` follows — via the keystone and
+`Reduction.knowledgeSound_of_extractOrBreak`. -/
+theorem ZkVM.cte_of_reducesTo {V : ZkVM} {F : Reduction.AssumptionFamily}
+    (h : Reduction.ReducesToFamily V.ASstar F) (hA : F.Holds) : V.CTE := by
+  obtain ⟨E, B, hEB⟩ := h
+  exact (V.cte_iff_knowledgeSound).mpr
+    (Reduction.knowledgeSound_of_extractOrBreak hEB
+      (Reduction.AssumptionFamily.toAssumption_holds.mpr hA))
 
 end VanillaZkVM
