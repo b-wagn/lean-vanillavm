@@ -17,19 +17,55 @@ its corrected `proof` revision currently differ on whether the step count `T` is
 
 ## Current architecture
 
-TODO: explain the structure of the repository / codebase. Just briefly, explain sanity files role in one sentence
+```
+VanillaZkVM/
+├── Preliminaries/                 generic cryptography — definitions only
+│   ├── ...
+├── Specification/                 what a zkVM is, and what it must prove
+│   ├── Zkvm.lean                    abstract ZkVM + TraceValid
+│   └── Cte.lean                     R*, CTE, and the keystone cte_iff_knowledgeSound
+└── VMs/                           concrete VM machinery and instances, one subdirectory per VM
+    ├── ...
+    └── VM1/
+        ├── ..
+```
+
+Dependencies point one way: **`Preliminaries/` → `Specification/` → `VMs/`.**
+
+**`Preliminaries/`** holds everything that does not mention a virtual machine: argument systems and
+what it means for one to be knowledge-sound, the memory and bus commitments with their binding
+properties, and a couple of generic helpers. Definitions only — the proofs that consume them live
+downstream.
+
+**`Specification/`** states what we are trying to prove, once and abstractly. A zkVM is a state type
+with a step relation, a step count, and a final verifier; it is *correct-trace extractable* when every
+accepting proof can be turned into a valid execution reaching the claimed final state. Crucially this
+layer knows nothing about memory commitments or instruction sets, which is what lets one definition
+serve every VM.
+
+**`VMs/`** holds the concrete machinery — VM states, the contract linking plain execution to
+committed-memory execution, and the reconstruction of full memory from committed memory — plus one
+subdirectory per concrete VM. Each such VM is an *instance* of the abstract zkVM above and proves
+correct-trace extractability for itself, rather than restating the definition. So far there is one, a
+deliberately minimal two-layer VM; the real instruction set, the bus, and the recursion tower are
+still to come.
+
+Each `*Sanity.lean` file holds concrete models and countermodels witnessing that the definitions
+beside it are satisfiable and the theorems consuming them non-vacuous — kept separate so the
+definition files stay definitions-only.
+
 
 ## Idealization
 
 The crypto layer is **perfect / probability-free**.
 Currently, cryptographic building blocks are idealized as *perfect* to simplify everything.
 For instance, collision-resistance is just defined as being injective; knowledge
-soundness is `∃ extractor, ∀ accepting (x,p), witness valid`; There is no security parameter, no `negl`, no running time yet.
+soundness is `∃ extractor, ∀ accepting (x,p), witness valid`. There is no security parameter, no `negl`, no running time yet.
 The paper itself flags a deeper caveat (`rem:idealized`): straight-line
 extraction composed across recursion layers needs "relativized" SNARKs, which provably don't exist,
 so even the paper's bounds validate reduction **structure**, not a concrete security level.
 
-We are of course aware that this if far from being cryptographically accurate, and we may change this in the future.
+We are of course aware that this is far from being cryptographically accurate, and we may change this in the future.
 
 
 
