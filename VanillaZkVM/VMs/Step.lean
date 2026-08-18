@@ -1,4 +1,4 @@
-import VanillaZkVM.Zkvm
+import VanillaZkVM.Specification.Zkvm
 
 /-!
 # Step-interface contract
@@ -17,7 +17,7 @@ predicate.
   the committed step after bus unification.
 
 The concrete declarations and proofs are later-issue deliverables:
-`Memory.step_mem_extract` / `Memory.trace_mem_extract` (Issue 1),
+`Memory.lean`'s `step_mem_extract` / `trace_mem_extract` (Issue 1),
 `ISA.stepPlain` as the concrete implementation of `ZkVM.step` (Issue 3), and
 the bus-unification proof (Issue 5). See `docs/STEP_INTERFACES.md`.
 -/

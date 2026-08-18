@@ -1,4 +1,4 @@
-import VanillaZkVM.Step
+import VanillaZkVM.VMs.State
 
 /-!
 # Memory extractability
@@ -6,14 +6,15 @@ import VanillaZkVM.Step
 This file is the **memory-only slice** of the whitepaper's memory-extractability
 argument. It keeps the *existing* `VectorCommitment` (no specialized
 memory-commitment structure) and *consumes* `PositionBinding` and
-`UpdateBinding`, the provisional binding notions in `Crypto.lean`.
+`UpdateBinding`, the provisional binding notions in
+`Preliminaries/VectorCommitment.lean`.
 
 `UpdateBinding` supplies the write guarantee missing from the earlier condition
 on openings away from the updated address: the commitment after an accepted
 write must equal `commit` of the updated full memory.
 
 * **Commitment injectivity:** `mem_eq_of_commit_eq` (kept here, not in the
-  definitions-only kernel `Crypto.lean`).
+  definitions-only `Preliminaries/VectorCommitment.lean`).
 * **State representation:** `FullVMState` and `CommitInv`.
 * **Concrete predicates:** the per-transition memory witness `MemStep`, plus
   `CommittedMemory.read`/`.write`/`.step` (the `φ̂` predicates over
@@ -32,9 +33,14 @@ write must equal `commit` of the updated full memory.
   lemmas by induction along a whole committed trace (with
   `stepReconstruct`/`reconstructTrace`/`chooseMemStep`).
 
-In the perfect/probability-free style of `Crypto.lean`, "except with probability
-`Adv`" collapses to "always", so the two binding hypotheses are consumed as plain
-implications.
+In the perfect/probability-free style of `Preliminaries/`, "except with
+probability `Adv`" collapses to "always", so the two binding hypotheses are
+consumed as plain implications.
+
+This file mentions `StepInterface` (from `Step.lean`) only in prose and
+deliberately does not import it: memory reconstruction is stated over raw states
+and knows nothing of SNARKs or the abstract `ZkVM`. `VMs/TwoStep/TwoStep.lean` is
+where these results are packaged through that interface.
 
 Paper: `prop:memory-extractability` (ch05 §5.2); `φ̂_read`/`φ̂_write` (ch03).
 -/

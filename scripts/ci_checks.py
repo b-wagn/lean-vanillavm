@@ -310,8 +310,18 @@ example : True := by native_decide
     names = [module_name(path) for path in files]
     if len(names) != len(set(names)):
         failures.append("project source enumeration produced duplicate module names")
-    if "VanillaZkVM" not in names or "VanillaZkVM.Crypto" not in names:
-        failures.append(f"expected root/core modules missing from enumeration: {names}")
+    # The umbrella plus one module from each layer of the
+    # Preliminaries -> Specification -> VMs tree, to catch a glob that stops
+    # recursing into subdirectories.
+    expected_modules = [
+        "VanillaZkVM",
+        "VanillaZkVM.Preliminaries.ArgumentSystem",
+        "VanillaZkVM.Specification.Cte",
+        "VanillaZkVM.VMs.TwoStep.TwoStep",
+    ]
+    missing = [m for m in expected_modules if m not in names]
+    if missing:
+        failures.append(f"expected modules missing from enumeration: {missing}")
 
     if failures:
         print(f"FAIL: {len(failures)} CI self-test(s):", file=sys.stderr)

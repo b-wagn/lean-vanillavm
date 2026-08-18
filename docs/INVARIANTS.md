@@ -26,21 +26,24 @@ the invariant number (I1, I2, …) when a decision depends on it. Modeled on the
   (I4). Helper lemmas and proof internals matter only insofar as they type-check and are
   non-vacuous (I6); they may be produced/refactored freely.
 
-- **I4 — Frozen *kernel* (not all of `Crypto.lean`).** Only the stable heart is frozen: the
+- **I4 — Frozen *kernel* (not all of `Preliminaries/`).** Only the stable heart is frozen: the
   structures `Relation`, `ArgumentSystem`, `Extractor` and the predicate `KnowledgeSound` (from
-  `Crypto.lean`), plus the abstract `ZkVM`, `TraceValid`, `Rstar`, `CTE`, and
-  `cte_iff_knowledgeSound` (from `Zkvm.lean`). Downstream work extends or instantiates these; it does
+  `Preliminaries/ArgumentSystem.lean`), plus the abstract `ZkVM` and `TraceValid` (from
+  `Specification/Zkvm.lean`) and `Rstar`, `CTE`, and `cte_iff_knowledgeSound` (from
+  `Specification/Cte.lean`). Downstream work extends or instantiates these; it does
   not fork or duplicate them. The Issue 0 consistency guard also freezes the signatures of
-  `StepInterface`, `StepInterface.MemoryBridge`, and `StepInterface.BusBridge` (from `Step.lean`);
+  `StepInterface`, `StepInterface.MemoryBridge`, and `StepInterface.BusBridge` (from
+  `VMs/Step.lean`);
   these are Lean-only scaffolding rather than paper rows. Changing a frozen signature requires a PR
   touching this file and re-approval of every dependent `CORRESPONDENCE.md` row that exists.
 
   **Explicitly NOT frozen — the commitment layer is provisional and expected to change:**
   `VectorCommitment`'s binding predicates in particular. `PuncturedBinding` is **known to be
   insufficient** and is removed by Issue 1 in favor of the paper's independent
-  `PositionBinding` and `UpdateBinding` properties; `Complete` is explicit in `Crypto.lean`; and
-  `CollisionResistant` may gain a keyed/algorithmic variant (Jessica's `cr-algorithmic`). These
-  declarations live in `Crypto.lean`
+  `PositionBinding` and `UpdateBinding` properties; `Complete` is explicit in
+  `Preliminaries/VectorCommitment.lean`; and `CollisionResistant` may gain a keyed/algorithmic
+  variant (Jessica's `cr-algorithmic`). These declarations live in
+  `Preliminaries/VectorCommitment.lean` and `Preliminaries/HashCommitment.lean`
   but carry a "provisional" note in their docstrings and may change without a constitutional
   amendment. Freezing the commitment layer now would be premature (do not over-freeze —
   over-restriction was flagged as a risk).
@@ -56,7 +59,7 @@ the invariant number (I1, I2, …) when a decision depends on it. Modeled on the
 
 - **I6 — Non-vacuity is mandatory.** Every headline theorem must be accompanied by evidence its
   hypotheses are satisfiable — a model, an instance, or a concrete counterexample witness (as in
-  `knowledgeSound_trivialAS`, the accepting one-step model in `ZkvmSanity.lean`, and pr5's
+  `knowledgeSound_trivialAS`, the accepting one-step model in `VMs/StepSanity.lean`, and pr5's
   `appendBitVC_not_updateBinding`). A theorem whose assumptions jointly imply `False` is treated as
   a bug. Every PR runs the vacuity check (see `CONVENTIONS.md`).
 

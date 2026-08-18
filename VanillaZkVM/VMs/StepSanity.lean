@@ -1,7 +1,8 @@
-import VanillaZkVM.Step
+import VanillaZkVM.Specification.Cte
+import VanillaZkVM.VMs.Step
 
 /-!
-# Consistency-floor model for the abstract zkVM
+# Consistency-floor model for the abstract zkVM and the step interface
 
 An accepting one-step Boolean toggle model witnesses that the abstract `ZkVM`,
 `CTE`, and the step-interface bridge propositions are jointly satisfiable (I6).
@@ -9,6 +10,10 @@ The model's step genuinely relates `false` to `true`, and its representation
 predicate is equality, so it exercises the direction of both bridges rather
 than making every proposition `True`. All model data is private; this module
 adds no public API.
+
+One model witnesses both layers at once, so this file lives in `VMs/` (it needs
+`Step.lean`) even though it is also the I6 floor for `Specification/Cte.lean`'s
+`ZkVM.CTE`.
 
 ## Main results
 * The examples below exhibit an accepting one-step zkVM satisfying `CTE`.

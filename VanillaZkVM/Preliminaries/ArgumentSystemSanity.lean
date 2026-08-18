@@ -1,10 +1,11 @@
-import VanillaZkVM.Crypto
+import VanillaZkVM.Preliminaries.ArgumentSystem
 
 /-!
-# Consistency-floor models for the crypto kernel
+# Consistency-floor models for the argument-system kernel
 
 Non-vacuity witnesses (`docs/INVARIANTS.md` I6) for the definitions in
-`Crypto.lean`, kept out of the definitions file so the kernel is definitions only.
+`ArgumentSystem.lean`, kept out of the definitions file so the kernel is
+definitions only.
 
 ## Main definitions
 * `trivialAS` — the honest degenerate argument system for any relation.

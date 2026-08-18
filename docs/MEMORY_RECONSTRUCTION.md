@@ -6,7 +6,7 @@ statements; the line-by-line paper correspondence remains in
 [`CORRESPONDENCE.md`](CORRESPONDENCE.md), and the ordinary mathematical
 statements remain in [`../VanillaZkVM/math-companion.md`](../VanillaZkVM/math-companion.md).
 
-## `Crypto.lean`
+## `Preliminaries/VectorCommitment.lean`
 
 The goal of the Issue 1 additions is to define `UpdateBinding`. If `m'` is `m`
 updated at one address, and the same opening proof verifies the old value
@@ -22,7 +22,7 @@ that do not represent the correctly updated memory.
   value against `commit m` and `x` against a candidate updated commitment
   `C'`, then `C' = commit m'`.
 
-## `Memory.lean`
+## `VMs/Memory.lean`
 
 The goal of this file is to prove `trace_mem_extract`. Assuming completeness,
 position binding, and update binding, a committed trace with valid
@@ -81,7 +81,7 @@ step, while the public theorem `step_reconstruct` realizes
   sequence of committed-memory states. The reconstructed states satisfy both
   `CommitInv` and the full-memory step predicate at every index in the trace.
 
-## `MemorySanity.lean`
+## `VMs/MemorySanity.lean`
 
 The goal of this file is to show that the memory assumptions are coherent,
 non-vacuous, and necessary.
@@ -102,7 +102,7 @@ non-vacuous, and necessary.
   committed-memory write can be accepted, while no full-memory state represents
   the second committed-memory state.
 
-## `Twostep.lean`
+## `VMs/TwoStep/TwoStep.lean`
 
 The goal of this file is to integrate memory reconstruction into a minimal
 two-layer zkVM. Knowledge soundness of the final and segment argument systems
@@ -136,7 +136,7 @@ Vanilla VM with its ISA, bus, and recursive proof layers.
 - `cte_fullMemory` proves correct-trace extractability for the full-memory toy
   zkVM.
 
-## `TwostepSanity.lean`
+## `VMs/TwoStep/TwoStepSanity.lean`
 
 The goal of this file is to show that all hypotheses of `cte_fullMemory` can hold
 simultaneously in a concrete system. It constructs a one-segment, one-step

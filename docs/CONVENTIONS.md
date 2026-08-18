@@ -2,7 +2,7 @@
 
 This file is binding for every branch merged into `main-temp`. Each issue in [`PLAN.md`](PLAN.md)
 requires you to follow it. It distills (a) the house style already visible in
-`VanillaZkVM/*.lean`, (b) conventions inherited from VCVio and `finality` (our colleagues'
+`VanillaZkVM/**/*.lean`, (b) conventions inherited from VCVio and `finality` (our colleagues'
 libraries — see `docs/vcvio-analysis.md`, `docs/finality-analysis.md`), and (c) the Hicks meeting
 (whose adopted decisions are recorded in `INVARIANTS.md` and `PLAN.md`). Rules that are
 *constitutional* live in [`INVARIANTS.md`](INVARIANTS.md); this file is the day-to-day operational
@@ -17,7 +17,7 @@ layer.
   `import …`, blank line, then the module docstring `/-! # … -/`.
 - **Module docstring** opens with `# Title`, a short paragraph, then `## Main definitions` /
   `## Main results` bullet lists that *name* the key declarations without restating them. Our
-  `Zkvm.lean` and `Memory.lean` already do this — match that density.
+  `Specification/Cte.lean` and `VMs/Memory.lean` already do this — match that density.
 - **Section headers use `/-! ## Title -/` doc-comments, never ASCII banners** (`-- ====`). If a
   section is big enough to want a loud header, it usually wants its own `namespace` or file.
 - **Naming (Mathlib convention):** types/structures/classes `UpperCamelCase`; term-level functions
@@ -53,7 +53,7 @@ layer.
   assigned by `docs/STEP_INTERFACES.md`. Do not introduce a parallel public binary "step" relation
   in a convenience module.
 - **Anti-duplication protocol (Hicks trick):** before writing a new helper, search for an existing
-  one (`Grep`, and read the docstrings in `Crypto.lean`/`Zkvm.lean`). If an agent produces a
+  one (`Grep`, and read the docstrings in `Preliminaries/`/`Specification/`). If an agent produces a
   duplicate, the fix is: point it at the canonical definition, and have it add/extend a short
   `docs/reuse-notes.md` entry ("to do X, use `Y` in `Z.lean`"). That note then prevents recurrence.
 - **Compactness is a review target (I10):** the public defs + main theorems must not be materially

@@ -1,5 +1,5 @@
-import VanillaZkVM.MemorySanity
-import VanillaZkVM.Twostep
+import VanillaZkVM.VMs.MemorySanity
+import VanillaZkVM.VMs.TwoStep.TwoStep
 
 /-!
 # Consistency-floor model for full-memory two-step CTE

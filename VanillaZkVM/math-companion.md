@@ -46,7 +46,7 @@ This is the **perfect / probability-free** form (INVARIANTS.md I8): the bad even
 *is* a witness, and `verify x w := ((x ; w) ∈ R)` — is knowledge-sound via the identity
 extractor. This shows `KnowledgeSound` is not `False`; it is **not** a claim that a
 succinct SNARK meets it.
-*Lean:* `trivialAS`, `knowledgeSound_trivialAS` (in `CryptoSanity.lean`).
+*Lean:* `trivialAS`, `knowledgeSound_trivialAS` (in `Preliminaries/ArgumentSystemSanity.lean`).
 
 ### 0.2 The abstract zkVM and correct-trace extractability
 
@@ -137,7 +137,7 @@ These are Lean-only coordination propositions whose concrete instances target
 `prop:memory-extractability` and `lem:segment`; they are not additional paper
 claims.
 
-**Non-vacuity.** `ZkvmSanity.lean` gives an accepting one-step Boolean toggle
+**Non-vacuity.** `VMs/StepSanity.lean` gives an accepting one-step Boolean toggle
 zkVM whose committed/plain representation is equality and which satisfies CTE
 and both bridge propositions. This is only a consistency floor, not a model of
 the Vanilla ISA or its cryptography.
@@ -201,7 +201,7 @@ glues `m` length-`Nseg` sub-chains with matching boundary states `d(0), …, d(m
 one length-`m·Nseg` trace; `chain_flatten` proves that if each segment is a valid
 `Nseg`-step `step`-chain from `d(i)` to `d(i+1)`, the glued trace is a valid
 `m·Nseg`-step chain from `d(0)` to `d(m)`.
-*Lean:* `concatTrace`, `chain_flatten` (in `Trace.lean`).
+*Lean:* `concatTrace`, `chain_flatten` (in `Preliminaries/Trace.lean`).
 
 ---
 
@@ -333,10 +333,10 @@ the extracted committed terminal state and commitment injectivity identify it
 with the full terminal state in the statement.
 *Lean:* `TwoStep.System.toZkVMFullMemory`, `traceValid_full`, `cte_fullMemory`.
 
-`TwostepSanity.lean` permanently checks non-vacuity: a one-segment, one-step
+`VMs/TwoStep/TwoStepSanity.lean` permanently checks non-vacuity: a one-segment, one-step
 system over `MemorySanity.exactVC` has identity knowledge extractors, an
 accepting final proof, and satisfies `cte_fullMemory`'s complete hypothesis bundle.
-`MemorySanity.lean` also instantiates the append-bit attack at the bridge level:
+`VMs/MemorySanity.lean` also instantiates the append-bit attack at the bridge level:
 the initial full-memory state represents the first committed-memory state and
 the committed-memory write verifies, but the second commitment has no
 full-memory representative. Thus dropping update binding would

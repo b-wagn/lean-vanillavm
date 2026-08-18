@@ -61,31 +61,33 @@ in lockstep. This is a hard deliverable, not optional.
 
 ## Issue 0 — Freeze the core *kernel* & stand up the review scaffolding
 - **Goal.** Cleanly separate (0) crypto preliminaries, (1) abstract zkVM + security definition,
-  (2) concrete VM, (3) proofs; and **freeze the kernel** (I4) — *not* all of `Crypto.lean`. The
+  (2) concrete VM, (3) proofs; and **freeze the kernel** (I4) — *not* all of `Preliminaries/`. The
   kernel is the stable heart Hicks says to polish; the commitment layer is explicitly left
   provisional (see below).
 - **Depends on.** — (first).
 - **Assigned.** Dmitry (kernel interfaces) + Yavor (scaffolding & docs).
-- **Reuse.** Current `main-temp` `Crypto.lean`/`Zkvm.lean` (refactor, don't rewrite). No branch code.
+- **Reuse.** Current `main-temp` `Preliminaries/ArgumentSystem.lean` / `Specification/{Zkvm,Cte}.lean`
+  (refactor, don't rewrite). No branch code.
 - **Frozen kernel (I4).** `Relation`, `ArgumentSystem`, `Extractor`, `KnowledgeSound`; abstract
   `ZkVM`, `TraceValid`, `Rstar`, `CTE`, `cte_iff_knowledgeSound`; plus the Lean-only consistency
   signatures `StepInterface`, `StepInterface.MemoryBridge`, and `StepInterface.BusBridge`.
   **Provisional (NOT frozen — expected to change):** `VectorCommitment`'s binding predicates —
   `PuncturedBinding` is known to be **insufficient** and is **replaced by `UpdateBinding`**
   in Issue 1; `Complete` is made explicit there; and `CollisionResistant` may gain a
-  keyed/algorithmic variant (Jessica's `cr-algorithmic`). These live in `Crypto.lean` but are
+  keyed/algorithmic variant (Jessica's `cr-algorithmic`). These live in
+  `Preliminaries/VectorCommitment.lean` and `Preliminaries/HashCommitment.lean` but are
   marked provisional in their docstrings and are free to change without a constitutional amendment.
 - **New public surface (3 source declarations).** `StepInterface` (whose three structure fields are
   its committed-step API), `StepInterface.MemoryBridge`, and `StepInterface.BusBridge`. These are
   the minimum coordination surface needed by Issues 1, 3, and 5; `ZkVM.step` is reused as the
   canonical plain predicate rather than duplicated. All other changes reorganize existing
   declarations or add private validation examples.
-- **Deliverables.** (a) `Crypto.lean` = definitions only, kernel vs provisional clearly separated;
+- **Deliverables.** (a) `Preliminaries/` = definitions only, kernel vs provisional clearly separated;
   proofs/instances moved out. (b) `docs/` scaffolding ratified: `INVARIANTS.md`, `CORRESPONDENCE.md`,
   `CONVENTIONS.md`, `docs/sessions/TEMPLATE.md`, `docs/LESSONS_LEARNED.md`,
   `SKILLS/adversarial-review.md` ported from finality. (c) CI: `lake build` + `#print axioms` +
   a `CORRESPONDENCE` row-elaboration check and repo-wide I7 hygiene check. (d) Freeze the step
-  contract in `Step.lean` / `docs/STEP_INTERFACES.md`: `ZkVM.step` is the plain predicate,
+  contract in `VMs/Step.lean` / `docs/STEP_INTERFACES.md`: `ZkVM.step` is the plain predicate,
   `stepCommitted` is the memory-layer predicate, and `stepWithBus` feeds it through the bus bridge;
   concrete bodies belong to Issues 1, 3, and 5.
 - **Math companion.** Establish `VanillaZkVM/math-companion.md` with the kernel definitions written
@@ -123,7 +125,7 @@ in lockstep. This is a hard deliverable, not optional.
   `step_mem_extract`, and `trace_mem_extract`. `TwoStepWithMemory` is realized as
   `TwoStep.System.toZkVMFullMemory`, an *instance* of the abstract `ZkVM` (I5), rather than as a duplicate
   security definition. Deprecate/remove `PuncturedBinding` in the same PR.
-- **Deliverables.** Reconciled `Memory.lean` core, the `TwoStepWithMemory` instance, `cte_fullMemory`
+- **Deliverables.** Reconciled `VMs/Memory.lean` core, the `TwoStepWithMemory` instance, `cte_fullMemory`
   (CTE over *full* memory), `MemorySanity`-style non-vacuity instances, and a concrete proof of
   `StepInterface.MemoryBridge`.
 - **Math companion.** Write the memory-extractability proposition and the read/write commitment

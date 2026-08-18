@@ -325,29 +325,31 @@ not a concrete security level.
 
 ## 6. Gap list for Lean formalization
 
-Current Issue-1 development (`VanillaZkVM/*.lean`): `Zkvm.lean` has the
-abstract `ZkVM` structure, `R*=ZkVM.Rstar`, `CTE=ZkVM.CTE`, keystone
-`cte_iff_knowledgeSound`; `Trace.lean` has `concatTrace`/`chain_flatten`. `Crypto.lean`
+Current Issue-1 development (`VanillaZkVM/**/*.lean`): `Specification/Zkvm.lean` has the
+abstract `ZkVM` structure and `Specification/Cte.lean` has `R*=ZkVM.Rstar`, `CTE=ZkVM.CTE`, keystone
+`cte_iff_knowledgeSound`; `Preliminaries/Trace.lean` has `concatTrace`/`chain_flatten`.
+`Preliminaries/ArgumentSystem.lean`
 has `Relation`, `ArgumentSystem` (verifier-only), `Extractor`,
 `KnowledgeSound` (**perfect**: `∃E,∀ x p, verify → rel`, no `λ`/`negl`/
-running time), `VectorCommitment` with `Complete`, `PositionBinding`, and
-`UpdateBinding` (perfect), and `HashCommitment` with `CollisionResistant`
-(perfect: injective `hash`). `Memory.lean` reconstructs full memory from a
+running time); `Preliminaries/VectorCommitment.lean` has `VectorCommitment` with `Complete`,
+`PositionBinding`, and `UpdateBinding` (perfect); and `Preliminaries/HashCommitment.lean` has
+`HashCommitment` with `CollisionResistant`
+(perfect: injective `hash`). `VMs/Memory.lean` reconstructs full memory from a
 known initial memory and per-step `MemStep` witnesses, realizes the frozen
-`MemoryBridge` by constructing each next full-memory state, and `Twostep.lean`
+`MemoryBridge` by constructing each next full-memory state, and `VMs/TwoStep/TwoStep.lean`
 composes that reconstruction into
 `TwoStep.System.cte_fullMemory`. The concrete ISA and bus remain absent. The
 former playground `Bus.lean` prototype has been deleted from the active tree;
 its git history is reference material only for Issue 5.
 
 **(a) Committed memory / memory-commitment properties — memory core implemented,
-semantic wiring still open.** `Memory.lean` now formalizes the perfect
+semantic wiring still open.** `VMs/Memory.lean` now formalizes the perfect
 position/update-binding memory slice: committed/full read and write equations,
 the `CommitInv` relation, conditional `step_mem_extract`,
 `step_reconstruct`/`TwoStep.System.memoryBridge` (which produce each next
 represented state), and
 `trace_mem_extract`; `TwoStep.System.cte_fullMemory` composes it with the
-two-layer toy. `TwostepSanity.lean` gives a permanent accepting joint model for
+two-layer toy. `VMs/TwoStep/TwoStepSanity.lean` gives a permanent accepting joint model for
 the theorem's hypotheses. The append-bit countermodel demonstrates that
 agreement of accepted openings away from the updated address does not provide
 update binding. Remaining:
@@ -357,7 +359,7 @@ predicate must conjoin those semantic equations (Issues 3 and 5); and
 (iii) the paper's explicit bad-event reductions, probability/advantage
 accounting, and runtime bounds remain Issues 2, 6, and 8.
 
-**(b) Multi-layer recursion — capped at 2 layers.** `Twostep.lean` has only
+**(b) Multi-layer recursion — capped at 2 layers.** `VMs/TwoStep/TwoStep.lean` has only
 `RSeg→RFinal`; the paper has leaf(`inner-*`)→`segment`(`R_1`)→
 `convert`(`R_2`, **missing**)→`combine`(`R_3`, **missing**, binary
 self-recursive)→`embed`(`R_4`, **missing**). Lean's `RFinal` flattens the
@@ -390,11 +392,11 @@ the segment lemma **m times**
 bus-satisfying chains into one length-`T` chain, carrying a *distinct* bus
 `B̂_i` per segment (segments' buses are never claimed equal to each other,
 only internally self-consistent), combine the result with
-`concatTrace`/`chain_flatten`, and extend `Twostep`-style concatenation to
+`concatTrace`/`chain_flatten`, and extend `TwoStep`-style concatenation to
 carry per-segment `StepAux`/bus data into a full-VM memory reconstruction.
 
 **(e) Explicit reductions to hardness assumptions — systematically absent.**
-`Crypto.lean` is deliberately **perfect/probability-free** (`KnowledgeSound`
+`Preliminaries/` is deliberately **perfect/probability-free** (`KnowledgeSound`
 is `∃E,∀ x p, verify→rel`, no adversary/`λ`/`negl`/`Adv(·)`/running time).
 Consequences: no notion of advantage (`Adv^ks_Π`, `Adv^pos_Com`,
 `Adv^upd_Com`, `Adv^cr_Com`) anywhere, so `thm:main`'s weighted sum of
@@ -409,7 +411,7 @@ paper spells these out per-lemma, e.g. `D_3^(t)`: "run `A` once, unroll the
 tree to node `t`, forward to the `Π_3` challenger" — no challenger/experiment
 formalism exists in Lean at all), no running-time bookkeeping. Formalizing
 the *real* theorem (not just its proof skeleton) needs: (1) a
-probabilistic/PPT-adversary layer (e.g. via `PMF`, as `Crypto.lean`'s own
+probabilistic/PPT-adversary layer (e.g. via `PMF`, as `Preliminaries/ArgumentSystem.lean`'s own
 docstring flags as future work); (2) redefining `KnowledgeSound`/
 `PositionBinding`/`UpdateBinding`/`CollisionResistant` as `≤negl(λ)`-bounded
 advantages; (3) reproving all five layer lemmas + memory-extractability as

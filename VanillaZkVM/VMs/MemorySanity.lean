@@ -1,10 +1,12 @@
-import VanillaZkVM.Memory
+import VanillaZkVM.VMs.Memory
 
 /-!
 # Memory-binding sanity models
 
 Both sides of the non-vacuity / separation check for the provisional binding
-layer (`docs/INVARIANTS.md` I6), kept out of the definitions-only `Crypto.lean`:
+layer (`docs/INVARIANTS.md` I6), kept out of the definitions-only
+`Preliminaries/VectorCommitment.lean` and placed beside the memory
+reconstruction that consumes those notions:
 
 * `exactVC` is a deliberately non-succinct commitment satisfying completeness,
   position binding, and update binding, witnessing that the `Memory`
@@ -20,9 +22,10 @@ layer (`docs/INVARIANTS.md` I6), kept out of the definitions-only `Crypto.lean`:
   no full-memory state representing the commitment after the write.
 
 The `UpdateBindingBreak` record is defined beside `UpdateBinding` in
-`Crypto.lean`; `UpdateBinding.not_isUpdateBindingBreak` proves that no record
-satisfying `IsUpdateBindingBreak` can coexist with update binding. It is not
-yet an explicit reduction.
+`Preliminaries/VectorCommitment.lean`;
+`UpdateBinding.not_isUpdateBindingBreak` — proved here, since that file is
+definitions only — shows that no record satisfying `IsUpdateBindingBreak` can
+coexist with update binding. It is not yet an explicit reduction.
 -/
 
 namespace VanillaZkVM
@@ -140,8 +143,11 @@ def singleWriteMemory : Bool → Bool :=
   fun index => if index = false then true else false
 
 /-- `exactVC` accepts a write that changes address `false` from `false` to
-`true` with one shared authentication proof, and the two commitments differ. -/
-theorem exactVC_accepts_changed_write :
+`true` with one shared authentication proof, and the two commitments differ.
+
+Kept `private` (I5): it documents why a shared opening is not enough on its own,
+but nothing outside this file consumes it. -/
+private theorem exactVC_accepts_changed_write :
     exactVC.commit zeroMemory ≠ exactVC.commit singleWriteMemory ∧
     exactVC.verify (exactVC.commit zeroMemory) false false
       (exactVC.openProof zeroMemory false) ∧

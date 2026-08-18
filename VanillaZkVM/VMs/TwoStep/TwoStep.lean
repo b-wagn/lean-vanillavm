@@ -1,5 +1,7 @@
-import VanillaZkVM.Memory
-import VanillaZkVM.Trace
+import VanillaZkVM.Preliminaries.Trace
+import VanillaZkVM.Specification.Cte
+import VanillaZkVM.VMs.Memory
+import VanillaZkVM.VMs.Step
 
 /-!
 # A minimal "two-step" zkVM, instantiating the abstract system
@@ -197,7 +199,7 @@ structure Assumptions (sys : System) : Prop where
   /-- Knowledge soundness of the final merging SNARK `Π_final`. -/
   ksFinal : KnowledgeSound sys.ASFinal
 
-/-- **The `Memory` ↔ `Twostep` bridge** — a valid *committed* trace of `toZkVMCommittedMemory`
+/-- **The `Memory` ↔ `TwoStep` bridge** — a valid *committed* trace of `toZkVMCommittedMemory`
 yields a valid *full-memory* trace of `toZkVMFullMemory`: the reconstructed trace
 `reconstructTrace Ŝ (chooseMemStep …) x.S0` is `toZkVMFullMemory`-valid whenever `Ŝ` is
 `toZkVMCommittedMemory`-valid for the committed boundaries of `x`.
@@ -298,7 +300,7 @@ theorem cte_committedMemory (hNseg : 0 < sys.Nseg) (h : sys.Assumptions) :
   · intro k hk
     exact estep k hk
 
-/-- **Full-memory CTE** — `cte_committedMemory` upgraded across the `Memory ↔ Twostep` bridge
+/-- **Full-memory CTE** — `cte_committedMemory` upgraded across the `Memory ↔ TwoStep` bridge
 (`traceValid_full`), as a concrete instance of the abstract `CTE`: `sys.toZkVMFullMemory.CTE`. Under
 the `cte_committedMemory` hypotheses plus the commitment binding assumptions, the two-step VM is
 correct-trace extractable *over full-memory states* — the extractor turns every

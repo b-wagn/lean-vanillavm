@@ -35,7 +35,7 @@ guard; when a guard becomes a CI check, note that.
   `PuncturedBinding` is insufficient and is replaced by `UpdateBinding` (Issue 1).
   Freezing it now would force a constitutional amendment to fix a known-wrong def.
   Only the I4 kernel list is frozen.
-  **Guard:** INVARIANTS.md I4; provisional docstrings in `Crypto.lean`.
+  **Guard:** INVARIANTS.md I4; provisional docstrings in `Preliminaries/VectorCommitment.lean`.
 
 - **"Faithful but partial" is a distinct failure mode.** A Lean statement can mean the
   paper statement yet cover only a fragment of it. Fidelity and completeness are
@@ -57,7 +57,7 @@ guard; when a guard becomes a CI check, note that.
   theorem is therefore a memory-only slice; the ISA layer must add those equations.
   In prose, name this formal type as `MemStep` or a “`MemStep` witness”; the
   generic term “descriptor” is neither a Lean declaration nor paper vocabulary.
-  **Guard:** explicit limitation in `Memory.lean` and `CORRESPONDENCE.md`; Issue 3
+  **Guard:** explicit limitation in `VMs/Memory.lean` and `CORRESPONDENCE.md`; Issue 3
   owns the concrete `MemStep`/register wiring, and review rejects generic
   synonyms for formal witness types.
 
@@ -82,7 +82,7 @@ guard; when a guard becomes a CI check, note that.
   names the state type at each use site, and the type checker already enforces the
   split. Corollary: never `open` such a namespace — opening erases exactly the
   distinction it encodes.
-  **Guard:** "use qualified names, do not `open`" notes in `Memory.lean`; review
+  **Guard:** "use qualified names, do not `open`" notes in `VMs/Memory.lean`; review
   rejects new one-letter variant suffixes on paired declarations (CONVENTIONS.md §1).
 
 - **Comments must survive without the conversation that produced them.** Session-local
