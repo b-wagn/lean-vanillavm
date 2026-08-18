@@ -2,8 +2,10 @@ name: CI
 
 # Issue 0 gate (docs/PLAN.md): `lake build` + `#print axioms` (I7) + a
 # CORRESPONDENCE row-elaboration check (I1). No behavioural change is allowed to
-# break these; every PR into main-temp must pass them.
+# break these; every PR into `main` must pass them.
 
+# `main` is the integration branch. `main-temp` is retained only so that any
+# still-open branch targeting it keeps its gate; drop it once none remain.
 on:
   push:
     branches: [main, main-temp]

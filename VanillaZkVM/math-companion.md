@@ -130,8 +130,8 @@ The **bus bridge** (`StepInterface.BusBridge stepWithBus`) is
 
     stepWithBus(Ĉ₁,Ĉ₂,b) ⟹ stepCommitted(Ĉ₁,Ĉ₂).
 
-Issue 5 may first prove an extract-or-collision statement and obtain this
-implication as the collision-resistant corollary.
+The concrete instance obtains this implication from collision resistance of
+`Com_bus`.
 
 These are Lean-only coordination propositions whose concrete instances target
 `prop:memory-extractability` and `lem:segment`; they are not additional paper

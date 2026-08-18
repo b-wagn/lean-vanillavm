@@ -77,9 +77,9 @@ I.BusBridge stepWithBus :=
     stepCommitted C1 C2.
 ```
 
-The concrete extraction/unification proof may be an extract-or-break theorem
-whose thin corollary constructs the common `BusEvidence` and establishes this
-implication under collision resistance.
+The concrete proof unifies the extracted per-chip buses into one common
+`BusEvidence` and establishes this implication under collision resistance of
+`Com_bus`, which is what rules out two segments' buses disagreeing.
 
 ## Ownership
 

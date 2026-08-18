@@ -1,6 +1,6 @@
 # CONVENTIONS — how we write code, use agents, and review
 
-This file is binding for every branch merged into `main-temp`. Each issue in [`PLAN.md`](PLAN.md)
+This file is binding for every branch merged into `main`. Each issue in [`PLAN.md`](PLAN.md)
 requires you to follow it. It distills (a) the house style already visible in
 `VanillaZkVM/**/*.lean`, (b) conventions inherited from VCVio and `finality` (our colleagues'
 libraries — see `docs/vcvio-analysis.md`, `docs/finality-analysis.md`), and (c) the Hicks meeting
@@ -36,7 +36,7 @@ layer.
 - **One namespace per file/topic**, matching the file's main definition
   (`namespace VanillaZkVM … namespace TwoStep …`).
 - **Adversaries/reductions are plain functions**, and efficiency is a *separate predicate* applied
-  to them — never a field bundled into the adversary type (VCVio). Relevant from Issue 2 onward.
+  to them — never a field bundled into the adversary type (VCVio). Relevant once Issue 10 lands.
 - **Scaffolding that is intentionally unused-yet is marked in its docstring** ("retained as
   scaffolding for Issue N"), not deleted and not silently left dangling (VCVio pattern).
 
@@ -64,12 +64,15 @@ layer.
 
 - Stay in the **perfect / probability-free** model. Do not import VCVio. Do not add `λ`/`negl`/
   running-time. (These are Issue 8's sandbox only.)
-- Model reductions **lightweight**: a break of a VM guarantee produces a concrete break of a named
-  assumption. The canonical shape is **extract-or-break** — see `extract-or-collision`'s
-  `segment_extract_or_collision`: the reduction *either* returns a valid witness *or* exhibits an
-  explicit collision; the assumption (CR) is applied only in a thin corollary. Prefer this to
-  baking the assumption into the trust base.
-- When we do add advantage bookkeeping (Issue 6), follow the VCVio *pattern* (not the code):
+- Model reductions **lightweight**: state each layer's guarantee as an implication from named
+  assumptions, and collect those assumptions in one trust-base structure per system — the pattern
+  `TwoStep.System.Assumptions` sets. In the perfect model that *is* the reduction: there is no
+  probabilistic bad event to exhibit, so routing it through a break-witness adds vocabulary without
+  adding content. (The extract-or-break framework was tried and withdrawn; see the retired Issue 2
+  in `PLAN.md`.) Break-witness records such as `UpdateBindingBreak` remain welcome where they let a
+  countermodel name a concrete violation.
+- When advantage bookkeeping is eventually added (Issue 10 builds it, Issue 6 uses it), follow the
+  VCVio *pattern* (not the code):
   advantage is a plain numeric function decoupled from game shape; a reduction is a concrete
   `def : Adv → Adv'`; the theorem is a `≤` inequality; composition is generic lemmas. Design so a
   later swap to VCVio's `SecurityGame`/`Negligible` is mechanical.
@@ -79,9 +82,9 @@ layer.
 ## 4. Git / branch workflow
 
 - **Branch per issue**, named `<issue-slug>` (e.g. `memory-twostep`, `recursion-multistep`),
-  branched from `main-temp`, PR'd back into `main-temp`.
+  branched from `main`, PR'd back into `main`.
 - Reuse of an existing branch (see `PLAN.md` "reuse" column): **cherry-pick/re-apply the relevant
-  hunks onto current `main-temp`**, do not merge stale branches wholesale — the cost/CR/memory
+  hunks onto current `main`**, do not merge stale branches wholesale — the cost/CR/memory
   branches predate PR #4 and carry drift that spuriously deletes `trivialAS`.
 - **The former `Bus.lean` prototype was removed from the active tree.** Its
   declarations were never ground truth or an audited checkpoint. Issue 5 owns

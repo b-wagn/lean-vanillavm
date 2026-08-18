@@ -101,11 +101,12 @@ slice separately from completeness of the eventual `φ_step`.
 |---|---|---|
 | `R_{0,step}` and the inner chip relations | _name pending Issue-5 definition review_ | Issue 5 |
 | `R_1` segment relation and extraction (`lem:segment`) | _name pending Issue-5 definition review_ | Issue 5 |
-| bus unification / extract-or-break | _name pending Issue-2/5 definition review_ | Issue 2/5 |
+| bus unification under CR of `Com_bus` | _name pending Issue-5 definition review_ | Issue 5 |
 | ISA op set `{read, write, arith, hash, bin}` + `φ'_op` split (ch03, simplified) | `ISA.*` | Issue 3 |
 | `R_2` convert (`lem:convert`) | `MultiStep.RConvert` | Issue 4 |
 | `R_3` combine + tree unrolling (`lem:combine`) | `MultiStep.RCombine` / `combine_tree` | Issue 4 |
 | `R_4` embed (`lem:embed`) | `MultiStep.REmbed` | Issue 4 |
 | bus-deferred step `φ̂_step` (`eq:step-expanded`) + per-execution bus lift (`thm:main` 4–5) | `Bus.*` (redone) + `concatTrace` glue | Issue 5 |
 | main theorem (`thm:main`) | `VanillaVM.cte_main` | Issue 7 |
-| advantage / reduction vocabulary | `Reduction.*` | Issue 2/6 |
+| advantage / negligibility vocabulary | _name pending Issue-10 definition review_ | Issue 10 |
+| per-layer reduction bounds + `thm:main` weighted sum | _name pending Issue-6 definition review_ | Issue 6 |

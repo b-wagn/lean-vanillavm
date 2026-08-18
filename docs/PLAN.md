@@ -1,31 +1,33 @@
 # PLAN — development issues for the Vanilla zkVM Lean formalization
 
 This is the working plan: **10 dependency-ordered issues** taking us from the current two-step toy
-to a formalized main security theorem for the full vanilla VM (`thm:main`). It supersedes the
+to a formalized main security theorem for the full vanilla VM (`thm:main`). Issue 2 was withdrawn
+and Issue 10 added; every other issue keeps the number it has always had, so 2 is simply skipped.
+It supersedes the
 free-form task list in `benedikt-plan.md` (whose relevant items it incorporates)
 and is the authoritative scope (I2).
 
 **How to read an issue.** Each has: *Goal · Depends on · Assigned · Reuse · New public surface ·
 Deliverables · Math companion · Review requirement (where assigned; human, not delegatable) ·
-Skills & conventions · Paper anchor.* Everything is written on a branch per issue and merged into `main-temp`
+Skills & conventions · Paper anchor.* Everything is written on a branch per issue and merged into `main`
 (`CONVENTIONS.md` §4).
 
 **Collaborators & roles.**
 - **Implementers:** Yavor (RovayL), Dmitry (khovratovich), Jessica (j-cqy).
-- **Reviewers only (for now):** Benedikt (b-wagn) — on vacation.
+- **Reviewers only (for now):** Benedikt (b-wagn).
 - **George (asn-d6): reviewer now, likely to join as an implementer.** When he does, his natural
   slots (he is a paper co-author, so strongest on structure/topology) are: the redundant **human**
-  second attempt at the tree-unrolling lemma in **Issue 4**, and co-lead of **Issue 6** (explicit
-  reductions) and/or the **Issue 7** capstone. Until then he stays a reviewer. **Rule:** whoever
-  implements an issue cannot be its reviewer — if George takes an issue, its reviewer shifts to
-  Benedikt (or another non-author).
+  second attempt at the tree-unrolling lemma in **Issue 4**, and co-lead of the **Issue 7** capstone.
+  Until then he stays a reviewer. **Rule:** whoever implements an issue cannot be its reviewer — if
+  George takes an issue, its reviewer shifts to Benedikt (or another non-author).
 
 **Assignments follow the code people have already written** (git-verified):
 Yavor owns memory reconstruction (`pr5`/`yl-memory-reconstruction`) and authored
 the former `Bus.lean` prototype, now retained only in git history;
 Dmitry owns the memory→abstract-VM integration (`memory-integration`, full-memory CTE) and the
-cost/reduction experiments (`cost-twostep`, `cost-bus-reduction`); Jessica owns reductions
-(`extract-or-collision`, `cr-algorithmic`).
+cost/reduction experiments (`cost-twostep`, `cost-bus-reduction`); Jessica owns the quantitative
+track — the security-model study (8), the probability foundation (10), and the explicit reductions
+built on it (6) — plus the keyed/algorithmic CR variant (`cr-algorithmic`).
 
 **Redundancy (by design).** Issue **1** carries two independent memory integrations (Yavor's
 Bus-wired core vs Dmitry's abstract-VM full-memory CTE) that must prove the same statement, and Issue
@@ -36,22 +38,36 @@ Bus-wired core vs Dmitry's abstract-VM full-memory CTE) that must prove the same
 ## Dependency graph
 
 ```
+Qualitative track — reaches the main theorem in the perfect model:
+
         ┌─────────────────────────── Issue 0  (freeze KERNEL + scaffolding)  ← blocks all
         │
         ├── Issue 1  memory  → TwoStepWithMemory          (Yavor + Dmitry, redundant)
-        ├── Issue 2  reduction vocabulary + extract-or-break  (Jessica)
         ├── Issue 3  ISA ops {read, write, arith, hash, bin} (Yavor)
         └── Issue 4  multi-layer recursion → MultiStepVM   (Dmitry)   [abstract leaf — no bus needed]
 
    Issue 5  bus per segment, wired into a VM   (Yavor)   depends 0,3     ← intentionally LATE
-   Issue 6  explicit per-layer reductions      (Dmitry + Jessica)  depends 1,2,4,5
-   Issue 7  full Vanilla VM + main theorem      (Dmitry + Yavor)   depends 1,3,4,5,6
-   Issue 8  (parallel) concrete/asymptotic/runtime + reuse study (Jessica)  depends 0
-   Issue 9  (rolling) independent re-derivation + audit matrix + vacuity (Yavor + Dmitry)  depends 0
+   Issue 7  full Vanilla VM + cte_main (perfect model)  (Dmitry + Yavor)  depends 1,3,4,5
+
+Quantitative track — turns `cte_main` from an implication into a bound. Runs after, never gates:
+
+   Issue 8   security-model study: probabilities, runtime, reuse  (Jessica)   depends 0
+   Issue 10  success-probability foundation (advantages + negl)   (Jessica)   depends 8
+   Issue 6   explicit per-layer reductions, with real advantages  (Jessica + Dmitry)  depends 1,3,4,5,7,10
+
+Rolling alongside everything:
+
+   Issue 9  independent re-derivation + audit matrix + vacuity (Yavor + Dmitry)  depends 0
+
+   Issue 2  withdrawn — number retired, not reused.
 ```
 
-Critical path: **0 → {1,4} → 6 → 7**. Recursion (4) is built over an **abstract** leaf relation, so
+Critical path: **0 → {1,3,4,5} → 7**. Recursion (4) is built over an **abstract** leaf relation, so
 it does **not** wait for the bus (5) — that is why the bus is scheduled late.
+
+The quantitative track is deliberately **off** the critical path. `cte_main` is provable in the
+perfect model, so probabilities must not gate it; Issue 6 strengthens the finished theorem instead of
+standing between the layers and it.
 
 **Every issue produces or extends a math companion** (`VanillaZkVM/math-companion.md`, following the
 precedent Dmitry set on `memory-integration`): the pen-and-paper statements matching the Lean, kept
@@ -66,7 +82,7 @@ in lockstep. This is a hard deliverable, not optional.
   provisional (see below).
 - **Depends on.** — (first).
 - **Assigned.** Dmitry (kernel interfaces) + Yavor (scaffolding & docs).
-- **Reuse.** Current `main-temp` `Preliminaries/ArgumentSystem.lean` / `Specification/{Zkvm,Cte}.lean`
+- **Reuse.** Current `main` `Preliminaries/ArgumentSystem.lean` / `Specification/{Zkvm,Cte}.lean`
   (refactor, don't rewrite). No branch code.
 - **Frozen kernel (I4).** `Relation`, `ArgumentSystem`, `Extractor`, `KnowledgeSound`; abstract
   `ZkVM`, `TraceValid`, `Rstar`, `CTE`, `cte_iff_knowledgeSound`; plus the Lean-only consistency
@@ -119,7 +135,7 @@ in lockstep. This is a hard deliverable, not optional.
   update binding). **`memory-integration`** — its full-memory `Twostep` integration + its
   `math-companion.md` (incorporate into the project companion). **`yl-memory-reconstruction`** — docs
   reference (identical Lean to pr5; skim `AXIOM_AUDIT.md`). **DROP `memory-recon`** (destructive,
-  least complete). Re-apply hunks onto post-#4 `main-temp` (§4).
+  least complete). Re-apply hunks onto current `main` (§4).
 - **New public surface (max ~5).** `UpdateBinding` (+ break witness), `FullVMState`/`CommitInv`,
   the concrete `committedStep` predicate underlying `StepInterface.stepCommitted`,
   `step_mem_extract`, and `trace_mem_extract`. `TwoStepWithMemory` is realized as
@@ -140,28 +156,20 @@ in lockstep. This is a hard deliverable, not optional.
 - **Paper anchor.** ch02 (`Com_mem`, `def:binding`), ch03 (`φ̂_read`/`φ̂_write`),
   `prop:memory-extractability`.
 
-## Issue 2 — Reduction vocabulary + extract-or-break refactor
-- **Goal.** Establish the *lightweight* reduction discipline (I9) as reusable vocabulary and refactor
-  proofs into **extract-or-break** form: a break of a guarantee yields either a valid witness or an
-  explicit assumption break (e.g. a collision), with the assumption applied only in a thin corollary.
-- **Depends on.** Issue 0.
-- **Assigned.** Jessica (her `extract-or-collision`/`cr-algorithmic` code). *Review: Benedikt/George.*
-- **Reuse.** **`extract-or-collision`** — Jessica's `segment_extract_or_collision` +
-  `segment_knowledgeSound` corollary; generalize it into reusable vocabulary (it currently targets a
-  bus segment, but the *shape* is what we standardize). **`cr-algorithmic`** — her algorithmic/keyed
-  CR design, as the provisional CR variant if we adopt it.
-- **New public surface (max ~3).** A `Reduction`/break-witness shape (a `structure`; adversary as a
-  plain function per VCVio), an `extract-or-break` combinator, and the generalized statement.
-  Advantage *numbers* are **not** introduced here (that's Issue 6); stay perfect.
-- **Deliverables.** The reduction vocabulary module; a `docs/reuse-notes.md` entry on how to phrase a
-  reduction so all later layers share one shape.
-- **Math companion.** Write the extract-or-break template (game/break-witness) into the companion.
-- **Review requirement (human — Dmitry, as cryptographer).** Bless the extract-or-break *shape*:
-  does it compose across layers? Is the "break" a genuine assumption break? Confirm designing so a
-  later swap to VCVio's `SecurityGame`/`Negligible` is mechanical.
-- **Skills & conventions.** `/security-review`, `/simplify`. Adversaries as plain functions;
-  efficiency a separate future concern.
-- **Paper anchor.** `lem:segment` (bad-event structure), ch05 §5.2 reduction structure.
+## Issue 2 — *withdrawn: extract-or-break*
+
+The extract-or-break framework is abandoned. Its purpose was to expose reduction structure without
+probabilities — "a broken guarantee yields either a witness or a named assumption break". In the
+perfect model there is no probabilistic bad event, so that shape reduces to the implication each
+layer lemma already is (compare `TwoStep.System.cte`, which takes its assumptions as hypotheses and
+collects them in `Assumptions`), while obliging every layer to adopt a vocabulary for the privilege.
+
+Explicit reductions remain a goal. They need real success probabilities first: see **Issue 10** for
+the foundation and **Issue 6** for the reductions themselves.
+
+The number is retired rather than reused, so Issues 3–9 keep their existing labels. The paper's own
+`lem:segment` argument is still an extract-or-collision one; abandoning the *framework* only means we
+do not build reusable Lean vocabulary for that shape, not that the bus proof changes character.
 
 ## Issue 3 — ISA operations: a small representative op set `{read, write, arith, hash, bin}`
 - **Goal.** Replace the fully-opaque step predicate with a **small, representative** op taxonomy —
@@ -221,7 +229,7 @@ in lockstep. This is a hard deliverable, not optional.
   internally-consistent bus `B̂_i`, concatenated by `concatTrace`/`chain_flatten` into one length-`T`
   trace carrying per-segment `StepAux`/bus data. Slotted **late** because the recursion tower (Issue
   4) is built over an abstract leaf and does not need it.
-- **Depends on.** Issue 0, Issue 3 (chips consume the op taxonomy). Soft-dep on Issue 2 (extract-or-break).
+- **Depends on.** Issue 0, Issue 3 (chips consume the op taxonomy).
 - **Assigned.** Yavor (author of the prototype). *Review: Benedikt.*
 - **Reuse.** The deleted prototype from git history as *reference only* — reimplement to the frozen kernel and the
   Issue-3 ISA; do not treat its `segment_extract` as done. `cost-bus-reduction` reference for the
@@ -232,60 +240,79 @@ in lockstep. This is a hard deliverable, not optional.
   `Bus`-backed VM instance, and the per-execution lifting theorem threading per-segment `StepAux`.
 - **Math companion.** Write the bus, `φ̂_step` bus-deferral, and the per-execution lift.
 - **Review requirement (human — Benedikt).** Confirm the redone layer faithfully realizes
-  `lem:segment` (bus unification / extract-or-collision), that per-segment buses are **not** claimed
+  `lem:segment` — bus unification, with collision resistance of `Com_bus` consumed as a hypothesis —
+  that per-segment buses are **not** claimed
   equal across segments (only internally consistent), and that concatenation preserves the boundary
   chaining `thm:main` Steps 4–5 need. Confirm `chain_flatten` is reused, not reimplemented.
 - **Skills & conventions.** `/simplify`, `/security-review`. Reuse the frozen concatenation lemma (I5).
 - **Paper anchor.** ch02 (bus, segments), `lem:segment`, `thm:main` Steps 4–5.
 
-## Issue 6 — Make all security proofs explicit reductions (per layer)
-- **Goal.** Rephrase every layer's proof (memory, bus, convert, combine, embed) in the explicit
-  extract-or-break form of Issue 2: a failure of the layer's guarantee ⇒ a named assumption break
-  (KS extraction failure, collision, position/update-binding break). Introduce
-  **advantage-placeholder bookkeeping** so the composition mirrors `thm:main`'s weighted sum
-  (`1, m-1, m, m·(…+cr), Σ_{k=1}^T(pos+upd)`) while keeping running time deferred (I9).
-- **Depends on.** Issues 1, 2, 4, 5.
-- **Assigned.** Dmitry (cost/reduction author) + Jessica (bus/segment reductions — her extract-or-collision).
-  *Review: Benedikt + George, one per half.*
-- **Reuse.** Issue 2's vocabulary; `cost-twostep`/`cost-bus-reduction` reference for how an explicit
-  reduction `Alg` + its cost were written (for when running time is added).
-- **New public surface (max ~4).** Per-layer reduction statements sharing Issue 2's vocabulary; no new
-  *definitions* beyond that vocabulary.
-- **Deliverables.** Each layer lemma restated as "guarantee-break ⇒ ∃ explicit assumption-break",
-  composed outermost→innermost, with `thm:main`'s coefficient structure represented (placeholder
-  advantages, not real probabilities).
-- **Math companion.** Write the per-layer reductions and the summed bound (with placeholders).
+## Issue 6 — Explicit per-layer reductions, with real advantages
+- **Goal.** Restate every layer's guarantee (memory, bus, convert, combine, embed) as an explicit
+  reduction with a *quantitative* conclusion, and compose them into `thm:main`'s weighted sum
+  (`1, m-1, m, m·(…+cr), Σ_{k=1}^T(pos+upd)`). This upgrades `cte_main` from "holds under these
+  assumptions" to "is broken with at most this advantage".
+- **Why this comes after probabilities.** With perfect predicates there is no failure event to bound,
+  so a reduction collapses into the implication the layer lemma already is. Placeholder advantages
+  would be worse than none: nothing would constrain the coefficients, so the formalization could not
+  be wrong — an I6 vacuity failure by construction. Real advantages are what make the weighted sum a
+  checkable claim.
+- **Depends on.** Issue 10 (advantages must exist), the layers 1, 3, 4, 5, and Issue 7 (the assembly
+  it re-derives quantitatively).
+- **Assigned.** Jessica (reductions) + Dmitry (cost/composition). *Review: Benedikt + George, one per
+  half.*
+- **Reuse.** Issue 10's advantage/negligibility layer; `cost-twostep`/`cost-bus-reduction` as
+  reference for how an explicit reduction `Alg` and its cost were written.
+- **New public surface (max ~4).** Per-layer reduction statements over Issue 10's vocabulary. No new
+  security *definitions* — those are Issue 10's.
+- **Deliverables.** Each layer lemma restated as an advantage bound; the composed `thm:main` bound
+  with its real coefficients; `cte_main` re-derived quantitatively, superseding Issue 7's qualitative
+  form without contradicting it.
+- **Math companion.** The per-layer reductions and the summed bound.
 - **Review requirement (human — Dmitry/Benedikt).** Confirm each reduction targets the *correct*
-  assumption and that the coefficient structure matches `thm:main` (Hicks: *what* you reduce to
-  matters). Explicitly check no reduction is vacuous.
-- **Skills & conventions.** `/security-review` mandatory. Reductions = plain `def`s + `≤`/⇒ statements;
-  design for a mechanical VCVio swap later.
+  assumption (Hicks: *what* you reduce to matters), that the coefficient structure matches
+  `thm:main`, and that no reduction is vacuous. Running-time bookkeeping may still be deferred (I9);
+  say so explicitly rather than implying it is covered.
+- **Skills & conventions.** `/security-review` mandatory. Reductions = plain `def`s + `≤` statements.
 - **Paper anchor.** ch05 §5.2 (all layer lemmas, `prop:memory-extractability`), `thm:main` bound.
 
 ## Issue 7 — Assemble the full Vanilla VM & state the main theorem
-- **Goal.** Compose Issues 1+3+4+5+6 into the full `zkVM = ({φ_op}, Com_bus, Com_mem, Π_0..Π_4)` and
-  state + prove (perfect model) the top-level CTE theorem as a single sum of named assumption breaks
-  — the Lean analogue of `thm:main`. Tie the outermost CTE statement to `VMState`/`CommittedVMState`
-  via `Com_mem` (the `Commit(mem_0/T)` step the abstract statement currently omits).
-- **Depends on.** Issues 1, 3, 4, 5, 6.
+- **Goal.** Compose Issues 1+3+4+5 into the full `zkVM = ({φ_op}, Com_bus, Com_mem, Π_0..Π_4)` and
+  state + prove the top-level CTE theorem in the **perfect model**: given knowledge soundness of
+  `Π_0..Π_4`, the memory-commitment binding properties, and collision resistance of `Com_bus`, the
+  full VM is correct-trace extractable. This is the qualitative Lean analogue of `thm:main`; Issue 6
+  later replaces the hypothesis bundle with `thm:main`'s advantage bound. Tie the outermost CTE
+  statement to `VMState`/`CommittedVMState` via `Com_mem` (the `Commit(mem_0/T)` step the abstract
+  statement currently omits).
+- **Depends on.** Issues 1, 3, 4, 5. Deliberately **not** Issue 6: the theorem is provable in the
+  perfect model, so it must not wait on the probability foundation.
 - **Assigned.** Dmitry + Yavor (capstone). *Review: Benedikt + George.*
 - **Reuse.** Everything above.
 - **New public surface (max ~2).** The full `VanillaVM` instance + `cte_main`. Nothing else public.
-- **Deliverables.** The assembled VM, `cte_main`, and a `docs/` note recording the paper's own
-  idealization caveat (`rem:idealized`: relativized SNARKs don't exist → validates reduction
-  *structure*, not concrete security).
+- **Deliverables.** The assembled VM; `cte_main` with its assumptions collected in one trust-base
+  structure (the pattern `TwoStep.System.Assumptions` already sets); and a `docs/` note recording the
+  paper's own idealization caveat (`rem:idealized`: relativized SNARKs don't exist → validates
+  reduction *structure*, not concrete security).
 - **Math companion.** Write `thm:main` and its assembly from the layer lemmas.
-- **Review requirement (human — Dmitry + Benedikt).** Confirm `cte_main` is the faithful Lean form of
-  `thm:main`, the boundary-commitment step is present, and the idealization caveat is documented.
-  Approve the `thm:main` row (fidelity + completeness). Full `#print axioms cte_main`.
+- **Review requirement (human — Dmitry + Benedikt).** Confirm `cte_main` is the faithful
+  *qualitative* Lean form of `thm:main`, that the trust base names every assumption the paper charges
+  for, that the boundary-commitment step is present, and that the idealization caveat is documented.
+  Approve the `thm:main` row — fidelity yes; completeness stays open until Issue 6 supplies the bound.
+  Full `#print axioms cte_main`.
 - **Skills & conventions.** `/security-review`, `/simplify`, adversarial-review. Final public surface
   + `cte_main` must be readable and ≈ paper length (I10) — measure it.
 - **Paper anchor.** ch05 (`thm:main`, zkVM system definition, `rem:idealized`).
 
-## Issue 8 — (Parallel, exploratory) concrete/asymptotic security, runtime, and dependency reuse
-- **Goal.** Scope how/whether to lift the perfect model to real security (advantages, `negligible`,
-  running time of reductions) and report feasibility/size/dependencies — **do not merge into core**
-  (I8). Also the "not reinventing the wheel" reuse study (mathlib/VCVio/arklib).
+## Issue 8 — (Parallel) security-model study: probabilities, runtime, and dependency reuse
+- **Goal.** Decide *how* to lift the perfect model to real security (advantages, `negligible`,
+  running time of reductions) and report feasibility/size/dependencies. Still a report, not core Lean
+  — **nothing merges into core here** (I8). Also the "not reinventing the wheel" reuse study
+  (mathlib/VCVio/arklib), and a recommendation on whether to adopt the keyed/algorithmic CR variant
+  (`cr-algorithmic`).
+- **Gates.** Issue 10 does not start until this report is accepted: it chooses VCVio-vs-from-scratch
+  and bounds Issue 10's public surface. A go/no-go here is a genuine decision point, not a formality —
+  "stay perfect indefinitely" is an admissible outcome, in which case Issues 10 and 6 stay unstarted
+  and `cte_main` remains the qualitative theorem.
 - **Depends on.** Issue 0 (otherwise independent).
 - **Assigned.** Jessica (reductions/concrete-security fit; benedikt-plan's "concrete vs asymptotic"
   and "reuse" tasks). *Review: Dmitry + Benedikt.*
@@ -302,9 +329,9 @@ in lockstep. This is a hard deliverable, not optional.
   advantages as a size probe.
 - **Math companion.** N/A (a report, not core Lean) — but the VCVio-mapping table lives in the report.
 - **Review requirement (human — Dmitry + Benedikt).** Review the *recommendation*: is perfect still
-  the right default? Is our `KnowledgeSound` translatable to VCVio's? Decide go/no-go on a future
-  concrete-security issue. (Hicks: keep the door open, don't walk through yet.)
-- **Skills & conventions.** Strictly out of `main-temp`'s core build (isolated branch/dir). Cheaper
+  the right default? Is our `KnowledgeSound` translatable to VCVio's? Decide go/no-go on Issue 10, and
+  if go, fix its public-surface budget here (I2). (Hicks: keep the door open, don't walk through yet.)
+- **Skills & conventions.** Strictly out of `main`'s core build (isolated branch/dir). Cheaper
   models + subagents to read VCVio; store findings in files.
 - **Paper anchor.** ch05 advantages/`negl`; `rem:idealized`.
 
@@ -330,6 +357,34 @@ in lockstep. This is a hard deliverable, not optional.
   findings; revert all injected probes.
 - **Paper anchor.** whole paper (matrix); `rem:cte-ks`/`thm:main` for the re-derivation target.
 
+
+## Issue 10 — Success-probability foundation (advantages + negligibility)
+- **Goal.** Build the machinery a quantitative statement needs, and only that: randomized
+  adversaries, real-valued advantages, and a negligibility notion. Then restate `KnowledgeSound`,
+  `PositionBinding`, `UpdateBinding`, and `CollisionResistant` as advantage-bounded predicates, with
+  today's perfect predicates recovered as the zero-advantage case so no existing theorem silently
+  changes meaning.
+- **Depends on.** Issue 8 (its accepted recommendation and surface budget). Independent of the
+  qualitative track — it touches `Preliminaries/`, not the VM layers.
+- **Assigned.** Jessica. *Review: Dmitry + Benedikt.*
+- **Reuse.** Whatever Issue 8 recommends: VCVio's `Asymptotics/Negligible.lean` and `Security.lean`
+  patterns, or a minimal `PMF`-based layer of our own. Note VCVio's `WorstCasePolyTime` /
+  `ExpectedPolyTime` are documented but *not implemented*.
+- **New public surface.** Bounded by the Issue-8 report before work starts (I2 — no unbounded scope).
+  Expect an advantage/negligibility vocabulary plus one restated predicate per assumption.
+- **Deliverables.** The advantage/negligibility layer; the four assumption predicates in quantitative
+  form; for each, a lemma that the perfect predicate is its zero-advantage instance; `Preliminaries/`
+  restructured so the perfect and quantitative notions sit side by side rather than one replacing the
+  other.
+- **Math companion.** The quantitative definitions written beside the perfect ones, so a reviewer can
+  see they are the same notion at different resolution.
+- **Review requirement (human — Dmitry + Benedikt).** Confirm the quantitative predicates are the
+  standard ones, and that every perfect-model theorem is genuinely recovered rather than weakened —
+  the zero-advantage lemmas are the evidence, and their absence is a blocker. This issue is where
+  I8's "perfect / probability-free" stance is deliberately lifted, so it carries an `INVARIANTS.md`
+  I8 amendment in the same PR.
+- **Paper anchor.** ch05 advantages (`Adv^ks_Π`, `Adv^pos_Com`, `Adv^upd_Com`, `Adv^cr_Com`), `negl`.
+
 ---
 
 ## Branch disposition summary (from `docs/branch-analysis.md`)
@@ -340,10 +395,10 @@ in lockstep. This is a hard deliverable, not optional.
 | `memory-integration` | Dmitry | REUSE (abstract-VM full-memory CTE + math-companion), cross-validate | Issue 1 |
 | `yl-memory-reconstruction` | Yavor | REFERENCE (docs; identical Lean to pr5) | Issue 1 |
 | `memory-recon` | Yavor/Dmitry | **DROP** (destructive, least complete) | — |
-| `extract-or-collision` | Jessica | **REUSE — generalize** (extract-or-collision shape) | Issue 2 |
-| `cr-algorithmic` | Jessica | REUSE as provisional CR variant (keyed/algorithmic) | Issue 2/8 |
-| `cost-twostep` | Dmitry | REFERENCE (most complete cost/`Cost.lean` superset) | Issue 6/8 |
+| `extract-or-collision` | Jessica | **DROP** (extract-or-break withdrawn; the bus argument itself is redone from scratch) | — (ref: Issue 5) |
+| `cr-algorithmic` | Jessica | REUSE as provisional CR variant (keyed/algorithmic) | Issue 8/10 |
+| `cost-twostep` | Dmitry | REFERENCE (most complete cost/`Cost.lean` superset) | Issue 6/8/10 |
 | `cost-bus-reduction` | Dmitry | REFERENCE (cost combinators, toy) | Issue 6/8 |
-| former `main-temp` `Bus.lean` (git history) | Yavor | **NOT ground truth** — deleted playground prototype; redo in Issue 5 | Issue 5 (ref) |
+| former `Bus.lean` (git history) | Yavor | **NOT ground truth** — deleted playground prototype; redo in Issue 5 | Issue 5 (ref) |
 
 All cost/CR branches predate PR #4 — **re-apply hunks, don't merge wholesale** (`CONVENTIONS.md` §4).

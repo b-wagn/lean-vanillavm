@@ -20,7 +20,7 @@ guard; when a guard becomes a CI check, note that.
 
 - **Stale branches predate PR #4 and carry drift.** Merging a cost/CR/memory branch
   wholesale spuriously deletes `trivialAS` (and other post-#4 declarations). Always
-  cherry-pick / re-apply the relevant hunks onto current `main-temp`, never merge the
+  cherry-pick / re-apply the relevant hunks onto current `main`, never merge the
   stale branch.
   **Guard:** CONVENTIONS.md §4; branch dispositions in `docs/branch-analysis.md`.
 
