@@ -11,12 +11,12 @@ reconstruction that consumes those notions:
 * `exactVC` is a deliberately non-succinct commitment satisfying completeness,
   position binding, and update binding, witnessing that the `Memory`
   extractability hypotheses are jointly satisfiable.
-* `appendBitVC` appends a verifier-ignored bit to the commitment. It preserves
-  completeness, position binding, and the earlier condition on openings away
-  from an updated address, but **fails** update binding. Thus those properties
-  do not imply that an accepted commitment is an output of `commit`. This
-  does not assert that update binding implies position binding: the two are
-  independent requirements.
+* `appendBitVC` appends a verifier-ignored bit to the commitment. It satisfies
+  completeness and position binding — and the away-from-address agreement
+  property proved below — yet **fails** update binding. So those properties do
+  not imply that an accepted commitment is an output of `commit`. This does not
+  assert that update binding implies position binding: the two are independent
+  requirements.
 * A private counterexample to `MemoryBridge` uses that ignored bit to exhibit a
   represented full-memory state before an accepted committed-memory write, but
   no full-memory state representing the commitment after the write.

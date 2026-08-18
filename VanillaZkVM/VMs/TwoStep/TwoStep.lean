@@ -18,13 +18,12 @@ the chips, and the binary `convert`/`combine`/`embed` tower.
 * Final layer `RFinal`: a single SNARK merging `m` segment proofs whose boundary
   states chain `S0 → ST`.
 
-There is exactly one `ZkVM` instance here, `toZkVM`: its states are
-*full-memory* VM states, `T = m * Nseg`, and its verifier commits the claimed
-boundary states before deferring to the final SNARK. `cte` proves `CTE`
-for it.
+The VM is `toZkVM`: its states are *full-memory* VM states, `T = m * Nseg`, and its
+verifier commits the claimed boundary states before deferring to the final SNARK.
+`cte` proves `CTE` for it.
 
-The proof has two halves, and the committed-memory layer sits between them as a
-plain intermediate rather than as a second VM:
+The proof has two halves, with the committed-memory layer as the object passed
+between them:
 
 1. `committedTrace_extract` — the SNARK half. Two-layer straight-line extraction
    (`RFinal` witness, then an `RSeg` witness per segment) produces a trace of
@@ -34,8 +33,8 @@ plain intermediate rather than as a second VM:
    `CommittedMemory.step`, with the per-step `MemStep` witnesses retained in the
    segment witnesses.
 2. `traceValid_full` — the memory half. `Memory.trace_mem_extract` reconstructs a
-   full-memory trace along that committed trace, satisfying `CommitInv` at every state and
-   `FullMemory.step` at every step.
+   full-memory trace along that committed trace, satisfying `CommitInv` at every
+   state and `FullMemory.step` at every step.
 
 Traces are `ℕ`-indexed with `< bound` conditions (uniform with `Rstar`,
 and it makes concatenation pure `ℕ`-arithmetic).
@@ -69,12 +68,11 @@ structure FinalWitness (VC : VectorCommitment) (SegProof : Type) where
   boundary : ℕ → CommittedVMState VC
   proofs : ℕ → SegProof
 
-/-- Full-memory boundary statement: the initial and final *full* states. Used by
-the full-memory instantiation `toZkVM`, whose verifier commits these to reuse
-the committed final SNARK.
+/-- Boundary statement of the VM: the initial and final *full* states. `toZkVM`
+uses it as its `Stmt`, and its verifier commits both states so that the final
+SNARK — which speaks about committed states — can check them.
 
-Paper: full-state boundaries in `def:cte` (ch05); this is the two-layer toy
-instantiation. -/
+Paper: full-state boundaries in `def:cte` (ch05). -/
 structure FinalStmtFull (VC : VectorCommitment) where
   S0 : FullVMState VC
   ST : FullVMState VC
@@ -138,18 +136,16 @@ def ASFinal : ArgumentSystem sys.RFinal where
 
 /-! ## The committed-memory trace
 
-Two-layer extraction first recovers a trace of *committed* states. That trace is
-deliberately **not** packaged as a `ZkVM`: it is the intermediate object handed to
-memory reconstruction, which turns it into the full-memory trace that the VM's
-`CTE` actually talks about. A plain predicate says exactly that much and no more,
-and it keeps this file down to a single `ZkVM` instance (I5). -/
+Two-layer extraction first recovers a trace of *committed* states. It is an
+intermediate: memory reconstruction consumes it and produces the full-memory trace
+that the VM's `CTE` talks about. A plain predicate is therefore all it needs — the
+security claims are made about `toZkVM`, not about this. -/
 
 /-- A trace of `m * Nseg` committed steps running from `x.S0` to `x.ST`, every
 step certified by `committedStep`.
 
-This is the committed-level analogue of `ZkVM.TraceValid`, stated directly rather
-than obtained from a committed `ZkVM` instance, because the committed layer is an
-extraction intermediate rather than a machine we make security claims about. -/
+This is the committed-level analogue of `ZkVM.TraceValid`. It is spelled out here
+because the committed layer carries no `ZkVM` of its own. -/
 def CommittedTraceValid (x : FinalStmt sys.VC) (Ŝ : ℕ → CommittedVMState sys.VC) : Prop :=
   Ŝ 0 = x.S0 ∧ Ŝ (sys.m * sys.Nseg) = x.ST ∧
   ∀ k, k < sys.m * sys.Nseg → committedStep sys.memFreePred (Ŝ k) (Ŝ (k + 1))
@@ -174,22 +170,20 @@ def toZkVM : ZkVM where
   Proof := sys.FinalProof
   verify := fun x p => sys.finalVerify ⟨toCommitted x.S0, toCommitted x.ST⟩ p
 
-/-- The Issue-1 realization of the frozen step contract for the full-memory
-two-step VM. `CommitInv` is the representation relation, and `committedStep`
-is the unique public binary committed predicate; `MemStep` witnesses remain
-hidden behind its existential.
+/-- This VM's instance of the frozen step contract (`StepInterface`). `CommitInv` is
+the representation relation and `committedStep` the binary committed predicate;
+`MemStep` witnesses stay hidden behind the latter's existential.
 
-This is Lean-only coordination scaffolding for `prop:memory-extractability`,
-not an additional paper security definition. -/
+This is Lean-side coordination for `prop:memory-extractability`, not an additional
+paper security definition. -/
 def memoryStepInterface : StepInterface sys.toZkVM where
   CommittedState := CommittedVMState sys.VC
   represents := CommitInv
   stepCommitted := committedStep sys.memFreePred
 
-/-- The concrete `StepInterface.MemoryBridge` required by Issue 1. Completeness,
-position binding, and update binding let `step_reconstruct` construct a
-represented next full-memory state satisfying the canonical
-`sys.toZkVM.step` predicate.
+/-- `StepInterface.MemoryBridge` for this VM. Completeness, position binding, and
+update binding let `step_reconstruct` construct a represented next full-memory
+state satisfying the canonical `sys.toZkVM.step` predicate.
 
 Paper: `prop:memory-extractability`, `rem:mem-inheritance`, and Step 6 of
 `thm:main` (ch05), specialized to the two-step toy. -/
@@ -274,9 +268,8 @@ from `x.S0` to `x.ST`. The extractor runs the two-layer straight-line extraction
 `RFinal` witness, then an `RSeg` witness per segment — and concatenates the
 resulting committed sub-traces. Validity of the concatenation is `chain_flatten`.
 
-This is the SNARK-composition half of `cte`; it is stated over committed
-traces rather than as `CTE` of a committed `ZkVM`, because the committed layer is an
-intermediate and not a machine of its own. -/
+This is the SNARK-composition half of `cte`. Its conclusion is a committed trace,
+which `traceValid_full` then lifts to the full-memory trace `cte` needs. -/
 theorem committedTrace_extract (hNseg : 0 < sys.Nseg) (h : sys.Assumptions) :
     ∃ E : FinalStmt sys.VC → sys.FinalProof → (ℕ → CommittedVMState sys.VC),
       ∀ (x : FinalStmt sys.VC) (p : sys.FinalProof),

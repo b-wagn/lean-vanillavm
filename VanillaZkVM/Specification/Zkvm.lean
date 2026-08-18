@@ -30,12 +30,12 @@ namespace VanillaZkVM
 count `T`, a statement type with `initial`/`terminal` boundary projections, and
 the final proof type with its verifier.
 
-This is Lean-only abstract packaging, motivated by `def:zkvm` and corrected
-`def:cte` at the revision pinned in `docs/PAPER_REVISION.md`; the full
-formalization of `def:zkvm` is the Issue-7 concrete instance. At the pinned
-revision, program code and `T` are fixed system parameters rather than adversary
-outputs. Lean omits code here because the abstract step predicate already closes
-over it. -/
+This is abstract packaging, motivated by `def:zkvm` and corrected `def:cte` at the
+revision pinned in `docs/PAPER_REVISION.md`; a full formalization of `def:zkvm`
+is the job of a concrete VM instance, not of this record. At the pinned revision,
+program code and `T` are fixed system parameters rather than adversary outputs —
+which is why `T` is a field here. Code is absent because the abstract step
+predicate already closes over it. -/
 structure ZkVM where
   State : Type
   step : State → State → Prop

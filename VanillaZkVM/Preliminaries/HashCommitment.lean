@@ -17,9 +17,9 @@ As everywhere in `Preliminaries/`, the notion is the **perfect**,
 probability-free specialization required by I8 — here, plain injectivity of the
 commitment map. The rationale is documented once in `ArgumentSystem.lean`.
 
-The bus layer itself is not yet implemented; it is Issue 5 (see `docs/PLAN.md`
-and `docs/STEP_INTERFACES.md`), which will consume these declarations to prove
-`StepInterface.BusBridge`.
+The bus layer itself is not implemented yet; when it is, it will consume these
+declarations to prove `StepInterface.BusBridge` (see `docs/STEP_INTERFACES.md`
+for the obligation and `docs/PLAN.md` for scheduling).
 -/
 
 namespace VanillaZkVM

@@ -2,7 +2,7 @@ import VanillaZkVM.VMs.MemorySanity
 import VanillaZkVM.VMs.TwoStep.TwoStep
 
 /-!
-# Consistency-floor model for full-memory two-step CTE
+# Consistency-floor model for two-step CTE
 
 A one-segment, one-step system over `MemorySanity.exactVC` witnesses that all
 hypotheses of `TwoStep.System.cte` are jointly satisfiable (I6). Its proof

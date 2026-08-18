@@ -4,17 +4,19 @@ import VanillaZkVM.VMs.State
 # Memory extractability
 
 This file is the **memory-only slice** of the whitepaper's memory-extractability
-argument. It keeps the *existing* `VectorCommitment` (no specialized
-memory-commitment structure) and *consumes* `PositionBinding` and
+argument. It is stated over the general `VectorCommitment` — there is no bespoke
+memory-commitment structure — and *consumes* `PositionBinding` and
 `UpdateBinding`, the provisional binding notions in
 `Preliminaries/VectorCommitment.lean`.
 
-`UpdateBinding` supplies the write guarantee missing from the earlier condition
-on openings away from the updated address: the commitment after an accepted
-write must equal `commit` of the updated full memory.
+`UpdateBinding` supplies the write guarantee this argument needs: the commitment
+after an accepted write must equal `commit` of the updated full memory. Without
+it, a write could be accepted into a commitment that no full memory maps to, and
+reconstruction would have no state to produce (`MemorySanity` exhibits exactly
+that).
 
-* **Commitment injectivity:** `mem_eq_of_commit_eq` (kept here, not in the
-  definitions-only `Preliminaries/VectorCommitment.lean`).
+* **Commitment injectivity:** `mem_eq_of_commit_eq` — a fact about commitments,
+  proved here because `Preliminaries/VectorCommitment.lean` is definitions only.
 * **State representation:** `FullVMState` and `CommitInv`.
 * **Concrete predicates:** the per-transition memory witness `MemStep`, plus
   `CommittedMemory.read`/`.write`/`.step` (the `φ̂` predicates over
@@ -185,7 +187,7 @@ def step (memFreePred : MemFreePredicate) (S₁ S₂ : FullVMState VC) : MemStep
 
 end FullMemory
 
-/-- The canonical binary committed-memory step exposed by Issue 1. A step holds
+/-- The canonical binary committed-memory step. A step holds
 when some `MemStep` witness, including any required opening proof, satisfies
 `CommittedMemory.step`. The `MemStep` value remains available in extraction
 witnesses, but is hidden from the public `StepInterface.stepCommitted` relation.
@@ -206,8 +208,8 @@ update binding lift a committed-memory step to a full-memory step. If
 
 This theorem checks two full-memory states already supplied by its caller. In
 particular, it assumes `CommitInv Ŝ₂ S₂`; it does not construct `S₂` or prove
-that relation. The later theorem `step_reconstruct` supplies the stronger form
-needed to build a full-memory trace from only its initial state.
+that relation. `step_reconstruct` below supplies the stronger form needed to
+build a full-memory trace from only its initial state.
 
 This is the first place `PositionBinding` and `UpdateBinding` are consumed. The
 proof mirrors the paper's Step A, minus probabilities: `addr`, `v`, `vOld`, `π`

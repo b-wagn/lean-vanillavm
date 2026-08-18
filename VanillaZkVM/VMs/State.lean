@@ -6,11 +6,10 @@ import VanillaZkVM.Preliminaries.VectorCommitment
 The state vocabulary shared by every concrete VM: machine words, byte-addressed
 memory, and the state record in its full-memory and committed-memory forms.
 
-These declarations belong to the *VMs*, not to the specification: the abstract
-`ZkVM` in `Specification/Zkvm.lean` is parameterized by an opaque `State` type
-and never mentions them. Keeping them here is what lets `Specification/`
-depend only on the frozen argument-system kernel rather than on the provisional
-commitment layer.
+These belong to the *VMs*, not to the specification: the abstract `ZkVM` in
+`Specification/Zkvm.lean` is parameterized by an opaque `State` type and never
+mentions them. Keeping the state vocabulary here is what leaves `Specification/`
+free of any dependency on the commitment layer.
 
 ## Main definitions
 * `Word` / `Addr` / `Byte` — the scalar types (all abstracted as `ℕ` for now).

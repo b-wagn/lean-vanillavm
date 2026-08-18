@@ -13,11 +13,13 @@ reconstruction that consumes them.
 the `UpdateBindingBreak` break witness.
 
 These binding notions are **not** frozen; do not depend on their exact current
-shape. `UpdateBinding` is the commitment-realizability property used by memory
-reconstruction; the earlier condition on openings away from an updated address
-did not rule out commitments that pass `verify` but are not equal to `commit m`
-for any memory `m`. These declarations may change without a constitutional
-amendment; see the `provisional` note on each.
+shape. `UpdateBinding` is the commitment-realizability property memory
+reconstruction rests on: it forces an accepted post-write commitment to be
+`commit m'` for the updated memory `m'`. Completeness and position binding do not
+give that on their own — `MemorySanity.appendBitVC` satisfies both and still
+accepts a commitment that is `commit m` for no memory `m` at all. These
+declarations may change without a constitutional amendment; see the `provisional`
+note on each.
 
 Like every security notion in `Preliminaries/`, binding is stated in the
 **perfect**, probability-free style: "no two accepted openings disagree" and "the

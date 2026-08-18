@@ -9,7 +9,7 @@ predicate — **not** part of the frozen kernel (`docs/INVARIANTS.md` I4).
 
 ## Main definitions / results
 * `concatTrace` — glue `m` length-`Nseg` sub-traces into one length-`m * Nseg` trace.
-* `chain_flatten` — its correctness: gluing valid sub-chains yields a valid chain.
+* `chain_flatten` — its correctness: gluing valid sub-traces yields a valid trace.
 -/
 
 namespace VanillaZkVM

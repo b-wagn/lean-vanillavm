@@ -30,9 +30,7 @@ variable (V : ZkVM)
 /-- The correct-execution relation `R*`: statements are boundary claims,
 witnesses are traces, membership is trace validity.
 
-Paper: `eq:relation-star`. This is deliberately the abstract trace-validity
-skeleton: requiring statements to carry full-memory boundary states and the
-verifier to commit them is left to the full Vanilla VM instance in Issue 7. -/
+Paper: `eq:relation-star`. -/
 def Rstar : Relation where
   Stmt := V.Stmt
   Wit := ℕ → V.State
@@ -47,9 +45,9 @@ def ASstar : ArgumentSystem V.Rstar where
 turns every accepting proof into a valid `T`-step execution of the claim.
 
 Paper: `def:cte` at the revision pinned in `docs/PAPER_REVISION.md`. This is its
-perfect, probability-free core; PPT/probability bookkeeping is deferred by I8,
-and the full-memory boundary commitment equations belong to the concrete
-Issue-7 instance. -/
+perfect, probability-free core: PPT/probability bookkeeping is out of scope (I8),
+and the full-memory boundary commitment equations belong to a concrete VM instance
+rather than to this abstract statement. -/
 def CTE : Prop :=
   ∃ E : V.Stmt → V.Proof → (ℕ → V.State),
     ∀ (x : V.Stmt) (p : V.Proof), V.verify x p → V.TraceValid x (E x p)

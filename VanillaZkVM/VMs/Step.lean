@@ -3,10 +3,11 @@ import VanillaZkVM.Specification.Zkvm
 /-!
 # Step-interface contract
 
-This module fixes the interface between the plain execution semantics, committed
-memory, and the bus-deferred predicate. It is coordination scaffolding for Issues
-1, 3, and 5, not a security theorem and not a new copy of the plain step
-predicate.
+A VM's execution shows up at three levels of detail: the plain semantics over full
+states, the committed-memory semantics a SNARK can check, and the bus-deferred
+predicate that defers memory operations. This module fixes the interface between
+them, so that the three levels connect through one named contract instead of
+several predicates all called "step". It states propositions; it proves none.
 
 ## Main definitions
 * `StepInterface` — a committed predicate and representation relation attached
@@ -16,28 +17,29 @@ predicate.
 * `StepInterface.BusBridge` — the proposition that a bus-deferred step implies
   the committed step after bus unification.
 
-The concrete declarations and proofs are later-issue deliverables:
-`Memory.lean`'s `step_mem_extract` / `trace_mem_extract` (Issue 1),
-`ISA.stepPlain` as the concrete implementation of `ZkVM.step` (Issue 3), and
-the bus-unification proof (Issue 5). See `docs/STEP_INTERFACES.md`.
+`TwoStep.System.memoryStepInterface` is the one instance so far, and
+`TwoStep.System.memoryBridge` discharges its `MemoryBridge` from
+`Memory.step_reconstruct`. `BusBridge` has no instance yet: the bus layer, and the
+concrete ISA that will supply `ZkVM.step`, are both still to be written. See
+`docs/STEP_INTERFACES.md` for which module owns each obligation.
 -/
 
 namespace VanillaZkVM
 
-/-- The Lean-only coordination interface between an abstract zkVM's canonical
-plain step predicate and its future committed-memory layer.
+/-- The coordination interface between an abstract zkVM's plain step predicate and
+a committed-memory layer over it.
 
-`V.step` is the unique canonical `stepPlain`; it is deliberately reused rather
-than restated (I5). `represents Ŝ S` records that committed state `Ŝ` represents
-plain state `S`. The public committed predicate is binary; a concrete
-implementation exposes operation or opening data through an existential closure
-when it instantiates this field. The bus predicate is a parameter of
-`BusBridge`, so Issue 1 can instantiate this interface without inventing a
-placeholder bus before Issue 5.
+`V.step` is the one canonical plain step predicate, taken from the `ZkVM` itself so
+that no module declares a competing one (I5). `represents Ŝ S` records that
+committed state `Ŝ` represents plain state `S`. `stepCommitted` is binary: an
+instance that needs per-step operation or opening data hides it behind an
+existential when filling this field. The bus predicate is *not* a field here but a
+parameter of `BusBridge`, so a memory-only instance needs no placeholder bus.
 
-This interface is scaffolding, not itself a paper definition. Its fields line up
-with the layers around `eq:step-bus2`, `prop:memory-extractability`, and
-`lem:segment` in the pinned Vanilla zkVM paper revision. -/
+This interface is Lean-side coordination, not itself a paper definition. Its
+fields line up with the layers around `eq:step-bus2`,
+`prop:memory-extractability`, and `lem:segment` in the pinned Vanilla zkVM paper
+revision. -/
 structure StepInterface (V : ZkVM) where
   CommittedState : Type
   represents : CommittedState → V.State → Prop
@@ -56,10 +58,13 @@ from `C₁` to `C₂` must correspond to some next VM state `S₂`. The conclusi
 not an additional premise, proves both that `S₂` represents `C₂` and that
 `S₁ → S₂` is a valid VM step.
 
-Issue 1 proves a concrete instance using completeness, position binding, and
-update binding. This formulation proves the representation relation for the
-constructed second state; assuming it for both endpoint states would not suffice
-for trace reconstruction.
+Constructing `S₂` is the whole point, and the direction matters: a variant that
+took `represents C₂ S₂` as a *premise* would be too weak to drive a trace
+induction, because nothing would rule out a `C₂` that no plain state represents at
+all. `MemorySanity` exhibits such a `C₂` when update binding is dropped.
+
+`TwoStep.System.memoryBridge` discharges this from completeness, position binding,
+and update binding, via `Memory.step_reconstruct`.
 
 Paper target: `prop:memory-extractability` and `rem:mem-inheritance`. -/
 def MemoryBridge : Prop :=
@@ -69,12 +74,12 @@ def MemoryBridge : Prop :=
 
 /-- The statement required from the bus layer: once the extracted bus/chip data
 has been unified into evidence of type `BusEvidence`, the supplied complete
-bus-backed predicate implies the canonical committed step. Keeping the bus
-predicate as an argument avoids coupling the Issue-1 memory interface to an
-Issue-5 witness type.
+bus-backed predicate implies the canonical committed step. `BusEvidence` and
+`stepWithBus` are arguments rather than `StepInterface` fields, so an instance that
+only has a memory layer is not forced to name a bus witness type.
 
-Issue 5 proves a concrete instance from inner-circuit extraction and
-collision-resistance of the bus commitment.
+No instance exists yet; the bus layer is expected to discharge this from
+inner-circuit extraction and collision-resistance of the bus commitment.
 
 Paper target: `lem:segment`, feeding `prop:memory-extractability`. -/
 def BusBridge {BusEvidence : Type}
