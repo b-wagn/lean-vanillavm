@@ -92,8 +92,8 @@ slice separately from completeness of the eventual `φ_step`.
 | Paper label | Lean declaration | Status | Fidelity | Complete | Reviewer |
 |---|---|---|---|---|---|
 | segment/final toy relations | `TwoStep.System.RSeg` / `RFinal` | proved | — | — | _unreviewed_ |
-| toy CTE (committed memory) | `VanillaZkVM.TwoStep.System.cte_committedMemory` | proved | — | — | _unreviewed_ |
-| toy CTE over full memory (`def:cte`, `prop:memory-extractability`) | `VanillaZkVM.TwoStep.System.cte_fullMemory` | proved | — | — | _unreviewed_ |
+| — (two-layer committed-chain extraction, intermediate) | `VanillaZkVM.TwoStep.System.committedTrace_extract` | proved (n/a) | n/a | n/a | _unreviewed_ |
+| toy CTE over full memory (`def:cte`, `prop:memory-extractability`) | `VanillaZkVM.TwoStep.System.cte` | proved | — | — | _unreviewed_ |
 
 ## Planned (owned by issues — see PLAN.md)
 

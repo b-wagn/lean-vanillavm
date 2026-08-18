@@ -107,8 +107,8 @@ non-vacuous, and necessary.
 The goal of this file is to integrate memory reconstruction into a minimal
 two-layer zkVM. Knowledge soundness of the final and segment argument systems
 extracts and flattens a valid committed-state trace, proving
-`cte_committedMemory`. The memory results then reconstruct a valid full-memory
-trace, proving `cte_fullMemory`. This is
+`committedTrace_extract`. The memory results then reconstruct a valid full-memory
+trace, proving `cte`. This is
 the full-memory CTE theorem for the two-layer toy system, not yet the complete
 Vanilla VM with its ISA, bus, and recursive proof layers.
 
@@ -124,21 +124,24 @@ Vanilla VM with its ISA, bus, and recursive proof layers.
   `MemStep` witness to satisfy `CommittedMemory.step`.
 - `RFinal` requires the outer boundaries to match and every chained segment
   proof to verify.
-- `toZkVMCommittedMemory` and `toZkVMFullMemory` instantiate the frozen abstract
-  `ZkVM` with, respectively, committed and full-memory state semantics.
+- `CommittedTraceValid` states validity of a committed-state trace. It is a plain
+  predicate, not a second `ZkVM`: the committed layer is an extraction
+  intermediate, not a machine we make security claims about.
+- `toZkVM` is the file's only instance of the frozen abstract `ZkVM`,
+  with full-memory state semantics.
 - `memoryStepInterface` instantiates the frozen committed-step interface, and
   `memoryBridge` uses `step_reconstruct` to produce the next represented
   full-memory state required by the frozen interface.
 - `traceValid_full` turns a valid committed trace into a valid reconstructed
   full-memory trace with the correct endpoints.
-- `cte_committedMemory` proves correct-trace extractability for the
-  committed-memory toy zkVM.
-- `cte_fullMemory` proves correct-trace extractability for the full-memory toy
-  zkVM.
+- `committedTrace_extract` is the SNARK half: two-layer straight-line extraction
+  yields a valid committed trace for every accepting final proof.
+- `cte` composes the two halves into correct-trace extractability for
+  the toy zkVM.
 
 ## `VMs/TwoStep/TwoStepSanity.lean`
 
-The goal of this file is to show that all hypotheses of `cte_fullMemory` can hold
+The goal of this file is to show that all hypotheses of `cte` can hold
 simultaneously in a concrete system. It constructs a one-segment, one-step
 system over `exactVC`, uses relation witnesses as proofs with identity
 extractors, exhibits an accepted final proof, and derives full-memory CTE. All

@@ -123,9 +123,9 @@ in lockstep. This is a hard deliverable, not optional.
 - **New public surface (max ~5).** `UpdateBinding` (+ break witness), `FullVMState`/`CommitInv`,
   the concrete `committedStep` predicate underlying `StepInterface.stepCommitted`,
   `step_mem_extract`, and `trace_mem_extract`. `TwoStepWithMemory` is realized as
-  `TwoStep.System.toZkVMFullMemory`, an *instance* of the abstract `ZkVM` (I5), rather than as a duplicate
+  `TwoStep.System.toZkVM`, an *instance* of the abstract `ZkVM` (I5), rather than as a duplicate
   security definition. Deprecate/remove `PuncturedBinding` in the same PR.
-- **Deliverables.** Reconciled `VMs/Memory.lean` core, the `TwoStepWithMemory` instance, `cte_fullMemory`
+- **Deliverables.** Reconciled `VMs/Memory.lean` core, the `TwoStepWithMemory` instance, `cte`
   (CTE over *full* memory), `MemorySanity`-style non-vacuity instances, and a concrete proof of
   `StepInterface.MemoryBridge`.
 - **Math companion.** Write the memory-extractability proposition and the read/write commitment

@@ -319,23 +319,24 @@ accounting remain assigned to Issues 2 and 6.
 
 ### 1.4 Full-memory CTE for the two-step toy
 
-The toy has a committed instantiation whose step is `committedStep`,
-
-and a full-memory instantiation with step `∃ w, FullMemory.step(S₁,S₂,w)`. The latter's
-verifier commits the full boundary memories and calls the same final verifier.
+The toy has a single zkVM instantiation, with step `∃ w, FullMemory.step(S₁,S₂,w)`;
+its verifier commits the full boundary memories and calls the final verifier.
+The committed layer appears only as an intermediate: a *trace* of committed states
+whose steps satisfy `committedStep`, extracted from the two SNARK layers, with no
+zkVM of its own.
 Assuming non-empty segments, knowledge soundness of the segment and final
-argument systems, and all three memory-commitment properties, the committed
-trace extractor followed by reconstruction is a `CTE` extractor for the
-full-memory instance.
+argument systems, and all three memory-commitment properties, the committed-trace
+extractor followed by reconstruction is a `CTE` extractor for the zkVM.
 
 The terminal full state is not assumed during reconstruction: `CommitInv` for
 the extracted committed terminal state and commitment injectivity identify it
 with the full terminal state in the statement.
-*Lean:* `TwoStep.System.toZkVMFullMemory`, `traceValid_full`, `cte_fullMemory`.
+*Lean:* `TwoStep.System.toZkVM`, `CommittedTraceValid`,
+`committedTrace_extract`, `traceValid_full`, `cte`.
 
 `VMs/TwoStep/TwoStepSanity.lean` permanently checks non-vacuity: a one-segment, one-step
 system over `MemorySanity.exactVC` has identity knowledge extractors, an
-accepting final proof, and satisfies `cte_fullMemory`'s complete hypothesis bundle.
+accepting final proof, and satisfies `cte`'s complete hypothesis bundle.
 `VMs/MemorySanity.lean` also instantiates the append-bit attack at the bridge level:
 the initial full-memory state represents the first committed-memory state and
 the committed-memory write verifies, but the second commitment has no

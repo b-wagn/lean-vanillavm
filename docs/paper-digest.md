@@ -338,7 +338,7 @@ running time); `Preliminaries/VectorCommitment.lean` has `VectorCommitment` with
 known initial memory and per-step `MemStep` witnesses, realizes the frozen
 `MemoryBridge` by constructing each next full-memory state, and `VMs/TwoStep/TwoStep.lean`
 composes that reconstruction into
-`TwoStep.System.cte_fullMemory`. The concrete ISA and bus remain absent. The
+`TwoStep.System.cte`. The concrete ISA and bus remain absent. The
 former playground `Bus.lean` prototype has been deleted from the active tree;
 its git history is reference material only for Issue 5.
 
@@ -348,7 +348,7 @@ position/update-binding memory slice: committed/full read and write equations,
 the `CommitInv` relation, conditional `step_mem_extract`,
 `step_reconstruct`/`TwoStep.System.memoryBridge` (which produce each next
 represented state), and
-`trace_mem_extract`; `TwoStep.System.cte_fullMemory` composes it with the
+`trace_mem_extract`; `TwoStep.System.cte` composes it with the
 two-layer toy. `VMs/TwoStep/TwoStepSanity.lean` gives a permanent accepting joint model for
 the theorem's hypotheses. The append-bit countermodel demonstrates that
 agreement of accepted openings away from the updated address does not provide
@@ -403,7 +403,7 @@ Consequences: no notion of advantage (`Adv^ks_Π`, `Adv^pos_Com`,
 advantage terms (each with an explicit reduction adversary and running time
 `Time(A)+poly(λ)`) has no Lean counterpart — the *qualitative* skeleton
 (compose extractors layer by layer) exists in
-`Twostep.cte_committedMemory`, but with no error accumulation: a perfect-KS proof composes
+`TwoStep.System.committedTrace_extract`, but with no error accumulation: a perfect-KS proof composes
 "for free" (no union bound needed), unlike the real bound's scaling with `m`
 and `T`. No PPT-adversary type, no security-parameter families, no
 negligibility predicate, no explicit reduction-adversary construction (the

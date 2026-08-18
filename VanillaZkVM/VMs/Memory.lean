@@ -342,7 +342,7 @@ private theorem commitInv_write
 reconstructs the full-memory trace from an initial full state, proves
 `CommitInv` at every index, and lifts each committed-memory step to a
 full-memory step. A concrete system composes this to strengthen a committed-trace
-extractability statement to full memory (see `TwoStep.System.cte_fullMemory`). -/
+extractability statement to full memory (see `TwoStep.System.cte`). -/
 
 open Classical in
 /-- Reconstruct the next full-memory state from the current full-memory state
