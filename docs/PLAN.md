@@ -25,9 +25,10 @@ Skills & conventions · Paper anchor.* Everything is written on a branch per iss
 Yavor owns memory reconstruction (`pr5`/`yl-memory-reconstruction`) and authored
 the former `Bus.lean` prototype, now retained only in git history;
 Dmitry owns the memory→abstract-VM integration (`memory-integration`, full-memory CTE) and the
-cost/reduction experiments (`cost-twostep`, `cost-bus-reduction`); Jessica owns the quantitative
-track — the security-model study (8), the probability foundation (10), and the explicit reductions
-built on it (6) — plus the keyed/algorithmic CR variant (`cr-algorithmic`).
+cost/reduction experiments (`cost-twostep`, `cost-bus-reduction`); Jessica owns the security-model
+study (Issue 8) and the keyed/algorithmic CR variant (`cr-algorithmic`) — both bounded and
+self-closing. **Jessica leaves soon, so Issues 10 and 6 are unassigned** and must not be scheduled
+against her; Issue 8's report is the handover artifact for whoever takes them.
 
 **Redundancy (by design).** Issue **1** carries two independent memory integrations (Yavor's
 Bus-wired core vs Dmitry's abstract-VM full-memory CTE) that must prove the same statement, and Issue
@@ -49,11 +50,11 @@ Qualitative track — reaches the main theorem in the perfect model:
    Issue 5  bus per segment, wired into a VM   (Yavor)   depends 0,3     ← intentionally LATE
    Issue 7  full Vanilla VM + cte_main (perfect model)  (Dmitry + Yavor)  depends 1,3,4,5
 
-Quantitative track — turns `cte_main` from an implication into a bound. Runs after, never gates:
+Quantitative track — turns `cte_main` from an implication into an explicit bound. Runs after, never gates:
 
-   Issue 8   security-model study: probabilities, runtime, reuse  (Jessica)   depends 0
-   Issue 10  success-probability foundation (advantages + negl)   (Jessica)   depends 8
-   Issue 6   explicit per-layer reductions, with real advantages  (Jessica + Dmitry)  depends 1,3,4,5,7,10
+   Issue 8   security-model study: advantages, runtime, reuse    (Jessica)   depends 0
+   Issue 10  explicit-advantage foundation (constants only)      (TBD)       depends 8
+   Issue 6   explicit per-layer reductions, with real advantages (Dmitry + TBD)  depends 1,3,4,5,7,10
 
 Rolling alongside everything:
 
@@ -251,18 +252,19 @@ do not build reusable Lean vocabulary for that shape, not that the bus proof cha
 - **Goal.** Restate every layer's guarantee (memory, bus, convert, combine, embed) as an explicit
   reduction with a *quantitative* conclusion, and compose them into `thm:main`'s weighted sum
   (`1, m-1, m, m·(…+cr), Σ_{k=1}^T(pos+upd)`). This upgrades `cte_main` from "holds under these
-  assumptions" to "is broken with at most this advantage".
-- **Why this comes after probabilities.** With perfect predicates there is no failure event to bound,
+  assumptions" to "is broken with at most this advantage". Every coefficient is an explicit
+  constant; no negligibility claim enters the chain.
+- **Why this comes after advantages.** With perfect predicates there is no failure event to bound,
   so a reduction collapses into the implication the layer lemma already is. Placeholder advantages
   would be worse than none: nothing would constrain the coefficients, so the formalization could not
   be wrong — an I6 vacuity failure by construction. Real advantages are what make the weighted sum a
   checkable claim.
 - **Depends on.** Issue 10 (advantages must exist), the layers 1, 3, 4, 5, and Issue 7 (the assembly
   it re-derives quantitatively).
-- **Assigned.** Jessica (reductions) + Dmitry (cost/composition). *Review: Benedikt + George, one per
+- **Assigned.** Dmitry (cost/composition) + owner TBD (reductions). *Review: Benedikt + George, one per
   half.*
-- **Reuse.** Issue 10's advantage/negligibility layer; `cost-twostep`/`cost-bus-reduction` as
-  reference for how an explicit reduction `Alg` and its cost were written.
+- **Reuse.** Issue 10's advantage layer; `cost-twostep`/`cost-bus-reduction` as reference for how an
+  explicit reduction `Alg` and its cost were written.
 - **New public surface (max ~4).** Per-layer reduction statements over Issue 10's vocabulary. No new
   security *definitions* — those are Issue 10's.
 - **Deliverables.** Each layer lemma restated as an advantage bound; the composed `thm:main` bound
@@ -285,14 +287,15 @@ do not build reusable Lean vocabulary for that shape, not that the bus proof cha
   statement to `VMState`/`CommittedVMState` via `Com_mem` (the `Commit(mem_0/T)` step the abstract
   statement currently omits).
 - **Depends on.** Issues 1, 3, 4, 5. Deliberately **not** Issue 6: the theorem is provable in the
-  perfect model, so it must not wait on the probability foundation.
+  perfect model, so it must not wait on the advantage foundation.
 - **Assigned.** Dmitry + Yavor (capstone). *Review: Benedikt + George.*
 - **Reuse.** Everything above.
 - **New public surface (max ~2).** The full `VanillaVM` instance + `cte_main`. Nothing else public.
 - **Deliverables.** The assembled VM; `cte_main` with its assumptions collected in one trust-base
   structure (the pattern `TwoStep.System.Assumptions` already sets); and a `docs/` note recording the
   paper's own idealization caveat (`rem:idealized`: relativized SNARKs don't exist → validates
-  reduction *structure*, not concrete security).
+  reduction *structure*, not concrete security). Note there too that the Lean bound stays a concrete
+  inequality by choice — the absence of `negl` is the Issue-10 scope decision, not an omission.
 - **Math companion.** Write `thm:main` and its assembly from the layer lemmas.
 - **Review requirement (human — Dmitry + Benedikt).** Confirm `cte_main` is the faithful
   *qualitative* Lean form of `thm:main`, that the trust base names every assumption the paper charges
@@ -303,37 +306,37 @@ do not build reusable Lean vocabulary for that shape, not that the bus proof cha
   + `cte_main` must be readable and ≈ paper length (I10) — measure it.
 - **Paper anchor.** ch05 (`thm:main`, zkVM system definition, `rem:idealized`).
 
-## Issue 8 — (Parallel) security-model study: probabilities, runtime, and dependency reuse
-- **Goal.** Decide *how* to lift the perfect model to real security (advantages, `negligible`,
-  running time of reductions) and report feasibility/size/dependencies. Still a report, not core Lean
-  — **nothing merges into core here** (I8). Also the "not reinventing the wheel" reuse study
-  (mathlib/VCVio/arklib), and a recommendation on whether to adopt the keyed/algorithmic CR variant
-  (`cr-algorithmic`).
+## Issue 8 — (Parallel) security-model study: advantages, runtime, and dependency reuse
+- **Goal.** Decide *how* to lift the perfect model to explicit-constant security (advantages, running
+  time of reductions) and report feasibility/size/dependencies. Asymptotics are out of scope by
+  decision — the question is how to express concrete bounds, not whether to go asymptotic. Still a
+  report, not core Lean — **nothing merges into core here** (I8). Also the "not reinventing the
+  wheel" reuse study (mathlib/VCVio/arklib), and a recommendation on whether to adopt the
+  keyed/algorithmic CR variant (`cr-algorithmic`).
 - **Gates.** Issue 10 does not start until this report is accepted: it chooses VCVio-vs-from-scratch
   and bounds Issue 10's public surface. A go/no-go here is a genuine decision point, not a formality —
   "stay perfect indefinitely" is an admissible outcome, in which case Issues 10 and 6 stay unstarted
   and `cte_main` remains the qualitative theorem.
 - **Depends on.** Issue 0 (otherwise independent).
-- **Assigned.** Jessica (reductions/concrete-security fit; benedikt-plan's "concrete vs asymptotic"
-  and "reuse" tasks). *Review: Dmitry + Benedikt.*
-- **Reuse.** **VCVio**: the *pattern* from `CryptoFoundations/Asymptotics/Negligible.lean` (~90 lines,
-  near-liftable) + `Security.lean` (advantage decoupled from game; reduction/game-hop/hybrid
-  meta-theorems) + `HardnessAssumptions/DiffieHellman.lean` (reduction-as-function template). **Cost:**
-  `cost-twostep`'s `Cost.lean` (superset with `seqRange`) as the exact-cost reference; note VCVio's
-  `WorstCasePolyTime`/`ExpectedPolyTime` are *documented but not implemented* — expect to build PPT
-  predicates from scratch.
+- **Assigned.** Jessica (reductions/concrete-security fit; benedikt-plan's "concrete bounds" and
+  "reuse" tasks). *Review: Dmitry + Benedikt.*
+- **Reuse.** **VCVio**: `Security.lean` (advantage decoupled from game; reduction/game-hop/hybrid
+  meta-theorems) + `HardnessAssumptions/DiffieHellman.lean` (reduction-as-function template). Its
+  `Asymptotics/Negligible.lean` is *not* needed under the constants-only scope. **Cost:**
+  `cost-twostep`'s `Cost.lean` (superset with `seqRange`) as the exact-cost reference.
 - **New public surface.** None in core. Output = a `docs/` report + an isolated prototype branch.
-- **Deliverables.** `docs/security-model-report.md` (perfect vs asymptotic vs concrete recommendation;
+- **Deliverables.** `docs/security-model-report.md` (perfect vs explicit-constant recommendation;
   cost of a `PMF` re-foundation; when/if to import VCVio; a map of our frozen kernel to VCVio
   equivalents so a later swap is mechanical) + a throwaway prototype lifting **one** lemma to
-  advantages as a size probe.
+  advantages as a size probe. The report must be readable by someone who never spoke to its author:
+  it is the handover document for Issues 10 and 6.
 - **Math companion.** N/A (a report, not core Lean) — but the VCVio-mapping table lives in the report.
 - **Review requirement (human — Dmitry + Benedikt).** Review the *recommendation*: is perfect still
   the right default? Is our `KnowledgeSound` translatable to VCVio's? Decide go/no-go on Issue 10, and
   if go, fix its public-surface budget here (I2). (Hicks: keep the door open, don't walk through yet.)
 - **Skills & conventions.** Strictly out of `main`'s core build (isolated branch/dir). Cheaper
   models + subagents to read VCVio; store findings in files.
-- **Paper anchor.** ch05 advantages/`negl`; `rem:idealized`.
+- **Paper anchor.** ch05 advantages; `rem:idealized`.
 
 ## Issue 9 — (Rolling, redundant) independent re-derivation + audit matrix + vacuity sweep
 - **Goal.** The independent-certificate track Hicks endorsed: in a **separate** repo/branch, have
@@ -358,32 +361,36 @@ do not build reusable Lean vocabulary for that shape, not that the bus proof cha
 - **Paper anchor.** whole paper (matrix); `rem:cte-ks`/`thm:main` for the re-derivation target.
 
 
-## Issue 10 — Success-probability foundation (advantages + negligibility)
+## Issue 10 — Explicit-advantage foundation (concrete constants, no asymptotics)
 - **Goal.** Build the machinery a quantitative statement needs, and only that: randomized
-  adversaries, real-valued advantages, and a negligibility notion. Then restate `KnowledgeSound`,
-  `PositionBinding`, `UpdateBinding`, and `CollisionResistant` as advantage-bounded predicates, with
-  today's perfect predicates recovered as the zero-advantage case so no existing theorem silently
-  changes meaning.
+  adversaries and real-valued advantages at *fixed* parameters. **No negligibility, no
+  security-parameter families, no PPT predicate** — a bound is an explicit expression, not an
+  asymptotic claim. This is the cheapest thing that makes Issue 6's weighted sum checkable. Then
+  restate `KnowledgeSound`, `PositionBinding`, `UpdateBinding`, and `CollisionResistant` as
+  advantage-bounded predicates, with today's perfect predicates recovered as the zero-advantage case
+  so no existing theorem silently changes meaning.
 - **Depends on.** Issue 8 (its accepted recommendation and surface budget). Independent of the
   qualitative track — it touches `Preliminaries/`, not the VM layers.
-- **Assigned.** Jessica. *Review: Dmitry + Benedikt.*
-- **Reuse.** Whatever Issue 8 recommends: VCVio's `Asymptotics/Negligible.lean` and `Security.lean`
-  patterns, or a minimal `PMF`-based layer of our own. Note VCVio's `WorstCasePolyTime` /
-  `ExpectedPolyTime` are documented but *not implemented*.
+- **Assigned.** Unassigned (owner TBD; Dmitry, or George if he joins as an implementer).
+  *Review: Dmitry + Benedikt.*
+- **Reuse.** Whatever Issue 8 recommends: VCVio's `Security.lean` advantage pattern, or a minimal
+  `PMF`-based layer of our own. Negligibility and PPT machinery are out of scope, so VCVio's
+  `Asymptotics/` and its unimplemented `WorstCasePolyTime`/`ExpectedPolyTime` are not in play.
 - **New public surface.** Bounded by the Issue-8 report before work starts (I2 — no unbounded scope).
-  Expect an advantage/negligibility vocabulary plus one restated predicate per assumption.
-- **Deliverables.** The advantage/negligibility layer; the four assumption predicates in quantitative
-  form; for each, a lemma that the perfect predicate is its zero-advantage instance; `Preliminaries/`
+  Expect an advantage vocabulary plus one restated predicate per assumption.
+- **Deliverables.** The advantage layer; the four assumption predicates in quantitative form; for
+  each, a lemma that the perfect predicate is its zero-advantage instance; `Preliminaries/`
   restructured so the perfect and quantitative notions sit side by side rather than one replacing the
   other.
 - **Math companion.** The quantitative definitions written beside the perfect ones, so a reviewer can
   see they are the same notion at different resolution.
 - **Review requirement (human — Dmitry + Benedikt).** Confirm the quantitative predicates are the
   standard ones, and that every perfect-model theorem is genuinely recovered rather than weakened —
-  the zero-advantage lemmas are the evidence, and their absence is a blocker. This issue is where
-  I8's "perfect / probability-free" stance is deliberately lifted, so it carries an `INVARIANTS.md`
-  I8 amendment in the same PR.
-- **Paper anchor.** ch05 advantages (`Adv^ks_Π`, `Adv^pos_Com`, `Adv^upd_Com`, `Adv^cr_Com`), `negl`.
+  the zero-advantage lemmas are the evidence, and their absence is a blocker. This issue lifts I8's
+  "perfect / probability-free" stance as far as explicit constants and no further, so it carries an
+  `INVARIANTS.md` I8 amendment of exactly that width in the same PR.
+- **Paper anchor.** ch05 advantages (`Adv^ks_Π`, `Adv^pos_Com`, `Adv^upd_Com`, `Adv^cr_Com`);
+  the paper's `negl` statements are deliberately not formalized.
 
 ---
 
@@ -393,12 +400,12 @@ do not build reusable Lean vocabulary for that shape, not that the bus proof cha
 |---|---|---|---|
 | `pr5` | Yavor | **REUSE — best memory base** (Bus-wired, sanity checks, already update-binding) | Issue 1 |
 | `memory-integration` | Dmitry | REUSE (abstract-VM full-memory CTE + math-companion), cross-validate | Issue 1 |
-| `yl-memory-reconstruction` | Yavor | REFERENCE (docs; identical Lean to pr5) | Issue 1 |
-| `memory-recon` | Yavor/Dmitry | **DROP** (destructive, least complete) | — |
-| `extract-or-collision` | Jessica | **DROP** (extract-or-break withdrawn; the bus argument itself is redone from scratch) | — (ref: Issue 5) |
 | `cr-algorithmic` | Jessica | REUSE as provisional CR variant (keyed/algorithmic) | Issue 8/10 |
 | `cost-twostep` | Dmitry | REFERENCE (most complete cost/`Cost.lean` superset) | Issue 6/8/10 |
 | `cost-bus-reduction` | Dmitry | REFERENCE (cost combinators, toy) | Issue 6/8 |
-| former `Bus.lean` (git history) | Yavor | **NOT ground truth** — deleted playground prototype; redo in Issue 5 | Issue 5 (ref) |
 
 All cost/CR branches predate PR #4 — **re-apply hunks, don't merge wholesale** (`CONVENTIONS.md` §4).
+
+Not tracked further (rationale in `docs/branch-analysis.md`): `memory-recon`, `extract-or-collision`,
+`yl-memory-reconstruction` (identical Lean to `pr5`), and the deleted `Bus.lean` prototype — git
+history only, explicitly not ground truth; Issue 5 redoes it.
