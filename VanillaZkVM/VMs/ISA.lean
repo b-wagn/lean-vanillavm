@@ -18,6 +18,8 @@ rather than the whitepaper's complete opcode list:
   classes.
 
 ## Main result
+* `System.stepPlain_iff_operation_at_pc` — a valid step is exactly the
+  operation selected by the program at the current program counter.
 * `System.operation_preserves_memory_unless_write` — every operation class other
   than `write` leaves memory unchanged.
 
@@ -123,6 +125,17 @@ def stepPlain (S₁ S₂ : VMState) : Prop :=
   isa.operation .arith S₁ S₂ ∨
   isa.operation .hash S₁ S₂ ∨
   isa.operation .bin S₁ S₂
+
+/-- A plain step executes exactly the operation class stored in the program at
+the current program counter. Thus the disjunction in `stepPlain` does not let a
+proof choose an unrelated operation: the `code S₁.pc = op` conjunct in
+`operation` fixes the only possible branch.
+
+Paper: instruction selection in `eq:op` and `eq:phiop` (ch01), and the
+disjunctive step predicate `eq:step` (ch03). -/
+theorem stepPlain_iff_operation_at_pc (S₁ S₂ : VMState) :
+    isa.stepPlain S₁ S₂ ↔ isa.operation (isa.code S₁.pc) S₁ S₂ := by
+  cases hcode : isa.code S₁.pc <;> simp [stepPlain, operation, hcode]
 
 /-- Every operation class except `write` preserves memory. In
 particular, this covers `read`, `arith`, `hash`, and `bin`; the read predicate

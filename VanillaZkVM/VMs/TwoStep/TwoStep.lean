@@ -152,11 +152,17 @@ def CommittedTraceValid (x : FinalStmt sys.VC) (Ŝ : ℕ → CommittedVMState sy
 
 /-! ## The zkVM -/
 
-/-- **The two-step zkVM.** Its state is the *full-memory* VM state, a step is
-`∃ w, FullMemory.step …` (the full-memory step relation), the statement carries
-full boundary states, and the verifier commits those boundaries and defers to the
-final SNARK. `CTE` of this instance is the full-memory correct-trace
-extractability statement — a concrete instance of the abstract `CTE`.
+/-- **The two-step memory toy.** Its state is the *full-memory* VM state, a step
+is `∃ w, FullMemory.step …`, the statement carries full boundary states, and
+the verifier commits those boundaries and defers to the final SNARK. The
+existential `w` selects a memory read, write, or other step and supplies its
+memory data; this toy does not claim that the selected case equals the
+instruction stored at the current program counter.
+
+The fixed-program predicate is `ISA.System.stepPlain`, which checks
+`code S₁.pc`; Issue 5 connects that selected operation to committed-memory and
+bus evidence, and Issue 7 uses it in the assembled public VM. `CTE` of this
+instance is only the full-memory theorem for the two-step memory toy.
 
 Paper: `def:cte` and `prop:memory-extractability` (ch05). This toy omits the bus,
 concrete ISA, and recursive convert/combine/embed layers. -/

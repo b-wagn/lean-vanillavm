@@ -423,10 +423,18 @@ The canonical plain-state step is exactly the five-way disjunction
       := φ_read(S₁,S₂) ∨ φ_write(S₁,S₂) ∨ φ_arith(S₁,S₂)
          ∨ φ_hash(S₁,S₂) ∨ φ_bin(S₁,S₂).
 
+Because each `φ_op` contains `code(pc₁)=op` and `code` is a function, this is
+equivalent to the single selected predicate
+
+    stepPlain(S₁,S₂) ↔ φ_code(pc₁)(S₁,S₂).
+
+The disjunction therefore does not let a witness choose an instruction
+independently of the fixed program.
+
 Consequently, whenever `φ_op(S₁,S₂)` holds and `op ≠ write`, memory is
 unchanged. In particular, a read cannot silently alter memory.
 
-*Lean:* `ISA.System.stepPlain`,
+*Lean:* `ISA.System.stepPlain`, `ISA.System.stepPlain_iff_operation_at_pc`,
 `ISA.System.operation_preserves_memory_unless_write`.
 
 `ISASanity.lean` gives private accepted examples for a read and a write whose

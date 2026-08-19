@@ -109,6 +109,7 @@ The affected fidelity review must account for this pending paper-pin update.
 | fixed `code` class and per-operation `φ'_op` (`eq:phiop`) | `VanillaZkVM.ISA.System` | proved | — | — | _unreviewed_ |
 | `φ_op`, including fetch and memory equations (`eq:phiop`, `eq:phi-read-decomp`, `eq:phi-write-decomp`) | `VanillaZkVM.ISA.System.operation` | proved | — | — | _unreviewed_ |
 | disjunctive `φ_step` (`eq:step`) | `VanillaZkVM.ISA.System.stepPlain` | proved | — | — | _unreviewed_ |
+| instruction selection by `code[pc]` (`eq:op`, `eq:phiop`) | `VanillaZkVM.ISA.System.stepPlain_iff_operation_at_pc` | proved | — | — | _unreviewed_ |
 | non-write operations preserve memory (ch01/ch03) | `VanillaZkVM.ISA.System.operation_preserves_memory_unless_write` | proved | — | — | _unreviewed_ |
 
 ## Two-step toy (intermediate)

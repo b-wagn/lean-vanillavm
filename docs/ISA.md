@@ -86,6 +86,12 @@ Those belong to later issues.
 - `System.stepPlain`: the plain-state step predicate `φ_step`. A step is valid
   exactly when one of the five `System.operation` cases holds.
 
+- `System.stepPlain_iff_operation_at_pc`: shows that the five-way disjunction
+  is equivalent to executing the single operation class stored at
+  `code S₁.pc`. The existential memory witness in the separate two-step memory
+  toy therefore is not the final program semantics; the eventual Vanilla VM
+  uses `stepPlain`.
+
 - `System.operation_preserves_memory_unless_write`: proves that every accepted
   operation other than `write` leaves memory unchanged. In particular, this
   prevents a read, arithmetic operation, hash call, or binary operation from
