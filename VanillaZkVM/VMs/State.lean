@@ -4,7 +4,8 @@ import VanillaZkVM.Preliminaries.VectorCommitment
 # VM states (Execution Model — Chapter 1)
 
 The state vocabulary shared by every concrete VM: machine words, byte-addressed
-memory, and the state record in its full-memory and committed-memory forms.
+memory, and the Lean structure that groups a program counter, registers, and
+memory into one VM state.
 
 These belong to the *VMs*, not to the specification: the abstract `ZkVM` in
 `Specification/Zkvm.lean` is parameterized by an opaque `State` type and never
@@ -13,7 +14,8 @@ free of any dependency on the commitment layer.
 
 ## Main definitions
 * `Word` / `Addr` / `Byte` — the scalar types (all abstracted as `ℕ` for now).
-* `VMStateWith` — the state record, parameterized by its memory representation.
+* `VMStateWith` — the structure containing `pc`, `regs`, and `mem`, with the
+  type of `mem` supplied as a parameter.
 * `VMState` — the full byte-addressed state `S = (pc, regs, mem)`.
 * `CommittedVMState` — the committed state `Ŝ = (pc, regs, mem̂)`.
 
@@ -31,8 +33,8 @@ abbrev Addr : Type := ℕ
 /-- A byte stored in memory. -/
 abbrev Byte : Type := ℕ
 
-/-- A VM state parameterized by its memory representation `Mem`. The `k`
-registers are abstracted as a total function `index ↦ value`.
+/-- A VM state parameterized by its memory representation `Mem`. The register
+file is modeled as a total function from a register index to its word value.
 
 Paper: ch01, section “Program, Execution, and VM State.” -/
 structure VMStateWith (Mem : Type) where
@@ -41,6 +43,13 @@ structure VMStateWith (Mem : Type) where
   mem : Mem
 
 /-- Full VM state `S = (pc, regs, mem)` with explicit byte-addressed memory.
+
+This is the ordinary state described in the paper: addresses have type `Addr`
+and stored values have type `Byte`. It is still useful even though the memory
+proofs allow other address and value types. `FullVMState VC` in `Memory.lean`
+uses the same `VMStateWith` structure with the types chosen by `VC`. Thus both
+names describe states with the same three fields; `VMState` is the form whose
+memory has the paper's `Addr → Byte` type.
 
 Paper: ch01, section “Program, Execution, and VM State.” -/
 abbrev VMState : Type := VMStateWith (Addr → Byte)

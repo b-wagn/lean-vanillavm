@@ -1,6 +1,6 @@
 import VanillaZkVM.Preliminaries.Trace
 import VanillaZkVM.Specification.Cte
-import VanillaZkVM.VMs.Memory
+import VanillaZkVM.VMs.ISA
 import VanillaZkVM.VMs.Step
 
 /-!
@@ -11,10 +11,11 @@ argument non-trivial — composing straight-line extraction across SNARK layers,
 and committed-memory states — while dropping the bus, the four inner circuits,
 the chips, and the binary `convert`/`combine`/`embed` tower.
 
-* Segment layer `RSeg`: a trace of `Nseg` committed steps `Sin → Sout` under the
-  committed step predicate `CommittedMemory.step` (from `Memory`). Each step carries
-  its explicit `MemStep` witness, including the opening used by a read/write.
-  Operations are not deferred to a bus.
+* Segment layer `RSeg`: a trace of `Nseg` committed steps `Sin → Sout` under
+  `ISA.System.committedOperation`. Each step carries its explicit `MemStep`
+  witness, including the opening used by a read/write, and that witness must
+  agree with the operation selected by `code[pc]`. Operations are not deferred
+  to a bus.
 * Final layer `RFinal`: a single SNARK merging `m` segment proofs whose boundary
   states chain `S0 → ST`.
 
@@ -29,12 +30,12 @@ between them:
    (`RFinal` witness, then an `RSeg` witness per segment) produces a trace of
    *committed* states satisfying `CommittedTraceValid`. The trace is built with
    `concatTrace` and its validity rests on `chain_flatten` (both from `Trace`). Its
-   binary step is the existential projection `committedStep` of the witness-indexed
-   `CommittedMemory.step`, with the per-step `MemStep` witnesses retained in the
-   segment witnesses.
+   committed-step relation is `ISA.System.committedStep`: it says that some
+   `MemStep` passes `committedOperation`. Segment witnesses retain the actual
+   `MemStep` values so the memory openings remain available for reconstruction.
 2. `traceValid_full` — the memory half. `Memory.trace_mem_extract` reconstructs a
    full-memory trace along that committed trace, satisfying `CommitInv` at every
-   state and `FullMemory.step` at every step.
+   state and `ISA.System.stepPlain` at every step.
 
 Traces are `ℕ`-indexed with `< bound` conditions (uniform with `Rstar`,
 and it makes concatenation pure `ℕ`-arithmetic).
@@ -83,16 +84,15 @@ def toCommitted {VC : VectorCommitment} (S : FullVMState VC) : CommittedVMState 
 
 /-! ## The toy system -/
 
-/-- The toy system: a memory commitment scheme, the memory-free component of
-its step semantics, and the two layers' proof types with their
+/-- The toy system: a memory commitment scheme, a fixed five-class program and
+its operation predicates, and the two layers' proof types with their
 verifiers. -/
 structure System where
   VC : VectorCommitment
   Nseg : ℕ
   m : ℕ
-  /-- Memory-free register/program-counter part of each step; the full
-  committed step is `CommittedMemory.step memFreePred` (from `Memory`). -/
-  memFreePred : MemFreePredicate
+  /-- The fixed program and its plain/committed operation predicates. -/
+  isa : ISA.System VC.Index VC.Value
   SegProof : Type
   segVerify : SegStmt VC → SegProof → Prop
   FinalProof : Type
@@ -103,7 +103,8 @@ namespace System
 variable (sys : System)
 
 /-- Segment relation `RSeg`: a trace of `Nseg` committed steps from `Sin` to
-`Sout`, each certified by its explicit `MemStep` witness. -/
+`Sout`, each certified by an explicit `MemStep` that agrees with the operation
+selected by the fixed program. -/
 def RSeg : Relation where
   Stmt := SegStmt sys.VC
   Wit := SegWitness sys.VC
@@ -111,7 +112,7 @@ def RSeg : Relation where
     w.states 0 = st.Sin ∧
     w.states sys.Nseg = st.Sout ∧
     ∀ j, j < sys.Nseg →
-      CommittedMemory.step sys.memFreePred (w.states j) (w.states (j + 1)) (w.steps j)
+      sys.isa.committedOperation (w.states j) (w.states (j + 1)) (w.steps j)
 
 /-- The segment argument system `Π_seg`. -/
 def ASSeg : ArgumentSystem sys.RSeg where
@@ -141,28 +142,36 @@ intermediate: memory reconstruction consumes it and produces the full-memory tra
 that the VM's `CTE` talks about. A plain predicate is therefore all it needs — the
 security claims are made about `toZkVM`, not about this. -/
 
-/-- A trace of `m * Nseg` committed steps running from `x.S0` to `x.ST`, every
-step certified by `committedStep`.
+/-- A trace of `m * Nseg` committed steps running from `x.S0` to `x.ST`. Every
+adjacent pair must satisfy `ISA.System.committedStep`.
 
 This is the committed-level analogue of `ZkVM.TraceValid`. It is spelled out here
 because the committed layer carries no `ZkVM` of its own. -/
 def CommittedTraceValid (x : FinalStmt sys.VC) (Ŝ : ℕ → CommittedVMState sys.VC) : Prop :=
   Ŝ 0 = x.S0 ∧ Ŝ (sys.m * sys.Nseg) = x.ST ∧
-  ∀ k, k < sys.m * sys.Nseg → committedStep sys.memFreePred (Ŝ k) (Ŝ (k + 1))
+  ∀ k, k < sys.m * sys.Nseg → sys.isa.committedStep (Ŝ k) (Ŝ (k + 1))
 
 /-! ## The zkVM -/
 
-/-- **The two-step zkVM.** Its state is the *full-memory* VM state, a step is
-`∃ w, FullMemory.step …` (the full-memory step relation), the statement carries
-full boundary states, and the verifier commits those boundaries and defers to the
-final SNARK. `CTE` of this instance is the full-memory correct-trace
-extractability statement — a concrete instance of the abstract `CTE`.
+/-- **The two-step memory toy.** Its state is the *full-memory* VM state and its
+single plain step relation is `ISA.System.stepPlain`. By
+`stepPlain_iff_operation_at_pc`, this is exactly `operation (code S₁.pc)`: the
+program chooses the operation class rather than an unconstrained witness.
+Reads and writes use the designated registers, and all memory equations are
+explicit. The statement carries full boundary states, and the verifier commits
+those boundaries before deferring to the final SNARK.
+
+The segment relation retains `MemStep` witnesses because memory openings are
+needed for extraction, but those witnesses no longer define the public
+execution semantics. `ISA.System.committedOperation` proves that each witness
+agrees with the program-selected operation, and `memoryBridge` reconstructs a
+plain `stepPlain` transition from it.
 
 Paper: `def:cte` and `prop:memory-extractability` (ch05). This toy omits the bus,
-concrete ISA, and recursive convert/combine/embed layers. -/
+concrete opcode semantics, and recursive convert/combine/embed layers. -/
 def toZkVM : ZkVM where
   State := FullVMState sys.VC
-  step := fun S₁ S₂ => ∃ w, FullMemory.step sys.memFreePred S₁ S₂ w
+  step := sys.isa.stepPlain
   T := sys.m * sys.Nseg
   Stmt := FinalStmtFull sys.VC
   initial := FinalStmtFull.S0
@@ -170,20 +179,20 @@ def toZkVM : ZkVM where
   Proof := sys.FinalProof
   verify := fun x p => sys.finalVerify ⟨toCommitted x.S0, toCommitted x.ST⟩ p
 
-/-- This VM's instance of the frozen step contract (`StepInterface`). `CommitInv` is
-the representation relation and `committedStep` the binary committed predicate;
-`MemStep` witnesses stay hidden behind the latter's existential.
-
-This is Lean-side coordination for `prop:memory-extractability`, not an additional
-paper security definition. -/
+/-- This VM's instance of the frozen step contract (`StepInterface`).
+`CommitInv` says when a committed state represents a full state.
+`ISA.System.committedStep` says that some program-consistent `MemStep` connects
+two committed states. This record connects those notions to `toZkVM.step`; it
+is not an additional paper security definition. -/
 def memoryStepInterface : StepInterface sys.toZkVM where
   CommittedState := CommittedVMState sys.VC
   represents := CommitInv
-  stepCommitted := committedStep sys.memFreePred
+  stepCommitted := sys.isa.committedStep
 
 /-- `StepInterface.MemoryBridge` for this VM. Completeness, position binding, and
-update binding let `step_reconstruct` construct a represented next full-memory
-state satisfying the canonical `sys.toZkVM.step` predicate.
+update binding let `step_reconstruct_exact` construct a represented next
+full-memory state; `committedOperation_stepPlain` then proves the single
+`sys.toZkVM.step` predicate.
 
 Paper: `prop:memory-extractability`, `rem:mem-inheritance`, and Step 6 of
 `thm:main` (ch05), specialized to the two-step toy. -/
@@ -192,8 +201,12 @@ theorem memoryBridge
     (hupd : sys.VC.UpdateBinding) :
     sys.memoryStepInterface.MemoryBridge := by
   intro Ŝ₁ Ŝ₂ S₁ hInv hstep
-  simpa [memoryStepInterface, toZkVM] using
-    (step_reconstruct hComplete hpos hupd sys.memFreePred S₁ Ŝ₁ Ŝ₂ hInv hstep)
+  obtain ⟨w, hw⟩ := hstep
+  obtain ⟨S₂, hInv₂, hfull⟩ :=
+    step_reconstruct_exact hComplete hpos hupd sys.isa.selectedMemFreePred
+      S₁ Ŝ₁ Ŝ₂ w hInv hw.1
+  refine ⟨S₂, hInv₂, ?_⟩
+  exact sys.isa.committedOperation_stepPlain S₁ S₂ Ŝ₁ Ŝ₂ w hInv hInv₂ hw hfull
 
 /-- **Trust base for the two-step zkVM** — the single surface collecting the
 unproven assumptions `committedTrace_extract` relies on. This toy system uses no bus, so its trust
@@ -210,15 +223,16 @@ structure Assumptions (sys : System) : Prop where
 
 /-- **The `Memory` ↔ `TwoStep` bridge** — a valid committed trace yields a valid
 *full-memory* trace of `toZkVM`: the reconstructed trace
-`reconstructTrace Ŝ (chooseMemStep …) x.S0` is `toZkVM`-valid whenever `Ŝ`
-satisfies `CommittedTraceValid` for the committed boundaries of `x`.
+`reconstructTrace Ŝ (chooseMemStep isa.committedOperation …) x.S0` is
+`toZkVM`-valid whenever `Ŝ` satisfies `CommittedTraceValid` for the committed
+boundaries of `x`.
 
 The two modules split the work: `Memory` reconstructs full memory over raw
 states (`CommitInv`, `MemStep`, the committed/full step predicates) and knows
-nothing of SNARKs or the abstract `ZkVM`; this file defines the `ZkVM` instance
-but proves nothing about memory. This theorem joins them, restating
-`Memory.trace_mem_extract` in terms of `CommittedTraceValid` and `TraceValid`
-alone, so `cte` below never touches the memory internals.
+nothing of SNARKs or the abstract `ZkVM`; this file composes those results with
+the ISA and the two proof layers. This theorem restates
+`Memory.trace_mem_extract` in terms of `CommittedTraceValid` and `TraceValid`,
+so `cte` below does not re-prove the memory lemmas.
 
 The terminal state matches `x.ST` because `CommitInv` at the last state plus
 injectivity of `commit` (`mem_eq_of_commit_eq`) determines its memory.
@@ -231,24 +245,33 @@ theorem traceValid_full
     (x : FinalStmtFull sys.VC) (Ŝ : ℕ → CommittedVMState sys.VC)
     (hval : sys.CommittedTraceValid ⟨toCommitted x.S0, toCommitted x.ST⟩ Ŝ) :
     sys.toZkVM.TraceValid x
-      (reconstructTrace Ŝ (chooseMemStep sys.memFreePred Ŝ) x.S0) := by
+      (reconstructTrace Ŝ (chooseMemStep sys.isa.committedOperation Ŝ) x.S0) := by
   obtain ⟨hstart, hend, hsteprel⟩ := hval
   have hstartc : Ŝ 0 = toCommitted x.S0 := hstart
   have hendc : Ŝ (sys.m * sys.Nseg) = toCommitted x.ST := hend
-  -- the invariant seed holds definitionally (committed initial = commit of full initial)
+  -- The initial committed state was made by committing `x.S0.mem`, so the
+  -- representation relation holds immediately.
   have hseed : CommitInv (Ŝ 0) x.S0 := by rw [hstartc]; exact ⟨rfl, rfl, rfl⟩
-  -- Pick `MemStep` witnesses and apply `Memory.trace_mem_extract`.
+  -- Choose a `MemStep` that passes both the memory checks and the program
+  -- checks at each transition. Keeping those program checks lets us prove
+  -- `stepPlain` after reconstructing memory.
+  have hopC : ∀ k, k < sys.m * sys.Nseg →
+      sys.isa.committedOperation (Ŝ k) (Ŝ (k + 1))
+        (chooseMemStep sys.isa.committedOperation Ŝ k) :=
+    fun k hk => chooseMemStep_spec sys.isa.committedOperation Ŝ k (hsteprel k hk)
   have hstepC : ∀ k, k < sys.m * sys.Nseg →
-      CommittedMemory.step sys.memFreePred (Ŝ k) (Ŝ (k + 1))
-        (chooseMemStep sys.memFreePred Ŝ k) :=
-    fun k hk => chooseMemStep_spec sys.memFreePred Ŝ k (hsteprel k hk)
+      CommittedMemory.step sys.isa.selectedMemFreePred (Ŝ k) (Ŝ (k + 1))
+        (chooseMemStep sys.isa.committedOperation Ŝ k) :=
+    fun k hk => (hopC k hk).1
   obtain ⟨hinv, hstepF⟩ :=
-    trace_mem_extract hComplete hpos hupd sys.memFreePred (sys.m * sys.Nseg) Ŝ
-      (chooseMemStep sys.memFreePred Ŝ) x.S0 hseed hstepC
+    trace_mem_extract hComplete hpos hupd sys.isa.selectedMemFreePred
+      (sys.m * sys.Nseg) Ŝ (chooseMemStep sys.isa.committedOperation Ŝ)
+      x.S0 hseed hstepC
   refine ⟨rfl, ?_, ?_⟩
   · -- terminal state equals `x.ST`
-    show reconstructTrace Ŝ (chooseMemStep sys.memFreePred Ŝ) x.S0 (sys.m * sys.Nseg) = x.ST
-    set ST' := reconstructTrace Ŝ (chooseMemStep sys.memFreePred Ŝ) x.S0
+    show reconstructTrace Ŝ (chooseMemStep sys.isa.committedOperation Ŝ)
+      x.S0 (sys.m * sys.Nseg) = x.ST
+    set ST' := reconstructTrace Ŝ (chooseMemStep sys.isa.committedOperation Ŝ) x.S0
       (sys.m * sys.Nseg) with hST'
     have hci : CommitInv (Ŝ (sys.m * sys.Nseg)) ST' := hinv (sys.m * sys.Nseg) (le_refl _)
     rw [hendc] at hci
@@ -258,9 +281,12 @@ theorem traceValid_full
     calc ST' = (⟨ST'.pc, ST'.regs, ST'.mem⟩ : FullVMState sys.VC) := rfl
       _ = ⟨x.ST.pc, x.ST.regs, x.ST.mem⟩ := by rw [← hpc, ← hreg, e3]
       _ = x.ST := rfl
-  · -- every step is a full-memory step
+  · -- Every reconstructed transition executes the operation selected by
+    -- `code[pc]`, so it satisfies the VM's plain step predicate.
     intro i hi
-    exact ⟨_, hstepF i hi⟩
+    change i < sys.m * sys.Nseg at hi
+    exact sys.isa.committedOperation_stepPlain _ _ _ _ _
+      (hinv i (by omega)) (hinv (i + 1) (by omega)) (hopC i hi) (hstepF i hi)
 
 /-- **Two-layer committed-trace extraction.** If both SNARKs are knowledge-sound
 (and segments are non-empty), every accepting final proof yields a committed trace
@@ -295,16 +321,16 @@ theorem committedTrace_extract (hNseg : 0 < sys.Nseg) (h : sys.Assumptions) :
     fun i hi => (hEs _ _ (hbver i hi)).1
   have hlast : ∀ i, i < sys.m → seg i sys.Nseg = d (i + 1) :=
     fun i hi => (hEs _ _ (hbver i hi)).2.1
-  -- Each committed step is certified by its extracted `MemStep` witness; the
-  -- abstract trace only needs the existential projection `committedStep`.
+  -- Each extracted `MemStep` proves one committed transition. The trace
+  -- relation only records that such a value exists.
   have hstep : ∀ i, i < sys.m → ∀ j, j < sys.Nseg →
-      committedStep sys.memFreePred (seg i j) (seg i (j + 1)) :=
+      sys.isa.committedStep (seg i j) (seg i (j + 1)) :=
     fun i hi j hj =>
       ⟨(Es.extract ⟨d i, d (i + 1)⟩ ((Ef.extract x p).proofs i)).steps j,
        (hEs _ _ (hbver i hi)).2.2 j hj⟩
   -- Concatenate.
   obtain ⟨e0, eT, estep⟩ :=
-    chain_flatten (committedStep sys.memFreePred) sys.Nseg sys.m hNseg d seg h0 hlast hstep
+    chain_flatten sys.isa.committedStep sys.Nseg sys.m hNseg d seg h0 hlast hstep
   refine ⟨?_, ?_, ?_⟩
   · show concatTrace sys.Nseg d seg sys.m 0 = x.S0
     rw [e0]; exact hb0
@@ -318,7 +344,7 @@ theorem committedTrace_extract (hNseg : 0 < sys.Nseg) (h : sys.Assumptions) :
 `CTE`: `sys.toZkVM.CTE`. Under the extraction hypotheses plus the commitment
 binding assumptions, the two-step VM is correct-trace extractable *over full-memory
 states* — the extractor turns every accepting final proof into a valid full-memory
-trace with the claimed boundaries and `∃ w, FullMemory.step …` at every step.
+trace with the claimed boundaries and `ISA.System.stepPlain` at every step.
 
 Proof: from `committedTrace_extract` get the committed-trace extractor `E`; the full
 extractor commits `x`'s boundaries, runs `E`, and reconstructs the full trace.
@@ -334,7 +360,7 @@ theorem cte (hNseg : 0 < sys.Nseg) (h : sys.Assumptions)
   obtain ⟨E, hE⟩ := sys.committedTrace_extract hNseg h
   exact ⟨fun x p =>
       reconstructTrace (E ⟨toCommitted x.S0, toCommitted x.ST⟩ p)
-        (chooseMemStep sys.memFreePred
+        (chooseMemStep sys.isa.committedOperation
           (E ⟨toCommitted x.S0, toCommitted x.ST⟩ p)) x.S0,
     fun x p hp =>
       sys.traceValid_full hComplete hpos hupd x _

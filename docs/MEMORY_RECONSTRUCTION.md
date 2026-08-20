@@ -31,8 +31,9 @@ into a full-memory trace. Every reconstructed state corresponds to its
 committed state under `CommitInv`, and every reconstructed step satisfies
 the corresponding full-memory predicate `FullMemory.step`. The private theorem
 `reconstructed_step_full` proves the full-memory semantics of one reconstructed
-step, while the public theorem `step_reconstruct` realizes
-`StepInterface.MemoryBridge`.
+step. The public theorem `step_reconstruct_exact` retains the same `MemStep` in
+its conclusion so that the ISA can check it against `code[pc]`, while
+`step_reconstruct` hides that witness for the memory-only interface.
 
 - `FullVMState` represents states containing the complete memory map.
 - `CommitInv Ŝ S` means that committed-memory state `Ŝ` represents
@@ -52,8 +53,10 @@ step, while the public theorem `step_reconstruct` realizes
   between full-memory states.
 - `CommittedMemory.step` is the committed-memory step predicate, case-split
   over reads, writes, and other instructions.
-- `committedStep` hides the `MemStep` witness existentially and is the binary
-  step relation exposed through `StepInterface`.
+- `committedStep` says that some `MemStep` passes the memory checks. It lets a
+  caller relate two committed states without supplying that value explicitly.
+  A concrete VM adds its program checks before exposing the relation through
+  `StepInterface`.
 - `FullMemory.step` is the corresponding full-memory step predicate, case-split
   over the same witness.
 - `step_mem_extract` assumes `CommitInv` for both endpoint states. It proves
@@ -73,6 +76,10 @@ step, while the public theorem `step_reconstruct` realizes
   to the corresponding committed-memory state by `CommitInv`.
 - `reconstructed_step_full` proves that the reconstructed state satisfies
   the full-memory semantics of the same `MemStep` witness.
+- `step_reconstruct_exact` takes a particular `MemStep` and constructs the next
+  represented full state while proving `FullMemory.step` for that same value.
+  Retaining it is what lets the ISA layer prove that the reconstructed step
+  agrees with the operation selected by the program.
 - `step_reconstruct` realizes `StepInterface.MemoryBridge`: from
   `CommitInv Ŝ₁ S₁` and `committedStep … Ŝ₁ Ŝ₂`, it constructs a full state
   `S₂` and `MemStep` witness `w` such that both
@@ -104,13 +111,14 @@ non-vacuous, and necessary.
 
 ## `VMs/TwoStep/TwoStep.lean`
 
-The goal of this file is to integrate memory reconstruction into a minimal
-two-layer zkVM. Knowledge soundness of the final and segment argument systems
-extracts and flattens a valid committed-state trace, proving
-`committedTrace_extract`. The memory results then reconstruct a valid full-memory
-trace, proving `cte`. This is
-the full-memory CTE theorem for the two-layer toy system, not yet the complete
-Vanilla VM with its ISA, bus, and recursive proof layers.
+The goal of this file is to integrate memory reconstruction and the
+representative ISA into a minimal two-layer zkVM. Knowledge soundness of the
+final and segment argument systems extracts and flattens a valid committed-state
+trace, proving `committedTrace_extract`. The memory results reconstruct a
+full-memory trace, while the ISA bridge proves that each reconstructed step
+executes the operation selected by `code[pc]`. This is a CTE theorem for the
+two-layer toy system, not yet the complete Vanilla VM with its bus and recursive
+proof layers.
 
 - `SegStmt` and `SegWitness` describe a segment's committed boundaries,
   intermediate states, and explicit `MemStep` witnesses.
@@ -118,20 +126,22 @@ Vanilla VM with its ISA, bus, and recursive proof layers.
   chained segment boundaries and proofs.
 - `FinalStmtFull` carries the corresponding full-memory boundaries, and
   `toCommitted` commits such a boundary state.
-- `System` packages the commitment scheme, memory-free step component, and
-  verifier interfaces for the two-layer toy system.
+- `System` packages the commitment scheme, representative ISA, and verifier
+  interfaces for the two-layer toy system.
 - `RSeg` requires the segment boundaries to match and every explicit
-  `MemStep` witness to satisfy `CommittedMemory.step`.
+  `MemStep` witness to satisfy `ISA.System.committedOperation`, which checks
+  both the committed memory equations and agreement with `code[pc]` and the
+  designated registers.
 - `RFinal` requires the outer boundaries to match and every chained segment
   proof to verify.
 - `CommittedTraceValid` states validity of a committed-state trace. It is a plain
   predicate, not a second `ZkVM`: the committed layer is an extraction
   intermediate, not a machine we make security claims about.
 - `toZkVM` is the file's only instance of the frozen abstract `ZkVM`,
-  with full-memory state semantics.
-- `memoryStepInterface` instantiates the frozen committed-step interface, and
-  `memoryBridge` uses `step_reconstruct` to produce the next represented
-  full-memory state required by the frozen interface.
+  with `ISA.System.stepPlain` as its full-memory step semantics.
+- `memoryStepInterface` fills the frozen step interface for this VM, and
+  `memoryBridge` uses `step_reconstruct_exact` to produce the next represented
+  state and `committedOperation_stepPlain` to prove its ordinary `ZkVM.step`.
 - `traceValid_full` turns a valid committed trace into a valid reconstructed
   full-memory trace with the correct endpoints.
 - `committedTrace_extract` is the SNARK half: two-layer straight-line extraction
@@ -149,8 +159,8 @@ declarations are private, so the file adds no public API.
 
 ## Scope
 
-Issue 1 establishes the committed-memory-to-full-memory bridge for the
-two-layer toy system. It does not yet formalize the concrete ISA, the bus, or
-the `convert`/`combine`/`embed` recursion tower. Those are separate issues in
-[`PLAN.md`](PLAN.md), and this result must not be presented as the complete
-Vanilla VM security theorem.
+Issue 1 establishes the committed-memory-to-full-memory bridge, and Issue 3
+connects that bridge to the representative five-class ISA. The toy still omits
+the bus and the `convert`/`combine`/`embed` recursion tower. Those are separate
+issues in [`PLAN.md`](PLAN.md), and this result must not be presented as the
+complete Vanilla VM security theorem.
