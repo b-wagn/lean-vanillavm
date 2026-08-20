@@ -18,20 +18,20 @@
 - Added `ISA.System.stepPlain_iff_operation_at_pc`, which proves that the
   five-way `stepPlain` disjunction is exactly the operation class selected by
   `code S₁.pc`.
-- Clarified that `TwoStep.System.toZkVM` remains the Issue 1 memory-only toy:
-  its existential `MemStep` is not the final fixed-program semantics. Issue 5
-  will connect extracted memory/bus evidence to the selected operation, and
-  Issue 7 will assemble the public VM using `ISA.System.stepPlain`.
+- Initially documented `TwoStep.System.toZkVM` as the Issue 1 memory-only toy
+  and deferred its ISA connection. Benedikt and Dmitry subsequently requested
+  that connection in Issue 3; the superseding implementation and audit are
+  recorded in
+  [`2026-08-19-issue-3-review-followup.md`](2026-08-19-issue-3-review-followup.md).
 - Updated the math companion, human review guide, and correspondence matrix.
 
 ## Scope and public surface
 
-- No additional VM instance was introduced. The only new public declaration
-  in this follow-up is the bridge theorem
-  `ISA.System.stepPlain_iff_operation_at_pc`; it exposes no competing step
-  relation.
-- The existing private instance in `VMs/ISASanity.lean` continues to check that
-  `stepPlain` can be assigned directly to `ZkVM.step`.
+- No additional VM instance was introduced. The only new public declaration in
+  this original follow-up was
+  `ISA.System.stepPlain_iff_operation_at_pc`.
+- The later integration added the committed/plain bridge declarations listed
+  in the 2026-08-19 ledger entry above.
 
 ## Validation
 
@@ -42,9 +42,19 @@
   axiom.
 - No `sorry`, `admit`, `native_decide`, or new axiom was added.
 
+These figures describe the original 2026-08-18 revision. The current PR-head
+audit is recorded in the 2026-08-19 follow-up ledger.
+
 ## Handoff
 
-- George should review both the five-class simplification and the equivalence
-  between `stepPlain` and the operation selected by `code S₁.pc`.
-- Integrating `MemStep` and bus evidence with that selected operation remains
-  Issue 5; constructing the public full Vanilla VM remains Issue 7.
+The original two-sentence handoff was too terse. A reviewer must check the
+five-class simplification, instruction selection by `code[pc]`, every memory
+equation, agreement between each committed `MemStep` and the designated
+registers, direct use of `stepPlain` as `TwoStep.System.toZkVM.step`, and the
+accepted/rejected sanity examples. The exact six-part checklist is in
+[`docs/ISA.md`](../ISA.md#human-review-checklist), and the current scope/axiom
+ledger is in
+[`2026-08-19-issue-3-review-followup.md`](2026-08-19-issue-3-review-followup.md).
+The PR description must copy that checklist or link directly to it. Human
+fidelity/completeness sign-off must then be recorded in a separate commit, as
+instructed by `docs/CORRESPONDENCE.md`.

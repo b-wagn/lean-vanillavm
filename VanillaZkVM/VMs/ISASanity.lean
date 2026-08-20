@@ -8,7 +8,7 @@ These private examples demonstrate both accepted and rejected steps. They cover
 an accepted read, an accepted write whose output memory differs from its input,
 rejection when the program contains a different operation class, and rejection
 when a write produces the wrong memory. A private `ZkVM` instance also checks
-that `ISA.System.stepPlain` can be used directly as its canonical `step` field.
+that `ISA.System.stepPlain` can be used directly as its `step` field.
 
 Nothing in this file adds to the public API or asserts concrete cryptographic
 security.
@@ -17,9 +17,11 @@ security.
 namespace VanillaZkVM
 namespace ISASanity
 
-private def systemFor (op : ISA.OperationClass) : ISA.System where
+private def systemFor (op : ISA.OperationClass) : ISA.System Addr Byte where
   code := fun _ => op
   memFreePred := fun _ _ _ _ _ => True
+  indexOfWord := id
+  valueOfWord := id
 
 private def zeroState : VMState :=
   ⟨0, fun _ => 0, fun _ => 0⟩

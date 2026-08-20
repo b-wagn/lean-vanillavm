@@ -1,7 +1,7 @@
 # Step-interface contract
 
-This is the Issue 0 consistency guard shared by the memory, ISA, and bus work.
-It was added as a bounded PLAN amendment accepted by Dmitry on **2026-07-29**.
+This is the Issue 0 interface shared by the memory, ISA, and bus work. It was
+added as a bounded PLAN amendment accepted by Dmitry on **2026-07-29**.
 
 The contract prevents later issues from growing unrelated predicates all called
 "step." It fixes the semantic direction of the two bridge arguments while
@@ -26,13 +26,14 @@ stepCommitted
 `V.step` is the single canonical **plain** step predicate. Issue 3's
 `ISA.System.stepPlain` is the predicate assigned to that field by a concrete
 Vanilla `ZkVM`; it must not become a second, disconnected top-level execution
-relation. `ISASanity.lean` checks this assignment on a private instance, while
-the assembled public instance remains Issue 7.
+relation. `TwoStep.System.toZkVM` now makes this assignment in the public
+two-layer toy, while Issue 7 will reuse it in the assembled Vanilla VM.
 
-`stepCommitted` is the canonical binary relation exposed by the memory layer.
-Operation-specific auxiliary witnesses and opening proofs may be carried by
-internal predicates; the concrete Issue 1 instantiation uses `MemStep` and must
-existentially project it when supplying this public relation.
+`stepCommitted` relates two committed states. Operation-specific data and
+opening proofs may be carried by internal predicates. In the two-layer toy,
+`ISA.System.committedOperation` checks the explicit `MemStep` against the
+program-selected operation. `ISA.System.committedStep` then says that some such
+`MemStep` exists, so callers of the public relation need not pass it explicitly.
 
 Issue 5 separately supplies
 
@@ -87,11 +88,12 @@ The concrete proof unifies the extracted per-chip buses into one common
 
 | Layer | Designated module | Required realization |
 |---|---|---|
-| Memory reconstruction | `VanillaZkVM/VMs/Memory.lean` + concrete VM module (Issue 1 / #7) | `VMs/Memory.lean` defines `CommitInv`, `committedStep`, `step_mem_extract`, `step_reconstruct`, and `trace_mem_extract`. The module owning a concrete full-memory `ZkVM` packages these as a `StepInterface` and proves `MemoryBridge`; `VMs/TwoStep/TwoStep.lean` supplies the Issue-1 instance. |
-| Plain ISA semantics | `VanillaZkVM/VMs/ISA.lean` (Issue 3 / #9) | Define `ISA.System.stepPlain`; assign it directly to the concrete `ZkVM.step` (privately checked in `VMs/ISASanity.lean`, with the public full-VM instance left to Issue 7). |
+| Memory reconstruction | `VanillaZkVM/VMs/Memory.lean` + concrete VM module (Issue 1 / #7) | `VMs/Memory.lean` defines `CommitInv`, the memory-only step predicates, `step_reconstruct_exact`, `step_reconstruct`, and `trace_mem_extract`. The concrete VM packages the appropriate committed relation as a `StepInterface` and proves `MemoryBridge`; `VMs/TwoStep/TwoStep.lean` supplies the current instance. |
+| Plain ISA semantics | `VanillaZkVM/VMs/ISA.lean` (Issue 3 / #9) | Define `ISA.System.stepPlain`, connect explicit committed-memory witnesses through `ISA.System.committedOperation`, and assign `stepPlain` directly to `TwoStep.System.toZkVM.step`. Issue 7 reuses the same predicate in the assembled VM. |
 | Bus unification | `VanillaZkVM/VMs/Bus.lean` (Issue 5 / #11) | Define `stepWithBus` and prove `BusBridge` from extracted witnesses and bus-commitment security. |
 
-No other module should introduce a competing public binary execution predicate.
+No other module should introduce a different, unrelated public execution
+predicate between two states.
 Internal helper predicates with additional witness arguments are permitted, but
 the module must expose them through this contract.
 

@@ -253,13 +253,15 @@ For an abstract non-memory predicate `φ'` on the two PCs and register files:
          ∧ ∀ j ≠ addr, S₂.mem(j) = S₁.mem(j).
 
 `CommittedMemory.step` and `FullMemory.step` select these equations by `w`; `.other` preserves memory.
-The public binary committed relation hides the `MemStep` witness existentially:
+When a caller needs only a relation between the two committed states, it says
+that some accepted `MemStep` exists:
 
     committedStep(Ŝ₁,Ŝ₂) := ∃ w : MemStep VC, CommittedMemory.step(Ŝ₁,Ŝ₂,w).
 
-This is deliberately the **memory-only component**. It does not yet connect
+This is deliberately the **memory-only component**. By itself it does not connect
 `addr` and `v` to specific registers, decode the concrete ISA, or model the
-bus. Those semantic conjuncts belong to Issues 3 and 5.
+bus. `ISA.System.committedOperation` below adds the program/register requirements;
+Issue 5 adds the bus condition.
 *Lean:* `MemStep`, `CommittedMemory.read`, `CommittedMemory.write`, `FullMemory.read`, `FullMemory.write`, `CommittedMemory.step`, `FullMemory.step`,
 `committedStep`.
 
@@ -293,37 +295,49 @@ establishes `CommitInv` for the next state in the write case:
       ⟹ CommitInv(Ŝₖ₊₁,Sₖ₊₁)
           ∧ FullMemory.step(Sₖ,Sₖ₊₁,wₖ).
 
-After hiding the `MemStep` witness, the existential statement has exactly the
-frozen memory-bridge shape:
+The public theorem `step_reconstruct_exact` states this implication for the
+same supplied `wₖ`. Keeping that value is necessary when a later layer must
+also prove that its constructor, address, and value agree with the instruction
+selected by the program.
+
+If the caller only needs to know that some `MemStep` exists, the theorem has
+the frozen memory-bridge shape:
 
     CommitInv(Ŝ₁,S₁) ∧ committedStep(Ŝ₁,Ŝ₂)
       ⟹ ∃ S₂. CommitInv(Ŝ₂,S₂) ∧ ∃ w : MemStep VC. FullMemory.step(S₁,S₂,w).
 
-For the two-step full-memory `ZkVM`, `V.step` is the final existential above,
-so `memoryStepInterface` sets `represents := CommitInv` and
-`stepCommitted := committedStep`; `memoryBridge` proves
-`StepInterface.MemoryBridge` without assuming `CommitInv(Ŝ₂,S₂)`.
+The memory-only theorem above remains useful independently of an ISA. In the
+two-step `ZkVM`, the committed relation is strengthened to require that the
+same `MemStep` agrees with `code[pc]`; `memoryBridge` uses the exact theorem and
+the ISA correspondence lemma to conclude the single `stepPlain` predicate used
+as `ZkVM.step`.
+It still constructs `S₂` rather than assuming `CommitInv(Ŝ₂,S₂)`.
 
 Induction over `k < T` yields both:
 
     ∀ k ≤ T, CommitInv(Ŝₖ,Sₖ),
     ∀ k < T, FullMemory.step(Sₖ,Sₖ₊₁,wₖ).
 
-This is the perfect, memory-only counterpart of the paper's
+This is the perfect, memory-only version of the paper's
 memory-extractability reduction and its `CommitInv` relation. It assumes
 the binding properties directly; explicit bad-event reductions and advantage
-accounting remain assigned to Issues 2 and 6.
-*Lean:* public `step_reconstruct`, `reconstructTrace`, and
+accounting remain assigned to Issues 6 and 10.
+*Lean:* public `step_reconstruct_exact`, `step_reconstruct`, `reconstructTrace`, and
 `trace_mem_extract` (the root-update and single-step lemmas are private),
 `TwoStep.System.memoryStepInterface`, `TwoStep.System.memoryBridge`.
 
 ### 1.4 Full-memory CTE for the two-step toy
 
-The toy has a single zkVM instantiation, with step `∃ w, FullMemory.step(S₁,S₂,w)`;
-its verifier commits the full boundary memories and calls the final verifier.
-The committed layer appears only as an intermediate: a *trace* of committed states
-whose steps satisfy `committedStep`, extracted from the two SNARK layers, with no
-zkVM of its own.
+The toy has a single zkVM instantiation, with
+
+    V.step := ISA.System.stepPlain.
+
+Its verifier commits the full boundary memories and calls the final verifier.
+The committed layer appears only as an intermediate: a trace of committed
+states whose steps satisfy `ISA.System.committedStep`, extracted from the two
+SNARK layers, with no zkVM of its own. Each explicit segment witness is checked
+by `ISA.System.committedOperation`, so the chosen memory action and its
+address/value agree with the fixed program.
 Assuming non-empty segments, knowledge soundness of the segment and final
 argument systems, and all three memory-commitment properties, the committed-trace
 extractor followed by reconstruction is a `CTE` extractor for the zkVM.
@@ -343,10 +357,9 @@ the committed-memory write verifies, but the second commitment has no
 full-memory representative. Thus dropping update binding would
 make the frozen bridge conclusion false, not merely harder to prove.
 
-This is not yet the full VanillaVM theorem: `memFreePred` remains abstract in
-the two-step toy. The representative plain ISA is defined below; its
-composition with committed witnesses and the bus, recursion, and explicit
-quantitative reductions remain later issues in `docs/PLAN.md`.
+This is not yet the full VanillaVM theorem. The representative ISA remains
+abstract inside each operation's PC/register predicate, and the bus, recursion,
+and explicit quantitative reductions remain later issues in `docs/PLAN.md`.
 
 ---
 
@@ -367,11 +380,23 @@ An ISA system fixes the operation class at each program counter:
 
     code : Word → OperationClass
 
+and converts register words to the memory's address and value types:
+
+    indexOfWord : Word → Index,
+    valueOfWord : Word → Value.
+
+For the paper's ordinary `VMState`, `Index = Addr` and `Value = Byte`; both
+maps are the identity because all three are currently represented by `ℕ`.
+The parameters also let the same ISA predicate act directly on
+`FullVMState VC` for a general commitment scheme. Both names still use the same
+Lean structure with `pc`, `regs`, and `mem` fields.
+
 Here `code(pc)` records only the class of the instruction at `pc`; it is not an
 opcode decoder. A family `φ'_op` of predicates over the two program counters
 and register files supplies the remaining requirements. Because these
 predicates receive `pc`, they may still describe the exact fixed instruction at
-that location. Their internal arithmetic and hash computations remain opaque.
+that location. This issue deliberately leaves their internal arithmetic and
+hash computations unspecified.
 For reads and writes, this is also where the address-bound check belongs: it
 depends on the address register, not on memory contents.
 
@@ -386,17 +411,17 @@ For full states `S₁=(pc₁,regs₁,mem₁)` and
     φ_read(S₁,S₂)
       := code(pc₁)=read
          ∧ φ'_read(pc₁,regs₁,pc₂,regs₂)
-         ∧ mem₁(regs₁(0))=regs₂(1)
+         ∧ mem₁(indexOfWord(regs₁(0)))=valueOfWord(regs₂(1))
          ∧ mem₂=mem₁,
 
     φ_write(S₁,S₂)
       := code(pc₁)=write
          ∧ φ'_write(pc₁,regs₁,pc₂,regs₂)
-         ∧ mem₂(regs₁(0))=regs₁(1)
-         ∧ ∀ j≠regs₁(0), mem₂(j)=mem₁(j).
+         ∧ mem₂(indexOfWord(regs₁(0)))=valueOfWord(regs₁(1))
+         ∧ ∀ j≠indexOfWord(regs₁(0)), mem₂(j)=mem₁(j).
 
 The write equation is the pointwise form of
-`mem₂ = mem₁[regs₁(0) ↦ regs₁(1)]`. For
+`mem₂ = mem₁[indexOfWord(regs₁(0)) ↦ valueOfWord(regs₁(1))]`. For
 `op ∈ {arith,hash,bin}`,
 
     φ_op(S₁,S₂)
@@ -417,7 +442,7 @@ whitepaper's current `proof` branch makes the same correction in commit
 
 ### 3.3 Plain step predicate
 
-The canonical plain-state step is exactly the five-way disjunction
+The single plain-state step used as `ZkVM.step` is the five-way disjunction
 
     stepPlain(S₁,S₂)
       := φ_read(S₁,S₂) ∨ φ_write(S₁,S₂) ∨ φ_arith(S₁,S₂)
@@ -437,11 +462,51 @@ unchanged. In particular, a read cannot silently alter memory.
 *Lean:* `ISA.System.stepPlain`, `ISA.System.stepPlain_iff_operation_at_pc`,
 `ISA.System.operation_preserves_memory_unless_write`.
 
+### 3.4 Committed operations and the two-step VM
+
+For committed states and an explicit `MemStep w`, define
+
+    committedOperation(Ŝ₁,Ŝ₂,w)
+      := CommittedMemory.step(φ'_{code(Ŝ₁.pc)},Ŝ₁,Ŝ₂,w)
+         ∧ the following condition for the constructor of w,
+
+where the second condition requires:
+
+- a `read(addr,v,π)` only when `code(Ŝ₁.pc)=read`, with
+  `addr=indexOfWord(Ŝ₁.regs(0))` and
+  `v=valueOfWord(Ŝ₂.regs(1))`;
+- a `write(addr,v,vOld,π)` only when `code(Ŝ₁.pc)=write`, with
+  `addr=indexOfWord(Ŝ₁.regs(0))` and
+  `v=valueOfWord(Ŝ₁.regs(1))`;
+- `.other` only when the selected class is `arith`, `hash`, or `bin`.
+
+When a caller only needs a relation between the two committed states, it says
+that some accepted `MemStep` exists:
+
+    committedStep(Ŝ₁,Ŝ₂) := ∃ w, committedOperation(Ŝ₁,Ŝ₂,w).
+
+If both committed states represent full states, memory reconstruction proves
+`FullMemory.step` for the same `w`, and `committedOperation` proves that its
+fields agree with the selected instruction. Therefore
+
+    committedOperation(Ŝ₁,Ŝ₂,w)
+      ∧ CommitInv(Ŝ₁,S₁) ∧ CommitInv(Ŝ₂,S₂)
+      ∧ FullMemory.step(S₁,S₂,w)
+      ⟹ stepPlain(S₁,S₂).
+
+This is why `TwoStep.System.toZkVM.step` can be `stepPlain`: the explicit
+memory-opening witness remains inside the committed extraction relation rather
+than becoming the public program semantics.
+
+*Lean:* `ISA.System.selectedMemFreePred`,
+`ISA.System.committedOperation`, `ISA.System.committedStep`,
+`ISA.System.committedOperation_stepPlain`, and `TwoStep.System.toZkVM`.
+
 `ISASanity.lean` gives private accepted examples for a read and a write whose
 output memory differs from its input. It also rejects a step when the program
 contains a different operation class and rejects a write with the wrong output
 memory. Finally, it instantiates a private `ZkVM` whose `step` field is
-`ISA.System.stepPlain`. Issue 5 will connect the selected operation to the
-`MemStep` data and bus evidence extracted from a proof. This section defines the
-plain step predicate that the eventual `R*` trace relation will use; it does not
-verify concrete RV32IM opcode implementations.
+`ISA.System.stepPlain`. `TwoStepSanity.lean` additionally checks the public
+two-step construction using the same predicate. Issue 5 still adds the bus
+evidence required by hash/precompile operations; this section does not verify
+concrete RV32IM opcode implementations.

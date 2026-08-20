@@ -52,8 +52,8 @@
 
 ## Adversarial review
 - Dimensions checked: issue scope, paper fidelity, fixed-program selection,
-  read/write memory equations, non-vacuity, public-surface size, competing step
-  relations, documentation claims, axioms, and source hygiene.
+  read/write memory equations, non-vacuity, public-surface size, accidental
+  duplicate step relations, documentation claims, axioms, and source hygiene.
 - **Confirmed and addressed:** the generic name `Operation` obscured the
   class-level abstraction; a catch-all branch made future memory behavior too
   easy to add silently; the paper pin predates the explicit unchanged-memory

@@ -3,15 +3,15 @@ import VanillaZkVM.Specification.Zkvm
 /-!
 # Step-interface contract
 
-A VM's execution shows up at three levels of detail: the plain semantics over full
-states, the committed-memory semantics a SNARK can check, and the bus-deferred
-predicate that defers memory operations. This module fixes the interface between
-them, so that the three levels connect through one named contract instead of
-several predicates all called "step". It states propositions; it proves none.
+A VM's execution appears at three levels of detail: ordinary execution over
+full states, execution over memory commitments that a SNARK can check, and a
+later predicate that also includes bus data. This module records how those
+levels must relate, so later files do not introduce unrelated predicates all
+called "step." It states the required properties; concrete VM files prove them.
 
 ## Main definitions
 * `StepInterface` — a committed predicate and representation relation attached
-  to the canonical plain predicate `ZkVM.step`.
+  to the single plain predicate `ZkVM.step`.
 * `StepInterface.MemoryBridge` — the proposition that one committed step can
   reconstruct one represented plain step.
 * `StepInterface.BusBridge` — the proposition that a bus-deferred step implies
@@ -19,25 +19,27 @@ several predicates all called "step". It states propositions; it proves none.
 
 `TwoStep.System.memoryStepInterface` is the one instance so far, and
 `TwoStep.System.memoryBridge` discharges its `MemoryBridge` from
-`Memory.step_reconstruct`. `BusBridge` has no instance yet: the bus layer, and the
-concrete ISA that will supply `ZkVM.step`, are both still to be written. See
-`docs/STEP_INTERFACES.md` for which module owns each obligation.
+`Memory.step_reconstruct_exact` plus the ISA correspondence theorem. Its
+`ZkVM.step` is `ISA.System.stepPlain`. `BusBridge` has no instance yet; see
+`docs/STEP_INTERFACES.md` for which module owns that remaining obligation.
 -/
 
 namespace VanillaZkVM
 
-/-- The coordination interface between an abstract zkVM's plain step predicate and
-a committed-memory layer over it.
+/-- The small interface connecting an abstract zkVM's plain step predicate to
+its committed-memory layer.
 
-`V.step` is the one canonical plain step predicate, taken from the `ZkVM` itself so
-that no module declares a competing one (I5). `represents Ŝ S` records that
-committed state `Ŝ` represents plain state `S`. `stepCommitted` is binary: an
-instance that needs per-step operation or opening data hides it behind an
-existential when filling this field. The bus predicate is *not* a field here but a
-parameter of `BusBridge`, so a memory-only instance needs no placeholder bus.
+`V.step` is the one plain step predicate, taken from the `ZkVM` itself so that
+no module declares a different, unrelated execution rule (I5).
+`represents Ŝ S` records that committed state `Ŝ` represents plain state `S`.
+`stepCommitted` takes only its
+two endpoint states. If an implementation also needs operation data or an
+opening proof, it fills this field with a proposition saying that such data
+exists. The bus predicate is *not* a field here but a parameter of `BusBridge`,
+so a memory-only instance needs no placeholder bus.
 
-This interface is Lean-side coordination, not itself a paper definition. Its
-fields line up with the layers around `eq:step-bus2`,
+This record only connects definitions shared by several Lean modules; it is
+not a new paper definition. Its fields line up with the layers around `eq:step-bus2`,
 `prop:memory-extractability`, and `lem:segment` in the pinned Vanilla zkVM paper
 revision. -/
 structure StepInterface (V : ZkVM) where
@@ -64,7 +66,8 @@ induction, because nothing would rule out a `C₂` that no plain state represent
 all. `MemorySanity` exhibits such a `C₂` when update binding is dropped.
 
 `TwoStep.System.memoryBridge` discharges this from completeness, position binding,
-and update binding, via `Memory.step_reconstruct`.
+and update binding, via `Memory.step_reconstruct_exact` and
+`ISA.System.committedOperation_stepPlain`.
 
 Paper target: `prop:memory-extractability` and `rem:mem-inheritance`. -/
 def MemoryBridge : Prop :=

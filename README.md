@@ -47,8 +47,8 @@ serve every VM.
 committed-memory execution, and the reconstruction of full memory from committed memory — plus one
 subdirectory per concrete VM. Each such VM is an *instance* of the abstract zkVM above and proves
 correct-trace extractability for itself, rather than restating the definition. So far there is one, a
-deliberately minimal two-layer VM; the real instruction set, the bus, and the recursion tower are
-still to come.
+deliberately minimal two-layer VM using a representative five-class ISA. Concrete opcode semantics,
+the bus, and the recursion tower are still to come.
 
 Each `*Sanity.lean` file holds concrete models and countermodels witnessing that the definitions
 beside it are satisfiable and the theorems consuming them non-vacuous — kept separate so the

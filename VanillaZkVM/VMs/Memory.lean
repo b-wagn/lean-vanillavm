@@ -3,10 +3,10 @@ import VanillaZkVM.VMs.State
 /-!
 # Memory extractability
 
-This file is the **memory-only slice** of the whitepaper's memory-extractability
-argument. It is stated over the general `VectorCommitment` — there is no bespoke
-memory-commitment structure — and *consumes* `PositionBinding` and
-`UpdateBinding`, the provisional binding notions in
+This file contains the part of the whitepaper's memory-extractability argument
+that concerns memory alone. It uses the existing general `VectorCommitment`
+rather than defining a second kind of memory commitment, and assumes
+`PositionBinding` and `UpdateBinding`, the provisional binding properties in
 `Preliminaries/VectorCommitment.lean`.
 
 `UpdateBinding` supplies the write guarantee this argument needs: the commitment
@@ -22,15 +22,17 @@ that).
   `CommittedMemory.read`/`.write`/`.step` (the `φ̂` predicates over
   `CommittedVMState`, ch03) and `FullMemory.read`/`.write`/`.step` (the `φ`
   predicates over `FullVMState`, ch01). `MemStep` sits outside both namespaces
-  because the same witness indexes both step predicates. `committedStep`
-  existentially hides the `MemStep` value and is the binary relation exposed
-  through `StepInterface.stepCommitted`.
+  because one `MemStep` supplies the data checked by both predicates.
+  `committedStep` says that some such `MemStep` exists, without requiring its
+  caller to provide that value. A concrete ISA may add program and register
+  checks before using this relation as `StepInterface.stepCommitted`.
 * **Per-step extractability:** `step_mem_extract`, turning a committed-memory
   step into a full-memory step (given `CommitInv` for both endpoint states).
 * **Write reconstruction:** `commit_update` and `commitInv_write`, which
   establish `CommitInv` after a write.
-* **Memory bridge:** `step_reconstruct`, which constructs the represented
-  full-memory state after the step required by `StepInterface.MemoryBridge`.
+* **Memory bridge:** `step_reconstruct_exact`, which reconstructs the next
+  full-memory state for a specified `MemStep`, and `step_reconstruct`, which
+  hides that witness for `StepInterface.MemoryBridge`.
 * **Whole-trace extractability:** `trace_mem_extract`, chaining the per-step
   lemmas by induction along a whole committed trace (with
   `stepReconstruct`/`reconstructTrace`/`chooseMemStep`).
@@ -66,9 +68,10 @@ theorem mem_eq_of_commit_eq {VC : VectorCommitment}
 
 /-! ## Full-memory states and their committed representation -/
 
-/-- Full VM state over the commitment's *native* index/value types: memory is the
-total map `VC.Index → VC.Value`. The original `VMState = VMStateWith (Addr → Byte)`
-is the instance `VC.Index := ℕ`, `VC.Value := ℕ`. No wrapper, no casts.
+/-- Full VM state using the address and value types chosen by the commitment:
+memory is the total map `VC.Index → VC.Value`. It uses the same `pc`, `regs`,
+and `mem` structure as `VMState`; only the type of `mem` differs. When the index
+and value types are both `ℕ`, this gives the paper's `Addr → Byte` memory.
 
 Paper: VM state in ch01. -/
 abbrev FullVMState (VC : VectorCommitment) : Type := VMStateWith (VC.Index → VC.Value)
@@ -91,16 +94,16 @@ def CommitInv {VC : VectorCommitment} (Ŝ : CommittedVMState VC) (S : FullVMStat
 /-- The memory-free part of an op predicate: a relation on the non-memory state
 `(pc₁, regs₁, pc₂, regs₂)`. This memory-only interface deliberately does not
 express the equations tying a `MemStep` value's `addr`/`v` to registers; the
-concrete ISA layer must conjoin those equations.
+ISA layer conjoins those equations in `ISA.System.committedOperation`.
 
 Paper: `eq:phi-read-decomp` and `eq:phi-write-decomp` (ch01). -/
 abbrev MemFreePredicate : Type := Word → (ℕ → Word) → Word → (ℕ → Word) → Prop
 
-/-- The per-transition memory witness as a typed sum: read/write/other are
-distinguished at the type level, each carrying the opening *and* the typed
-address/value it feeds to `VC.verify`. These are the explicit memory-opening
-witness fields. `MemStep` is Lean-specific packaging for data present in the
-paper's per-step memory-opening witness, not a separate paper-level notion.
+/-- The memory data attached to one transition. It has three cases. A read
+stores its address, value, and opening proof; a write stores its address, new
+value, old value, and opening proof; an operation that does not access memory
+uses `.other`. `MemStep` is Lean packaging for data already present in the
+paper's per-step memory-opening witness, not a new paper-level notion.
 
 Paper: `prop:memory-extractability` (ch05). -/
 inductive MemStep (VC : VectorCommitment) where
@@ -138,9 +141,10 @@ def write (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC)
 
 /-- Committed step `φ̂_step` (memory-only slice): a case split over the
 operation type carried by the `MemStep` witness (the paper's disjunction over
-ops). Non-memory ops carry `.other` and a memory-free predicate. It omits the
-paper's bus and concrete ISA decoding; those layers later conjoin this memory
-component.
+ops). Non-memory ops carry `.other` and a memory-free predicate. This definition
+is only the reusable memory component: `ISA.System.committedOperation` adds
+program selection and register-field equations, while the bus layer later adds
+bus evidence.
 
 Paper: memory component of `eq:step-bus2` (ch03). -/
 def step (memFreePred : MemFreePredicate) (Ŝ₁ Ŝ₂ : CommittedVMState VC) : MemStep VC → Prop
@@ -196,10 +200,10 @@ def step (memFreePred : MemFreePredicate) (S₁ S₂ : FullVMState VC) : MemStep
 
 end FullMemory
 
-/-- The canonical binary committed-memory step. A step holds
-when some `MemStep` witness, including any required opening proof, satisfies
-`CommittedMemory.step`. The `MemStep` value remains available in extraction
-witnesses, but is hidden from the public `StepInterface.stepCommitted` relation.
+/-- The memory-only relation between two committed states. It holds when there
+is a `MemStep` whose memory checks pass; for a read or write that value includes
+the required opening proof. A concrete ISA can add program and register checks
+before using this relation as `StepInterface.stepCommitted`.
 
 Paper: the memory component of `eq:step-bus2` and the per-step opening witness
 in `prop:memory-extractability` (ch03/ch05). -/
@@ -245,7 +249,8 @@ theorem step_mem_extract
     obtain ⟨hreg, hmemEq, hverify⟩ := hstep
     refine ⟨?_, ?_, ?_⟩
     · rw [hpc1, hreg1, hpc2, hreg2] at hreg; exact hreg
-    · -- Compare the canonical `VC.openProof` with the `MemStep.read` proof.
+    · -- Compare the opening produced from the full memory with the opening
+      -- stored in `MemStep.read`.
       have hadv : VC.verify (VC.commit S₁.mem) addr v π := by rw [← hmem1]; exact hverify
       exact hpos (VC.commit S₁.mem) addr (S₁.mem addr) v (VC.openProof S₁.mem addr) π
         (hComplete S₁.mem addr) hadv
@@ -448,9 +453,10 @@ private theorem reconstructed_step_full
     rw [hpc, hregs] at hsem
     exact hsem
 
-/-- **Realization of `StepInterface.MemoryBridge`.** From `CommitInv Ŝ₁ S₁`
-and `committedStep … Ŝ₁ Ŝ₂`, construct a full-memory state `S₂` such that
-`CommitInv Ŝ₂ S₂` and the corresponding `FullMemory.step` both hold.
+/-- **One-step reconstruction for a specified `MemStep`.** From
+`CommitInv Ŝ₁ S₁` and `CommittedMemory.step … Ŝ₁ Ŝ₂ w`, construct a
+full-memory state `S₂` such that `CommitInv Ŝ₂ S₂` and
+`FullMemory.step … S₁ S₂ w` both hold for that same `w`.
 
 Concretely, `S₂` takes its program counter and registers from `Ŝ₂`. A read or
 non-memory operation keeps `S₁.mem`; a write changes only its stated address.
@@ -458,9 +464,34 @@ Update binding proves that this constructed memory commits to `Ŝ₂.mem`.
 
 Unlike `step_mem_extract`, this theorem does not assume `CommitInv Ŝ₂ S₂`.
 It proves that relation by preserving memory on reads/other operations and
-point-updating memory on writes. This is the exact
-existential direction required by `StepInterface.MemoryBridge`; a concrete
-`ZkVM` instance packages it through that frozen interface.
+point-updating memory on writes. Retaining the same `w` lets a later ISA layer
+show that the reconstructed step executes the operation selected by the
+program.
+
+Paper: inductive construction in `rem:mem-inheritance` and Step 6 of
+`thm:main` (ch05). -/
+theorem step_reconstruct_exact
+    (hComplete : VC.Complete) (hpos : VC.PositionBinding) (hupd : VC.UpdateBinding)
+    (memFreePred : MemFreePredicate)
+    (S₁ : FullVMState VC) (Ŝ₁ Ŝ₂ : CommittedVMState VC) (w : MemStep VC)
+    (hInv : CommitInv Ŝ₁ S₁)
+    (hstep : CommittedMemory.step memFreePred Ŝ₁ Ŝ₂ w) :
+    ∃ S₂ : FullVMState VC,
+      CommitInv Ŝ₂ S₂ ∧ FullMemory.step memFreePred S₁ S₂ w := by
+  let S₂ := stepReconstruct S₁ Ŝ₂ w
+  have hInv₂ : CommitInv Ŝ₂ S₂ :=
+    commitInv_step hComplete hpos hupd memFreePred S₁ Ŝ₁ Ŝ₂ w hInv hstep
+  exact ⟨S₂, hInv₂,
+    reconstructed_step_full hComplete hpos memFreePred S₁ Ŝ₁ Ŝ₂ w hInv hstep⟩
+
+/-- **Realization of `StepInterface.MemoryBridge`.** From `CommitInv Ŝ₁ S₁`
+and `committedStep … Ŝ₁ Ŝ₂`, construct a full-memory state `S₂` represented by
+`Ŝ₂` and prove that some `MemStep` gives a valid full-memory transition from
+`S₁` to `S₂`.
+
+Unlike `step_reconstruct_exact`, the caller does not choose a particular
+`MemStep`; `committedStep` supplies one. This is the conclusion required by the
+frozen step interface.
 
 Paper: inductive construction in `rem:mem-inheritance` and Step 6 of
 `thm:main` (ch05). -/
@@ -472,11 +503,9 @@ theorem step_reconstruct
     ∃ S₂ : FullVMState VC,
       CommitInv Ŝ₂ S₂ ∧ ∃ w : MemStep VC, FullMemory.step memFreePred S₁ S₂ w := by
   obtain ⟨w, hw⟩ := hstep
-  let S₂ := stepReconstruct S₁ Ŝ₂ w
-  have hInv₂ : CommitInv Ŝ₂ S₂ :=
-    commitInv_step hComplete hpos hupd memFreePred S₁ Ŝ₁ Ŝ₂ w hInv hw
-  exact ⟨S₂, hInv₂, w,
-    reconstructed_step_full hComplete hpos memFreePred S₁ Ŝ₁ Ŝ₂ w hInv hw⟩
+  obtain ⟨S₂, hInv₂, hfull⟩ :=
+    step_reconstruct_exact hComplete hpos hupd memFreePred S₁ Ŝ₁ Ŝ₂ w hInv hw
+  exact ⟨S₂, hInv₂, w, hfull⟩
 
 /-- **Memory extractability, whole trace.** Given a committed trace `Ŝ`, its
 sequence `w : ℕ → MemStep VC` (each value certifying a committed step), and an
@@ -517,20 +546,24 @@ theorem trace_mem_extract
     (hinv k (by omega)) (hstep k hk)
 
 open Classical in
-/-- Pick a `MemStep` witness for each transition of a committed trace: where a
-committed step exists, choose its witnessing `MemStep` value; otherwise use a
-dummy `.other`. This
-lets a caller that only knows the *existential* step relation (`∃ w, CommittedMemory.step …`,
-the shape of an abstract `ZkVM.step`) still drive `reconstructTrace`.
+/-- Pick a `MemStep` for each transition. The `accepts` argument checks whether
+a particular `MemStep` is valid for two committed states. If some value passes
+that check, choose one; otherwise use the harmless default `.other`.
+
+Taking `accepts` as an argument lets both the memory-only checks and the
+stronger ISA checks reuse this function when reconstructing a trace.
 
 Paper: per-step memory-opening witnesses in `prop:memory-extractability` (ch05). -/
-noncomputable def chooseMemStep (memFreePred : MemFreePredicate)
+noncomputable def chooseMemStep
+    (accepts : CommittedVMState VC → CommittedVMState VC → MemStep VC → Prop)
     (Ŝ : ℕ → CommittedVMState VC) : ℕ → MemStep VC :=
-  fun k => if h : committedStep memFreePred (Ŝ k) (Ŝ (k + 1)) then h.choose else MemStep.other
+  fun k => if h : ∃ w, accepts (Ŝ k) (Ŝ (k + 1)) w then h.choose else MemStep.other
 
-theorem chooseMemStep_spec (memFreePred : MemFreePredicate) (Ŝ : ℕ → CommittedVMState VC)
-    (k : ℕ) (h : committedStep memFreePred (Ŝ k) (Ŝ (k + 1))) :
-    CommittedMemory.step memFreePred (Ŝ k) (Ŝ (k + 1)) (chooseMemStep memFreePred Ŝ k) := by
+theorem chooseMemStep_spec
+    (accepts : CommittedVMState VC → CommittedVMState VC → MemStep VC → Prop)
+    (Ŝ : ℕ → CommittedVMState VC) (k : ℕ)
+    (h : ∃ w, accepts (Ŝ k) (Ŝ (k + 1)) w) :
+    accepts (Ŝ k) (Ŝ (k + 1)) (chooseMemStep accepts Ŝ k) := by
   simp only [chooseMemStep]; rw [dif_pos h]; exact h.choose_spec
 
 end VanillaZkVM

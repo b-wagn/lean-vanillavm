@@ -338,12 +338,15 @@ running time); `Preliminaries/VectorCommitment.lean` has `VectorCommitment` with
 known initial memory and per-step `MemStep` witnesses, realizes the frozen
 `MemoryBridge` by constructing each next full-memory state, and `VMs/TwoStep/TwoStep.lean`
 composes that reconstruction into
-`TwoStep.System.cte`. The concrete ISA and bus remain absent. The
+`TwoStep.System.cte`. `VMs/ISA.lean` supplies the representative five-class
+plain predicate, connects its selected operation to each explicit `MemStep`,
+and `TwoStep.System.toZkVM` now uses that predicate as its actual `step`. The
+concrete opcode semantics and bus remain absent. The
 former playground `Bus.lean` prototype has been deleted from the active tree;
 its git history is reference material only for Issue 5.
 
-**(a) Committed memory / memory-commitment properties — memory core implemented,
-semantic wiring still open.** `VMs/Memory.lean` now formalizes the perfect
+**(a) Committed memory / memory-commitment properties — memory core and
+representative ISA wiring implemented.** `VMs/Memory.lean` now formalizes the perfect
 position/update-binding memory slice: committed/full read and write equations,
 the `CommitInv` relation, conditional `step_mem_extract`,
 `step_reconstruct`/`TwoStep.System.memoryBridge` (which produce each next
@@ -352,12 +355,12 @@ represented state), and
 two-layer toy. `VMs/TwoStep/TwoStepSanity.lean` gives a permanent accepting joint model for
 the theorem's hypotheses. The append-bit countermodel demonstrates that
 agreement of accepted openings away from the updated address does not provide
-update binding. Remaining:
-(i) `MemFreePredicate` does not yet tie `MemStep` address/value fields to
-registers or program fetch; (ii) the five-class ISA and bus-deferred step
-predicate must conjoin those semantic equations (Issues 3 and 5); and
-(iii) the paper's explicit bad-event reductions, probability/advantage
-accounting, and runtime bounds remain Issues 2, 6, and 8.
+update binding. `ISA.System.committedOperation` now ties each `MemStep`
+constructor and its address/value to program fetch and the designated
+registers, and the two-step CTE concludes `stepPlain`. Remaining:
+(i) the bus-deferred step predicate must add bus/chip evidence (Issue 5); and
+(ii) explicit advantage/reduction accounting remains the Issue 8 study and
+Issues 10 and 6 in `PLAN.md` (the former Issue 2 was withdrawn).
 
 **(b) Multi-layer recursion — capped at 2 layers.** `VMs/TwoStep/TwoStep.lean` has only
 `RSeg→RFinal`; the paper has leaf(`inner-*`)→`segment`(`R_1`)→
