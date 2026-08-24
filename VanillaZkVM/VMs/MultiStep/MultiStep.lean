@@ -1,4 +1,3 @@
-import VanillaZkVM.Preliminaries.Trace
 import VanillaZkVM.Specification.Cte
 import VanillaZkVM.VMs.Memory
 import VanillaZkVM.VMs.Step
@@ -167,7 +166,7 @@ def m : ℕ := sys.T / sys.Nseg
 theorem m_ge_two : sys.m ≥ 2 :=
   (Nat.le_div_iff_mul_le sys.hNseg).mpr sys.hT
 
-theorem m_pos : 0 < sys.m := Nat.lt_of_lt_of_le (by norm_num) sys.m_ge_two
+theorem m_pos : 0 < sys.m := Nat.lt_of_lt_of_le (by omega) sys.m_ge_two
 
 theorem T_eq : sys.T = sys.m * sys.Nseg :=
   (Nat.div_mul_cancel sys.hDvd).symm
@@ -276,35 +275,10 @@ relation's side conditions guarantee this.
 
 Paper: `lem:combine` tree unrolling (ch04), `rem:wellfounded`. -/
 
-/-- Recursively build a committed trace from a convert-or-combine proof. -/
-noncomputable def buildTrace
-    (El : Extractor sys.RLeaf sys.ASLeaf)
-    (Ec : Extractor sys.RConvert sys.ASConvert)
-    (Ecb : Extractor sys.RCombine sys.ASCombine)
-    (S0 SN : CommittedVMState sys.VC) (N : ℕ)
-    (p : sys.ConvertProof ⊕ sys.CombineProof) : ℕ → CommittedVMState sys.VC :=
-  if _hle : N ≤ sys.Nseg then
-    match p with
-    | .inl cp => (El.extract ⟨S0, SN, N⟩ (Ec.extract ⟨S0, SN, N⟩ cp)).states
-    | .inr _  => fun _ => S0
-  else
-    match p with
-    | .inr cp =>
-      let w := Ecb.extract ⟨S0, SN, N⟩ cp
-      if _hNL : w.NL < N then
-        if _hNR : w.NR < N then
-          let trL := buildTrace El Ec Ecb S0 w.Smid w.NL w.proofL
-          let trR := buildTrace El Ec Ecb w.Smid SN w.NR w.proofR
-          fun k => if k ≤ w.NL then trL k else trR (k - w.NL)
-        else fun _ => S0
-      else fun _ => S0
-    | .inl _  => fun _ => S0
-  termination_by N
-
-/-- **Tree-unrolling extraction (correctness).** If the leaf, convert, and
-combine SNARKs are knowledge-sound, then `buildTrace` produces a valid
-committed trace for any accepting convert-or-combine proof. Proved by
-well-founded induction on `N`.
+/-- **Tree-unrolling extraction.** If the leaf, convert, and
+combine SNARKs are knowledge-sound, any accepting convert-or-combine proof
+for `N` steps yields a valid committed trace. Proved by well-founded
+induction on `N`.
 
 Paper: `lem:combine` (ch04). The `(m-1)` combine coefficient arises because
 `RecTree.internals_eq_leaves_sub_one` counts exactly `m - 1` internal
@@ -344,15 +318,15 @@ theorem combine_tree
       | inl cp => exact ⟨cp, hverify⟩
       | inr cp =>
         have hrel := hEcb ⟨S0, SN, N⟩ cp hverify
-        simp only [RCombine] at hrel
+        dsimp only [RCombine] at hrel
         obtain ⟨_, _, hsum, _, _, hNL, hNR⟩ := hrel
         exfalso; have := sys.hNseg; omega
     obtain ⟨cp, hcpv⟩ := hcv
     have hrel_c := hEc ⟨S0, SN, N⟩ cp hcpv
-    simp only [RConvert] at hrel_c
+    dsimp only [RConvert] at hrel_c
     obtain ⟨hleaf_v, _⟩ := hrel_c
     have hrel_l := hEl ⟨S0, SN, N⟩ _ hleaf_v
-    simp only [RLeaf] at hrel_l
+    dsimp only [RLeaf] at hrel_l
     obtain ⟨hstart, hend, hstep_rel⟩ := hrel_l
     set w := El.extract ⟨S0, SN, N⟩ (Ec.extract ⟨S0, SN, N⟩ cp)
     refine ⟨w.states, hstart, ?_, ?_⟩
@@ -367,11 +341,11 @@ theorem combine_tree
       | inr cp => exact ⟨cp, hverify⟩
       | inl cp =>
         have hrel := hEc ⟨S0, SN, N⟩ cp hverify
-        simp only [RConvert] at hrel
+        dsimp only [RConvert] at hrel
         omega
     obtain ⟨cp, hcpv⟩ := hcbv
     have hrel := hEcb ⟨S0, SN, N⟩ cp hcpv
-    simp only [RCombine] at hrel
+    dsimp only [RCombine] at hrel
     set w := Ecb.extract ⟨S0, SN, N⟩ cp
     obtain ⟨hvL, hvR, hsum, hdvL, hdvR, hgeL, hgeR⟩ := hrel
     have hNseg_pos := sys.hNseg
@@ -385,9 +359,8 @@ theorem combine_tree
     -- Stitch the two traces: left [0, NL], right [0, NR] → combined [0, N]
     refine ⟨fun k => if k ≤ w.NL then ŜL k else ŜR (k - w.NL), ?_, ?_, ?_⟩
     · -- Start: k = 0 ≤ NL
-      dsimp only; simp only [Nat.zero_le, ↓reduceIte]; exact hL0
+      simp only [Nat.zero_le, ↓reduceIte]; exact hL0
     · -- End: k = N > NL
-      dsimp only
       have hN_gt_NL : ¬ (N ≤ w.NL) := by omega
       simp only [hN_gt_NL, ↓reduceIte]
       have hN_sub : N - w.NL = w.NR := by omega
@@ -431,8 +404,8 @@ theorem committedTrace_extract (h : sys.Assumptions) :
   obtain ⟨Ee, hEe⟩ := ksEmbed
   intro x p hp
   have hrel := hEe x p hp
-  simp only [REmbed] at hrel
-  have hge : sys.T ≥ sys.Nseg := le_trans (Nat.le_mul_of_pos_left sys.Nseg (by norm_num)) sys.hT
+  dsimp only [REmbed] at hrel
+  have hge : sys.T ≥ sys.Nseg := le_trans (Nat.le_mul_of_pos_left sys.Nseg (by omega)) sys.hT
   exact sys.combine_tree ksLeaf ksConvert ksCombine x.S0 x.ST sys.T sys.hDvd hge
     (.inr (Ee.extract x p)) hrel
 

@@ -1,4 +1,3 @@
-import VanillaZkVM.Preliminaries.ArgumentSystemSanity
 import VanillaZkVM.VMs.MemorySanity
 import VanillaZkVM.VMs.MultiStep.MultiStep
 
@@ -48,9 +47,9 @@ private def system : MultiStep.System where
   Nseg := 1
   T := 2
   memFreePred := memFree
-  hNseg := by norm_num
+  hNseg := by omega
   hDvd := by norm_num
-  hT := by norm_num
+  hT := by omega
   LeafProof := SegWitness exactVC
   leafVerify := leafVerify
   ConvertProof := SegWitness exactVC
