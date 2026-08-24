@@ -19,6 +19,8 @@ import VanillaZkVM.VMs.ISA                             -- representative five-cl
 import VanillaZkVM.VMs.ISASanity                       -- accepted and rejected ISA examples
 import VanillaZkVM.VMs.TwoStep.TwoStep                 -- minimal two-relation zkVM instantiating the abstract one
 import VanillaZkVM.VMs.TwoStep.TwoStepSanity           -- accepting model for the full-memory two-step theorem
+import VanillaZkVM.VMs.MultiStep.MultiStep             -- binary-recursion-tree zkVM (convert / combine / embed)
+import VanillaZkVM.VMs.MultiStep.MultiStepSanity       -- accepting model for the multi-step theorem
 
 /-!
 # VanillaZkVM — umbrella module
@@ -32,6 +34,6 @@ list; there are no back-edges.
 * `Specification/` — what a zkVM is and what it must prove (the frozen kernel:
   `ZkVM`, `TraceValid`, `Rstar`, `CTE`, `cte_iff_knowledgeSound`).
 * `VMs/` — concrete VM machinery: state vocabulary, the step-interface contract,
-  committed-memory reconstruction, the representative ISA, and the two-step toy
-  that instantiates the specification.
+  committed-memory reconstruction, the representative ISA, the two-step toy, and
+  the multi-step recursion tower that instantiate the specification.
 -/
