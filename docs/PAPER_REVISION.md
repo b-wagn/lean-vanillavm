@@ -45,6 +45,19 @@ the updated memory.
 Issue 1 follows those formal statements; the ch03 occurrence is treated as a
 stale term, not as a third commitment assumption.
 
+## Pending read-semantics correction
+
+Whitepaper proof-branch commit `aa33ed3` adds `mem₂ = mem₁` to
+`eq:phi-read-decomp` and explains why it is required: without that condition, a
+read step could replace memory. The older decomposition formula pinned above
+omits this condition, even though `eq:mem-op-read` and the ch03 prose already
+say that reads do not change memory. `FullMemory.read` and the Issue 3 ISA make
+that intended behavior explicit.
+
+The pin has not been changed here. Updating it requires human confirmation and
+a re-check of every paper-facing row affected by the intervening whitepaper
+commits, as required below.
+
 ## Change control
 
 When the correction lands on the whitepaper's default branch, replace this pin

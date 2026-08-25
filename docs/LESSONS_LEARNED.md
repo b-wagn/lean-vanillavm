@@ -57,9 +57,10 @@ guard; when a guard becomes a CI check, note that.
   theorem is therefore a memory-only slice; the ISA layer must add those equations.
   In prose, name this formal type as `MemStep` or a “`MemStep` witness”; the
   generic term “descriptor” is neither a Lean declaration nor paper vocabulary.
-  **Guard:** explicit limitation in `VMs/Memory.lean` and `CORRESPONDENCE.md`; Issue 3
-  owns the concrete `MemStep`/register wiring, and review rejects generic
-  synonyms for formal witness types.
+  **Guard:** `ISA.System.committedOperation` performs the concrete
+  `MemStep`/register/program wiring, and `TwoStep.System.toZkVM.step` is
+  `ISA.System.stepPlain`; review rejects either a disconnected step predicate
+  or generic synonyms for formal witness types.
 
 - **A two-endpoint refinement is not an inductive reconstruction theorem.**
   `step_mem_extract` faithfully proves the paper's conditional proposition when

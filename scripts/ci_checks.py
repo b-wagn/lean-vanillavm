@@ -73,12 +73,16 @@ HEADLINE_THEOREMS = [
     "VanillaZkVM.knowledgeSound_trivialAS",      # Issue 0 — non-vacuity floor
     "VanillaZkVM.chain_flatten",                 # Issue 0 — concatenation lemma
     "VanillaZkVM.TwoStep.System.committedTrace_extract",  # two-layer committed-chain extraction
+    "VanillaZkVM.step_reconstruct_exact",        # Issue 1/3 — preserves the selected MemStep
     "VanillaZkVM.step_reconstruct",              # Issue 1 — constructive memory bridge core
     "VanillaZkVM.TwoStep.System.memoryBridge",   # Issue 1 — frozen-interface realization
     "VanillaZkVM.trace_mem_extract",             # Issue 1 — memory trace reconstruction
     "VanillaZkVM.TwoStep.System.cte", # Issue 1 — full-memory two-step CTE
     "VanillaZkVM.MemorySanity.exactVC_bindingAssumptions",  # Issue 1 — satisfiability
     "VanillaZkVM.MemorySanity.appendBitVC_not_updateBinding",  # Issue 1 — countermodel
+    "VanillaZkVM.ISA.System.stepPlain_iff_operation_at_pc",  # Issue 3 — fixed-program selection
+    "VanillaZkVM.ISA.System.operation_preserves_memory_unless_write",  # Issue 3 — memory guard
+    "VanillaZkVM.ISA.System.committedOperation_stepPlain",  # Issue 3 — committed/plain bridge
 ]
 
 # A Lean identifier: dotted, letters/digits/_/'  (no braces, no spaces).
