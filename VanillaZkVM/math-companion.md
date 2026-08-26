@@ -510,3 +510,288 @@ memory. Finally, it instantiates a private `ZkVM` whose `step` field is
 two-step construction using the same predicate. Issue 5 still adds the bus
 evidence required by hash/precompile operations; this section does not verify
 concrete RV32IM opcode implementations.
+
+---
+
+## 4. Multi-layer recursion tower (Issue 4)
+
+Paper: ch04 (`R_2`, `R_3`, `R_4`, `fig:topo`), `lem:convert`, `lem:combine`,
+`lem:embed`, `rem:wellfounded`; composed with `def:cte` and
+`prop:memory-extractability` (ch05).
+
+This replaces the flat `m`-to-1 merge of the two-step toy (§1.4) with the paper's
+binary recursion tower. Segments are still proved by a leaf SNARK, but the leaf
+is left **abstract** — its proof type and verifier are parameters — so the tower
+does not depend on the bus (Issue 5).
+
+### 4.1 System parameters
+
+    Sys = (VC, N_seg, T, φ',
+           LeafProof,    leafVerify    : RecStmt(VC) × LeafProof    → {0,1},
+           ConvertProof, convertVerify : RecStmt(VC) × ConvertProof → {0,1},
+           CombineProof, combineVerify : RecStmt(VC) × CombineProof → {0,1},
+           EmbedProof,   embedVerify   : EmbedStmt(VC) × EmbedProof → {0,1})
+
+subject to the well-formedness conditions
+
+    N_seg > 0,      N_seg ∣ T,      T ≥ 2·N_seg,
+
+and with the derived segment count
+
+    m := T / N_seg,   so   T = m·N_seg   and   m ≥ 2.
+
+`T ≥ 2·N_seg` is the paper's requirement that the top of the tower really is a
+combine node: with `m = 1` there would be nothing to merge and `R_4` would have
+no combine proof to wrap.
+
+A **recursion statement** carries committed boundaries and a step count; an
+**embed statement** carries boundaries only, because `T` is a system parameter:
+
+    RecStmt(VC)   := { (S₀, S_N, N) }        EmbedStmt(VC) := { (S₀, S_T) }.
+
+*Lean:* `MultiStep.System`, `RecStmt`, `EmbedStmt`, `m`, `m_ge_two`, `T_eq`,
+`T_ge_Nseg`.
+
+### 4.2 Topology
+
+The proof shape is a binary tree
+
+    t ::= leaf | node(t, t)
+
+with
+
+    steps_{N_seg}(leaf) = N_seg,     steps(node(l,r)) = steps(l) + steps(r),
+    leaves(leaf) = 1,                leaves(node(l,r)) = leaves(l) + leaves(r),
+    internals(leaf) = 0,             internals(node(l,r)) = 1 + internals(l) + internals(r).
+
+Two counting facts hold for every `t`:
+
+    internals(t) + 1 = leaves(t),          leaves(t)·N_seg = steps_{N_seg}(t).
+
+The first is where the paper's `(m − 1)` combine coefficient comes from: a tree
+covering `m` segments has exactly `m − 1` internal nodes, hence `m − 1`
+applications of `lem:combine`. Unbalanced trees are admitted — nothing constrains
+the shape beyond `N_L + N_R = N`.
+
+**Scope note.** These are counting facts about the topology only. The extraction
+lemma of §4.5 recurses on the step count `N`, not on a `RecTree` value, so the
+`(m − 1)` count is *not* currently threaded into the extraction statement. It
+becomes load-bearing in Issue 6, where the coefficient multiplies a real
+advantage. Until then it is a stated property of the topology, not a hypothesis
+of any theorem.
+
+*Lean:* `RecTree`, `RecTree.steps`, `.leaves`, `.internals`,
+`internals_eq_leaves_sub_one`, `leaves_mul_Nseg`, `steps_dvd_Nseg`,
+`steps_ge_Nseg`, `leaves_pos`.
+
+### 4.3 The four relations
+
+**Leaf** (abstract; the segment relation, `R_{0,step}` simplified — no bus). A
+witness is a segment witness `w = (states, steps)` as in §1:
+
+    ( (S₀, S_N, N) ; w ) ∈ R_leaf
+      :⟺ w.states(0) = S₀
+          ∧ w.states(N_seg) = S_N
+          ∧ ∀ j < N_seg. CommittedMemory.step( w.states(j), w.states(j+1), w.steps(j) ).
+
+**Convert `R_2`** (1-to-1, `lem:convert`). A witness is a leaf proof:
+
+    ( (S₀, S_N, N) ; π_leaf ) ∈ R_2  :⟺  leafVerify (S₀,S_N,N) π_leaf = 1  ∧  N = N_seg.
+
+**Combine `R_3`** (binary 2-to-1, self-recursive, `lem:combine`). A witness is
+
+    w = (π_L, π_R, S_mid, N_L, N_R),     π_L, π_R ∈ ConvertProof ⊎ CombineProof,
+
+and
+
+    ( (S₀, S_N, N) ; w ) ∈ R_3
+      :⟺ accept(π_L, S₀, S_mid, N_L)
+          ∧ accept(π_R, S_mid, S_N, N_R)
+          ∧ N_L + N_R = N
+          ∧ N_seg ∣ N_L ∧ N_seg ∣ N_R
+          ∧ N_L ≥ N_seg ∧ N_R ≥ N_seg,
+
+where
+
+    accept(inl π, a, b, n) := convertVerify (a,b,n) π,
+    accept(inr π, a, b, n) := combineVerify (a,b,n) π.
+
+The `⊎` is the whole point: a child may itself be a combine proof, which is what
+makes the shape a tree rather than a list.
+
+**Embed `R_4`** (final cap, `lem:embed`). A witness is a combine proof for the
+whole execution:
+
+    ( (S₀, S_T) ; π ) ∈ R_4  :⟺  combineVerify (S₀, S_T, T) π = 1.
+
+**Trust base.** Knowledge soundness of all four argument systems
+`Π_leaf, Π_2, Π_3, Π_4`, giving straight-line extractors `E_leaf, E_c, E_cb, E_e`.
+
+*Lean:* `RLeaf`/`ASLeaf`, `RConvert`/`ASConvert`, `RCombine`/`ASCombine`,
+`REmbed`/`ASEmbed`, `Assumptions`.
+
+### 4.4 The well-founded measure (`rem:wellfounded`)
+
+The recursion in `R_3` must terminate. The measure is the step count `N`, and the
+three side conditions of `R_3` are exactly what makes it decrease: from
+`N_L + N_R = N` with `N_L ≥ N_seg` and `N_R ≥ N_seg` and `N_seg > 0`,
+
+    N_L = N − N_R ≤ N − N_seg < N,       and symmetrically  N_R < N.
+
+Two consequences are used as case discriminators in §4.5, and both are pure
+arithmetic:
+
+* a **combine** proof cannot certify `N = N_seg`, since it would force
+  `N ≥ 2·N_seg > N_seg`; so at `N = N_seg` the proof must be a convert proof;
+* a **convert** proof cannot certify `N > N_seg`, since `R_2` pins `N = N_seg`;
+  so at `N > N_seg` the proof must be a combine proof.
+
+The base case is therefore vacuous by arithmetic rather than by a separate
+well-formedness hypothesis, and the conditions live *inside* the relation, not as
+auxiliary lemmas.
+
+### 4.5 The extraction procedure and the tree-unrolling lemma
+
+**Procedure.** `buildTrace` is an explicit recursive function of the extractors
+and the proof — not an existential. Writing `x := (S₀, S_N, N)`:
+
+    buildTrace(S₀, S_N, N, π) :=
+      if N ≤ N_seg then
+        case π of
+          inl π_c  ↦  E_leaf( x, E_c(x, π_c) ).states
+          inr _    ↦  const S₀                                   -- unreachable
+      else
+        case π of
+          inl _    ↦  const S₀                                   -- unreachable
+          inr π_cb ↦  let w := E_cb(x, π_cb) in
+                      if w.N_L < N ∧ w.N_R < N then
+                        λ k. if k ≤ w.N_L
+                             then buildTrace(S₀, w.S_mid, w.N_L, w.π_L)(k)
+                             else buildTrace(w.S_mid, S_N, w.N_R, w.π_R)(k − w.N_L)
+                      else const S₀                              -- unreachable
+
+Totality forces the three `const S₀` branches; the lemma below shows a verifying
+proof never reaches them. Termination is the measure of §4.4: the guard
+`w.N_L < N ∧ w.N_R < N` is in scope at exactly the two recursive calls.
+
+**Tree unrolling (`lem:combine`).** For all `N` with `N_seg ∣ N` and `N ≥ N_seg`,
+all committed boundaries `S₀, S_N`, and all `π ∈ ConvertProof ⊎ CombineProof`,
+
+    accept(π, S₀, S_N, N) = 1
+      ⟹ CommittedTraceValid(φ', S₀, S_N, buildTrace(S₀,S_N,N,π), N).
+
+*Proof.* Strong induction on `N`.
+
+*Leaf case* (`N ≤ N_seg`, hence `N = N_seg`). By §4.4 the proof is a convert
+proof. `R_2` extraction yields a leaf proof accepted by `leafVerify`, and
+`R_leaf` extraction yields a segment witness whose `states` component **is** the
+committed trace: its endpoints are `S₀` and `S_N` and each of its `N_seg` steps
+carries a `MemStep` witness, whose existential projection is `committedStep`.
+
+*Node case* (`N > N_seg`). By §4.4 the proof is a combine proof. `R_3` extraction
+yields `(π_L, π_R, S_mid, N_L, N_R)` with the side conditions, so both children
+satisfy the induction hypothesis' preconditions and `N_L, N_R < N`. Applying the
+hypothesis to each half gives traces `Ŝ_L` on `[0, N_L]` from `S₀` to `S_mid` and
+`Ŝ_R` on `[0, N_R]` from `S_mid` to `S_N`. The glued trace is
+
+    Ŝ(k) := if k ≤ N_L then Ŝ_L(k) else Ŝ_R(k − N_L).
+
+Its endpoints are immediate (`Ŝ(0) = Ŝ_L(0) = S₀`; `Ŝ(N) = Ŝ_R(N − N_L) = Ŝ_R(N_R) = S_N`).
+Step validity splits three ways: for `k+1 ≤ N_L` both indices lie in the left
+trace; for `k > N_L` both lie in the right; at the **seam** `k = N_L` the step is
+`Ŝ_L(N_L) → Ŝ_R(1)`, which is the right trace's first step because
+`Ŝ_L(N_L) = S_mid = Ŝ_R(0)`. ∎
+
+This is the binary-tree generalization of `chain_flatten` (the shared list
+concatenation helper): `chain_flatten` glues `m` sub-chains laid out in a row,
+whereas here the two halves are glued recursively and the recursion depth is the
+tree's height.
+
+*Lean:* `buildTrace`, `combine_tree`.
+
+### 4.6 Embed and full-memory CTE
+
+Composing `R_4` extraction with §4.5 at `N = T` (legitimate since `N_seg ∣ T` and
+`T ≥ N_seg`) gives an explicit committed-trace extractor: under the trust base of
+§4.3,
+
+    E(x, π) := buildTrace( x.S₀, x.S_T, T, inr( E_e(x, π) ) )
+
+satisfies
+
+    ∀ x, π.  embedVerify x π = 1 ⟹ CommittedTraceValid(φ', x.S₀, x.S_T, E(x,π), T).
+
+**The VM.** This layer declares its own packaging — deliberately independent of
+the two-step toy's, which has the same shape (§1.4) but is kept as a separate set
+of declarations rather than shared:
+
+    FinalStmtFull(VC) := { x = (x.S₀, x.S_T) : full states },
+    toCommitted(S)    := (S.pc, S.regs, commit(S.mem)),
+
+    toZkVM := ( State   := full states over VC,
+                step    := λ S₁ S₂. ∃ w : MemStep VC. FullMemory.step(S₁,S₂,w),
+                T       := T,
+                Stmt    := FinalStmtFull(VC),
+                initial := x ↦ x.S₀,   terminal := x ↦ x.S_T,
+                Proof   := EmbedProof,
+                verify  := λ x π. embedVerify (toCommitted x.S₀, toCommitted x.S_T) π ),
+
+and its own committed-trace predicate
+
+    CommittedTraceValid(Ŝ₀, Ŝ_N, Ŝ, N)
+      := Ŝ(0) = Ŝ₀ ∧ Ŝ(N) = Ŝ_N ∧ ∀ k < N. committedStep(Ŝ(k), Ŝ(k+1)).
+
+**Committed → full lift.** Given commitment completeness, position binding, and
+update binding, the reconstruction of §1.3 along a committed trace valid for the
+*committed* boundaries of `x` is a valid `toZkVM` trace for `x`:
+
+    CommittedTraceValid(toCommitted(x.S₀), toCommitted(x.S_T), Ŝ, T)
+      ⟹ TraceValid_{toZkVM}( x, reconstructTrace(Ŝ, chooseMemStep(Ŝ), x.S₀) ).
+
+The terminal full state is not assumed: `CommitInv` at the extracted committed
+terminal state plus commitment injectivity identify it with `x.S_T`.
+
+**Headline.** Composing the two halves: under knowledge soundness of all four
+SNARKs and commitment completeness, position binding, and update binding,
+
+    CTE( MultiStep.toZkVM ),
+
+witnessed by the **explicit** extractor
+
+    E_full(x, π) := reconstructTrace( E(toCommitted x.S₀, toCommitted x.S_T, π),
+                                      chooseMemStep(…), x.S₀ ).
+
+No choice principle is applied to the conclusion — the trace `CTE` promises is
+the one `buildTrace` computes. The single unavoidable selection is
+`chooseMemStep`, which picks a `MemStep` out of `committedStep`'s existential; it
+belongs to the memory layer (§1.3) and is inherited, not introduced here. This
+shows up in the axiom footprints: `buildTrace`, `combine_tree`, and
+`committedTrace_extract` are free of `Classical.choice`; only `cte` carries it,
+with exactly the same footprint as `TwoStep.System.cte`.
+
+*Lean:* `committedTrace_extract`, `FinalStmtFull`, `toCommitted`, `toZkVM`,
+`CommittedTraceValid`, `memoryStepInterface`, `memoryBridge`, `traceValid_full`,
+`cte`.
+
+### 4.7 Non-vacuity (I6)
+
+`VMs/MultiStep/MultiStepSanity.lean` exhibits a concrete system satisfying every
+hypothesis jointly: `N_seg = 1`, `T = 2`, `m = 2`, over `MemorySanity.exactVC`,
+with each layer's proof type set to its own relation witness so all four
+extractors are the identity. It checks two things — that a concrete proof is
+**accepted** (so the CTE statement is not vacuously true over an empty set of
+accepting proofs), and that `cte`'s full hypothesis bundle is satisfiable.
+
+Its inner `CombineProof` slot is `Empty`, so the model exercises one combine node
+over two converts — the depth-1 tree. The self-recursive case (a combine whose
+child is itself a combine) is covered by the proof but not by this model; a
+deeper witness is worth adding when Issue 7 assembles the full VM.
+
+### 4.8 What this is not
+
+The leaf relation is abstract, `φ'` is still an abstract memory-free predicate,
+and there is no bus and no concrete ISA. So this is the paper's recursion
+*structure* verified over a placeholder leaf, not the Vanilla VM. Issues 3 and 5
+supply the ISA and the bus; Issue 7 substitutes the real segment relation for the
+abstract leaf; Issue 6 attaches the quantitative coefficients (including the
+`(m − 1)` of §4.2).

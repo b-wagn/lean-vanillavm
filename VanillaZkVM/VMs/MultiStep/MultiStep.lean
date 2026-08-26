@@ -18,13 +18,14 @@ recursion tower independent of the bus (Issue 5).
 * `RecTree` — the binary recursion-tree topology.
 * `MultiStep.System` — the system parameters.
 * `RLeaf` / `RConvert` / `RCombine` / `REmbed` — the layer relations.
+* `buildTrace` — the **explicit** tree-unrolling extraction procedure.
 * `toZkVM` — the `ZkVM` instance over full-memory states.
 
 ## Main results
-* `combine_tree` — tree-unrolling extraction: given KS of leaf, convert, and
-  combine SNARKs, any accepting convert-or-combine proof for `N` steps yields
-  a valid committed trace. Proved by well-founded induction on `N`.
-  Generalizes `chain_flatten` from lists to trees.
+* `combine_tree` — tree-unrolling extraction: given straight-line extractors for
+  the leaf, convert, and combine SNARKs, `buildTrace` turns any accepting
+  convert-or-combine proof for `N` steps into a valid committed trace. Proved by
+  well-founded induction on `N`. Generalizes `chain_flatten` from lists to trees.
 * `committedTrace_extract` — embed + tree extraction produces a committed trace.
 * `cte` — CTE for `MultiStepVM`, composing the SNARK half with memory
   reconstruction.
@@ -91,7 +92,8 @@ end RecTree
 /-! ## Data types -/
 
 /-- Segment witness: intermediate committed states and one `MemStep` per
-transition. Same shape as `TwoStep.SegWitness`. -/
+transition. Same shape as `TwoStep.SegWitness`; the two VMs are kept
+independent, so each declares its own. -/
 structure SegWitness (VC : VectorCommitment) where
   states : ℕ → CommittedVMState VC
   steps : ℕ → MemStep VC
@@ -170,6 +172,9 @@ theorem m_pos : 0 < sys.m := Nat.lt_of_lt_of_le (by omega) sys.m_ge_two
 
 theorem T_eq : sys.T = sys.m * sys.Nseg :=
   (Nat.div_mul_cancel sys.hDvd).symm
+
+theorem T_ge_Nseg : sys.T ≥ sys.Nseg :=
+  le_trans (Nat.le_mul_of_pos_left sys.Nseg (by omega)) sys.hT
 
 /-! ## Relations -/
 
@@ -258,7 +263,8 @@ structure Assumptions (sys : System) : Prop where
 /-! ## Committed trace validity -/
 
 /-- A trace of `N` committed steps from `S0` to `SN`, each certified by
-`committedStep`. -/
+`committedStep`. The committed-level analogue of `ZkVM.TraceValid`, spelled out
+here because the committed layer carries no `ZkVM` of its own. -/
 def CommittedTraceValid (S0 SN : CommittedVMState sys.VC)
     (Ŝ : ℕ → CommittedVMState sys.VC) (N : ℕ) : Prop :=
   Ŝ 0 = S0 ∧ Ŝ N = SN ∧
@@ -266,148 +272,187 @@ def CommittedTraceValid (S0 SN : CommittedVMState sys.VC)
 
 /-! ## Tree-unrolling extraction
 
-Builds a committed trace by recursing on the step count `N`. At a leaf
-(`N = Nseg`), extracts through convert → leaf to get the segment's committed
-trace. At an internal node (`N > Nseg`), extracts through combine to get child
-proofs and midpoint, then recurses on both halves and stitches. The guard
-`NL < N` / `NR < N` ensures totality; for verifying proofs the combine
-relation's side conditions guarantee this.
+`buildTrace` is the extraction *procedure*: an explicit recursive walk of the
+proof tree. At a leaf (`N = Nseg`) it runs convert-then-leaf extraction and
+returns the segment's own committed states. At an internal node (`N > Nseg`) it
+runs combine extraction to obtain the midpoint and the two child proofs, recurses
+on both halves, and glues the results at `N_L`.
+
+It is a *total* function, so it must answer on inputs no honest verifier would
+produce (a convert proof claiming `N > Nseg`, a combine proof claiming
+`N = Nseg`, a combine witness whose child counts do not decrease). Those branches
+return the constant trace at `S0`; `combine_tree` shows that under a verifying
+proof they are never taken. Keeping them explicit is what makes the extractor a
+real algorithm rather than an appeal to choice.
+
+Termination is the well-founded measure of `rem:wellfounded`: the `dite` guard
+puts `w.NL < N` and `w.NR < N` in scope at exactly the two recursive calls.
 
 Paper: `lem:combine` tree unrolling (ch04), `rem:wellfounded`. -/
+def buildTrace
+    (El : Extractor sys.RLeaf sys.ASLeaf)
+    (Ec : Extractor sys.RConvert sys.ASConvert)
+    (Ecb : Extractor sys.RCombine sys.ASCombine)
+    (S0 SN : CommittedVMState sys.VC) (N : ℕ)
+    (p : sys.ConvertProof ⊕ sys.CombineProof) : ℕ → CommittedVMState sys.VC :=
+  if N ≤ sys.Nseg then
+    match p with
+    | .inl cp => (El.extract ⟨S0, SN, N⟩ (Ec.extract ⟨S0, SN, N⟩ cp)).states
+    | .inr _ => fun _ => S0
+  else
+    match p with
+    | .inl _ => fun _ => S0
+    | .inr cp =>
+      if _h : (Ecb.extract ⟨S0, SN, N⟩ cp).NL < N ∧ (Ecb.extract ⟨S0, SN, N⟩ cp).NR < N then
+        fun k =>
+          if k ≤ (Ecb.extract ⟨S0, SN, N⟩ cp).NL then
+            buildTrace El Ec Ecb S0 (Ecb.extract ⟨S0, SN, N⟩ cp).Smid
+              (Ecb.extract ⟨S0, SN, N⟩ cp).NL (Ecb.extract ⟨S0, SN, N⟩ cp).proofL k
+          else
+            buildTrace El Ec Ecb (Ecb.extract ⟨S0, SN, N⟩ cp).Smid SN
+              (Ecb.extract ⟨S0, SN, N⟩ cp).NR (Ecb.extract ⟨S0, SN, N⟩ cp).proofR
+              (k - (Ecb.extract ⟨S0, SN, N⟩ cp).NL)
+      else fun _ => S0
+  termination_by N
+  decreasing_by
+  · omega
+  · omega
 
-/-- **Tree-unrolling extraction.** If the leaf, convert, and
-combine SNARKs are knowledge-sound, any accepting convert-or-combine proof
-for `N` steps yields a valid committed trace. Proved by well-founded
-induction on `N`.
+/-- **Tree-unrolling extraction (correctness).** Given straight-line extractors
+for the leaf, convert, and combine SNARKs, `buildTrace` turns any accepting
+convert-or-combine proof for `N` steps into a valid committed trace. Proved by
+well-founded induction on `N`.
 
 Paper: `lem:combine` (ch04). The `(m-1)` combine coefficient arises because
 `RecTree.internals_eq_leaves_sub_one` counts exactly `m - 1` internal
 (combine) nodes for `m` leaves (segments). -/
 theorem combine_tree
-    (ksLeaf : KnowledgeSound sys.ASLeaf)
-    (ksConvert : KnowledgeSound sys.ASConvert)
-    (ksCombine : KnowledgeSound sys.ASCombine)
-    (S0 SN : CommittedVMState sys.VC) (N : ℕ)
-    (hN_dvd : sys.Nseg ∣ N) (hN_ge : N ≥ sys.Nseg)
-    (p : sys.ConvertProof ⊕ sys.CombineProof)
-    (hverify : match p with
-     | .inl cp => sys.convertVerify ⟨S0, SN, N⟩ cp
-     | .inr cp => sys.combineVerify ⟨S0, SN, N⟩ cp) :
-    ∃ Ŝ : ℕ → CommittedVMState sys.VC,
-      sys.CommittedTraceValid S0 SN Ŝ N := by
-  obtain ⟨El, hEl⟩ := ksLeaf
-  obtain ⟨Ecb, hEcb⟩ := ksCombine
-  obtain ⟨Ec, hEc⟩ := ksConvert
-  -- Strong induction on N, quantifying over all inputs
-  suffices ∀ (N : ℕ), ∀ (S0 SN : CommittedVMState sys.VC),
-      sys.Nseg ∣ N → N ≥ sys.Nseg →
-      ∀ (p : sys.ConvertProof ⊕ sys.CombineProof),
-      (match p with
-       | .inl cp => sys.convertVerify ⟨S0, SN, N⟩ cp
-       | .inr cp => sys.combineVerify ⟨S0, SN, N⟩ cp) →
-      ∃ Ŝ, sys.CommittedTraceValid S0 SN Ŝ N from this N S0 SN hN_dvd hN_ge p hverify
+    (El : Extractor sys.RLeaf sys.ASLeaf)
+    (hEl : ∀ x p, sys.leafVerify x p → sys.RLeaf.rel x (El.extract x p))
+    (Ec : Extractor sys.RConvert sys.ASConvert)
+    (hEc : ∀ x p, sys.convertVerify x p → sys.RConvert.rel x (Ec.extract x p))
+    (Ecb : Extractor sys.RCombine sys.ASCombine)
+    (hEcb : ∀ x p, sys.combineVerify x p → sys.RCombine.rel x (Ecb.extract x p)) :
+    ∀ (N : ℕ), sys.Nseg ∣ N → N ≥ sys.Nseg →
+      ∀ (S0 SN : CommittedVMState sys.VC) (p : sys.ConvertProof ⊕ sys.CombineProof),
+        (match p with
+         | .inl cp => sys.convertVerify ⟨S0, SN, N⟩ cp
+         | .inr cp => sys.combineVerify ⟨S0, SN, N⟩ cp) →
+        sys.CommittedTraceValid S0 SN (sys.buildTrace El Ec Ecb S0 SN N p) N := by
   intro N
   induction N using Nat.strongRecOn with
   | _ N ih =>
-  intro S0 SN hN_dvd hN_ge p hverify
+  intro hN_dvd hN_ge S0 SN p hverify
+  have hNseg_pos := sys.hNseg
+  rw [buildTrace.eq_def]
   by_cases hle : N ≤ sys.Nseg
-  · -- **Leaf.** N = Nseg (since N ≥ Nseg ∧ N ≤ Nseg).
+  · -- **Leaf.** N = Nseg (since N ≥ Nseg ∧ N ≤ Nseg), so the proof must be a
+    -- convert proof and convert → leaf extraction returns the segment's trace.
     have hNeq : N = sys.Nseg := le_antisymm hle hN_ge
-    have hcv : ∃ cp, sys.convertVerify ⟨S0, SN, N⟩ cp := by
-      cases p with
-      | inl cp => exact ⟨cp, hverify⟩
-      | inr cp =>
-        have hrel := hEcb ⟨S0, SN, N⟩ cp hverify
-        dsimp only [RCombine] at hrel
-        obtain ⟨_, _, hsum, _, _, hNL, hNR⟩ := hrel
-        exfalso; have := sys.hNseg; omega
-    obtain ⟨cp, hcpv⟩ := hcv
-    have hrel_c := hEc ⟨S0, SN, N⟩ cp hcpv
-    dsimp only [RConvert] at hrel_c
-    obtain ⟨hleaf_v, _⟩ := hrel_c
-    have hrel_l := hEl ⟨S0, SN, N⟩ _ hleaf_v
-    dsimp only [RLeaf] at hrel_l
-    obtain ⟨hstart, hend, hstep_rel⟩ := hrel_l
-    set w := El.extract ⟨S0, SN, N⟩ (Ec.extract ⟨S0, SN, N⟩ cp)
-    refine ⟨w.states, hstart, ?_, ?_⟩
-    · rw [hNeq]; exact hend
-    · intro k hk
-      rw [hNeq] at hk
-      exact ⟨w.steps k, hstep_rel k hk⟩
-  · -- **Node.** N > Nseg — extract through combine, then recurse.
-    have hNgt : N > sys.Nseg := Nat.lt_of_not_le hle
-    have hcbv : ∃ cp, sys.combineVerify ⟨S0, SN, N⟩ cp := by
-      cases p with
-      | inr cp => exact ⟨cp, hverify⟩
-      | inl cp =>
-        have hrel := hEc ⟨S0, SN, N⟩ cp hverify
-        dsimp only [RConvert] at hrel
-        omega
-    obtain ⟨cp, hcpv⟩ := hcbv
-    have hrel := hEcb ⟨S0, SN, N⟩ cp hcpv
-    dsimp only [RCombine] at hrel
-    set w := Ecb.extract ⟨S0, SN, N⟩ cp
-    obtain ⟨hvL, hvR, hsum, hdvL, hdvR, hgeL, hgeR⟩ := hrel
-    have hNseg_pos := sys.hNseg
-    have hNL_lt : w.NL < N := by omega
-    have hNR_lt : w.NR < N := by omega
-    -- Recurse on both subtrees
-    have ⟨ŜL, hŜL⟩ := ih w.NL hNL_lt S0 w.Smid hdvL hgeL w.proofL hvL
-    have ⟨ŜR, hŜR⟩ := ih w.NR hNR_lt w.Smid SN hdvR hgeR w.proofR hvR
-    obtain ⟨hL0, hLN, hLstep⟩ := hŜL
-    obtain ⟨hR0, hRN, hRstep⟩ := hŜR
-    -- Stitch the two traces: left [0, NL], right [0, NR] → combined [0, N]
-    refine ⟨fun k => if k ≤ w.NL then ŜL k else ŜR (k - w.NL), ?_, ?_, ?_⟩
-    · -- Start: k = 0 ≤ NL
-      simp only [Nat.zero_le, ↓reduceIte]; exact hL0
-    · -- End: k = N > NL
-      have hN_gt_NL : ¬ (N ≤ w.NL) := by omega
-      simp only [hN_gt_NL, ↓reduceIte]
-      have hN_sub : N - w.NL = w.NR := by omega
-      rw [hN_sub]; exact hRN
-    · -- Steps: case split on whether we're in the left, seam, or right portion
-      intro k hk
+    subst hNeq
+    rw [if_pos hle]
+    cases p with
+    | inr cp =>
+      -- A combine proof here is impossible: its children each cover at least
+      -- `Nseg` steps, forcing `N ≥ 2 * Nseg`.
+      exfalso
+      have hrel := hEcb _ cp hverify
+      dsimp only [RCombine] at hrel
+      obtain ⟨_, _, hsum, _, _, hNL, hNR⟩ := hrel
+      omega
+    | inl cp =>
       dsimp only
-      by_cases hk1 : k + 1 ≤ w.NL
-      · -- Both k and k+1 in the left trace
-        have hk0 : k ≤ w.NL := by omega
-        simp only [hk0, hk1, ↓reduceIte]
-        exact hLstep k (by omega)
-      · -- k+1 > NL
-        by_cases hk2 : k ≤ w.NL
-        · -- Seam: k ≤ NL but k+1 > NL, so k = NL
-          have hkeq : k = w.NL := le_antisymm hk2 (by omega)
-          subst hkeq
-          simp only [le_refl, hk1, ↓reduceIte]
-          have hsub : w.NL + 1 - w.NL = 1 := by omega
-          rw [hsub, hLN, ← hR0]
-          exact hRstep 0 (by omega)
-        · -- Both in the right trace
-          simp only [hk2, hk1, ↓reduceIte]
-          have hsub : k + 1 - w.NL = (k - w.NL) + 1 := by omega
-          rw [hsub]
-          exact hRstep (k - w.NL) (by omega)
+      have hrel_c := hEc _ cp hverify
+      dsimp only [RConvert] at hrel_c
+      obtain ⟨hleaf_v, _⟩ := hrel_c
+      have hrel_l := hEl _ _ hleaf_v
+      dsimp only [RLeaf] at hrel_l
+      obtain ⟨hstart, hend, hstep_rel⟩ := hrel_l
+      refine ⟨hstart, hend, ?_⟩
+      intro k hk
+      exact ⟨_, hstep_rel k hk⟩
+  · -- **Node.** N > Nseg, so the proof must be a combine proof; extract through
+    -- it and recurse on both halves.
+    rw [if_neg hle]
+    cases p with
+    | inl cp =>
+      -- A convert proof here is impossible: `R_2` pins `N = Nseg`.
+      exfalso
+      have hrel := hEc _ cp hverify
+      dsimp only [RConvert] at hrel
+      obtain ⟨_, hN⟩ := hrel
+      omega
+    | inr cp =>
+      dsimp only
+      have hrel := hEcb _ cp hverify
+      dsimp only [RCombine] at hrel
+      obtain ⟨hvL, hvR, hsum, hdvL, hdvR, hgeL, hgeR⟩ := hrel
+      -- Well-foundedness: both children are ≥ Nseg and sum to N, so both are < N.
+      have hguard : (Ecb.extract ⟨S0, SN, N⟩ cp).NL < N ∧
+          (Ecb.extract ⟨S0, SN, N⟩ cp).NR < N := ⟨by omega, by omega⟩
+      rw [dif_pos hguard]
+      set w := Ecb.extract ⟨S0, SN, N⟩ cp with hw
+      -- Recurse on both subtrees.
+      obtain ⟨hL0, hLN, hLstep⟩ := ih w.NL hguard.1 hdvL hgeL S0 w.Smid w.proofL hvL
+      obtain ⟨hR0, hRN, hRstep⟩ := ih w.NR hguard.2 hdvR hgeR w.Smid SN w.proofR hvR
+      -- Stitch: left trace on [0, NL], right trace shifted onto [NL, N].
+      refine ⟨?_, ?_, ?_⟩
+      · -- Start: k = 0 ≤ NL
+        simp only [Nat.zero_le, ↓reduceIte]; exact hL0
+      · -- End: k = N > NL
+        have hN_gt_NL : ¬ (N ≤ w.NL) := by omega
+        simp only [hN_gt_NL, ↓reduceIte]
+        have hN_sub : N - w.NL = w.NR := by omega
+        rw [hN_sub]; exact hRN
+      · -- Steps: left portion, the seam at k = NL, and the right portion.
+        intro k hk
+        dsimp only
+        by_cases hk1 : k + 1 ≤ w.NL
+        · -- Both k and k+1 in the left trace
+          have hk0 : k ≤ w.NL := by omega
+          simp only [hk0, hk1, ↓reduceIte]
+          exact hLstep k (by omega)
+        · by_cases hk2 : k ≤ w.NL
+          · -- Seam: k ≤ NL but k+1 > NL, so k = NL
+            have hkeq : k = w.NL := le_antisymm hk2 (by omega)
+            subst hkeq
+            simp only [le_refl, hk1, ↓reduceIte]
+            have hsub : w.NL + 1 - w.NL = 1 := by omega
+            rw [hsub]
+            -- the left trace's endpoint *is* the right trace's start: both are `Smid`
+            rw [hLN.trans hR0.symm]
+            exact hRstep 0 (by omega)
+          · -- Both in the right trace
+            simp only [hk2, hk1, ↓reduceIte]
+            have hsub : k + 1 - w.NL = (k - w.NL) + 1 := by omega
+            rw [hsub]
+            exact hRstep (k - w.NL) (by omega)
 
 /-! ## The committed-trace extraction -/
 
-/-- **Committed-trace extraction.** If all four SNARKs are knowledge-sound,
-every accepting embed proof yields a committed trace from `x.S0` to `x.ST` of
-length `T`.
+/-- **Committed-trace extraction.** If all four SNARKs are knowledge-sound, there
+is a committed-trace extractor turning every accepting embed proof into a
+committed trace from `x.S0` to `x.ST` of length `T`.
+
+The extractor exhibited is `buildTrace` run on the combine proof that embed
+extraction returns — a named procedure, not a choice from an existential.
 
 Paper: `lem:embed` composed with `lem:combine` tree unrolling (ch04). -/
 theorem committedTrace_extract (h : sys.Assumptions) :
-    ∀ (x : EmbedStmt sys.VC) (p : sys.EmbedProof),
-      sys.embedVerify x p →
-      ∃ Ŝ : ℕ → CommittedVMState sys.VC,
-        sys.CommittedTraceValid x.S0 x.ST Ŝ sys.T := by
+    ∃ E : EmbedStmt sys.VC → sys.EmbedProof → (ℕ → CommittedVMState sys.VC),
+      ∀ (x : EmbedStmt sys.VC) (p : sys.EmbedProof),
+        sys.embedVerify x p →
+          sys.CommittedTraceValid x.S0 x.ST (E x p) sys.T := by
   obtain ⟨ksLeaf, ksCombine, ksConvert, ksEmbed⟩ := h
+  obtain ⟨El, hEl⟩ := ksLeaf
+  obtain ⟨Ecb, hEcb⟩ := ksCombine
+  obtain ⟨Ec, hEc⟩ := ksConvert
   obtain ⟨Ee, hEe⟩ := ksEmbed
+  refine ⟨fun x p =>
+    sys.buildTrace El Ec Ecb x.S0 x.ST sys.T (.inr (Ee.extract x p)), ?_⟩
   intro x p hp
-  have hrel := hEe x p hp
-  dsimp only [REmbed] at hrel
-  have hge : sys.T ≥ sys.Nseg := le_trans (Nat.le_mul_of_pos_left sys.Nseg (by omega)) sys.hT
-  exact sys.combine_tree ksLeaf ksConvert ksCombine x.S0 x.ST sys.T sys.hDvd hge
-    (.inr (Ee.extract x p)) hrel
+  exact sys.combine_tree El hEl Ec hEc Ecb hEcb sys.T sys.hDvd sys.T_ge_Nseg
+    x.S0 x.ST (.inr (Ee.extract x p)) (hEe x p hp)
 
 /-! ## The zkVM -/
 
@@ -487,31 +532,26 @@ theorem traceValid_full
 commitment binding assumptions, the multi-step VM is correct-trace extractable
 over full-memory states.
 
+The two halves meet here: `committedTrace_extract` supplies the explicit
+committed-trace extractor (`buildTrace` under an embed extraction), and
+`traceValid_full` lifts it to full memory. The extractor exhibited for `CTE` is
+that named procedure composed with reconstruction — no choice principle is
+applied to the conclusion.
+
 Paper: `def:cte`, `prop:memory-extractability`, `rem:mem-inheritance` (ch05),
 and `lem:convert`/`combine`/`embed` (ch04). -/
 theorem cte (h : sys.Assumptions)
     (hComplete : sys.VC.Complete) (hpos : sys.VC.PositionBinding)
     (hupd : sys.VC.UpdateBinding) :
     sys.toZkVM.CTE := by
-  classical
-  -- CTE = ∃ E, ∀ x p, verify x p → TraceValid x (E x p)
-  -- The toZkVM.verify wraps embedVerify with committed boundaries.
-  -- First show the weak form, then Skolemize.
-  have weak : ∀ (x : sys.toZkVM.Stmt) (p : sys.toZkVM.Proof),
-      sys.toZkVM.verify x p → ∃ tr, sys.toZkVM.TraceValid x tr := by
-    intro x p hp
-    change sys.embedVerify ⟨toCommitted x.S0, toCommitted x.ST⟩ p at hp
-    obtain ⟨Ŝ, hŜ⟩ := sys.committedTrace_extract h
-      ⟨toCommitted x.S0, toCommitted x.ST⟩ p hp
-    exact ⟨_, sys.traceValid_full hComplete hpos hupd x Ŝ hŜ⟩
-  -- Skolemize: from ∀ x p, verify → ∃ tr, ... to ∃ E, ∀ x p, verify → ...
-  -- Use Classical.choice to pick the trace for each (x, p).
-  refine ⟨fun x p => if h : sys.toZkVM.verify x p
-    then (weak x p h).choose
-    else fun _ => sys.toZkVM.initial x, ?_⟩
-  intro x p hp
-  simp only [hp, ↓reduceDIte]
-  exact (weak x p hp).choose_spec
+  obtain ⟨E, hE⟩ := sys.committedTrace_extract h
+  exact ⟨fun x p =>
+      reconstructTrace (E ⟨toCommitted x.S0, toCommitted x.ST⟩ p)
+        (chooseMemStep sys.memFreePred
+          (E ⟨toCommitted x.S0, toCommitted x.ST⟩ p)) x.S0,
+    fun x p hp =>
+      sys.traceValid_full hComplete hpos hupd x _
+        (hE ⟨toCommitted x.S0, toCommitted x.ST⟩ p hp)⟩
 
 end System
 end MultiStep
