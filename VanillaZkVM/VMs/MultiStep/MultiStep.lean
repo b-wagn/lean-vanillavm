@@ -1,21 +1,24 @@
 import VanillaZkVM.Specification.Cte
+import VanillaZkVM.VMs.ISA
 import VanillaZkVM.VMs.Memory
 import VanillaZkVM.VMs.Step
 
 /-!
 # Multi-layer recursion → `MultiStepVM` (Issue 4)
 
-The paper's recursion tower over an **abstract leaf** relation, replacing the flat
+The paper's recursion tower over an **abstract leaf SNARK**, replacing the flat
 two-layer merge in `TwoStep`. Three recursion layers — `convert` (1-to-1),
 `combine` (binary 2-to-1, self-recursive), `embed` (final cap) — compose into a
 `ZkVM` instance whose CTE proof unrolls a binary tree of combine nodes.
 
-The leaf is abstract: its relation is a segment-trace relation (committed steps
-from boundary to boundary), and its SNARK is parameterized. This keeps the
-recursion tower independent of the bus (Issue 5).
+The leaf SNARK is abstract: its proof type and verifier are parameters, so the
+tower does not depend on the bus (Issue 5). The leaf *relation* is concrete —
+a segment of committed steps, each agreeing with the operation the fixed program
+selects (`ISA.System.committedOperation`, Issue 3).
 
 ## Main definitions
-* `RecTree` — the binary recursion-tree topology.
+* `RecTree` — the binary recursion-tree topology (`fig:topo`); scaffolding for
+  Issue 6, not used by the extraction proof.
 * `MultiStep.System` — the system parameters.
 * `RLeaf` / `RConvert` / `RCombine` / `REmbed` — the layer relations.
 * `buildTrace` — the **explicit** tree-unrolling extraction procedure.
@@ -40,7 +43,14 @@ namespace MultiStep
 /-! ## Binary recursion-tree topology -/
 
 /-- The binary recursion tree (`fig:topo`). A `leaf` covers one segment;
-a `node` merges two subtrees via `combine`. -/
+a `node` merges two subtrees via `combine`.
+
+**Scaffolding for Issue 6.** Nothing in this file recurses on a `RecTree`:
+`buildTrace` and `combine_tree` recurse on the step count `N`, which is what the
+layer statements carry. This type and the counting lemmas in its namespace state
+properties of the topology alone — in particular the `(m-1)` combine count — and
+are hypotheses of no theorem here. They become load-bearing in Issue 6, where
+that coefficient multiplies a real advantage. -/
 inductive RecTree where
   | leaf : RecTree
   | node : RecTree → RecTree → RecTree
@@ -76,7 +86,7 @@ theorem steps_dvd_Nseg (Nseg : ℕ) (t : RecTree) : Nseg ∣ t.steps Nseg := by
   | leaf => exact dvd_refl _
   | node l r ihl ihr => exact Nat.dvd_add ihl ihr
 
-theorem steps_ge_Nseg (Nseg : ℕ) (_hN : 0 < Nseg) (t : RecTree) : t.steps Nseg ≥ Nseg := by
+theorem steps_ge_Nseg (Nseg : ℕ) (t : RecTree) : t.steps Nseg ≥ Nseg := by
   induction t with
   | leaf => exact le_refl _
   | node l r ihl _ => simp [steps]; omega
@@ -139,14 +149,16 @@ def toCommitted {VC : VectorCommitment} (S : FullVMState VC) : CommittedVMState 
 
 /-- The multi-step recursion system. The leaf SNARK is abstract: KS of the leaf
 gives a `SegWitness` (the intermediate committed states), keeping the recursion
-tower independent of the bus.
+tower independent of the bus. The plain execution semantics are the fixed-program
+ISA of Issue 3, shared with `TwoStep`.
 
-Paper: ch04 recursion tower, parameterized over an abstract leaf. -/
+Paper: ch04 recursion tower, parameterized over an abstract leaf SNARK. -/
 structure System where
   VC : VectorCommitment
   Nseg : ℕ
   T : ℕ
-  memFreePred : MemFreePredicate
+  /-- The fixed program and its plain/committed operation predicates. -/
+  isa : ISA.System VC.Index VC.Value
   hNseg : 0 < Nseg
   hDvd : Nseg ∣ T
   hT : T ≥ 2 * Nseg
@@ -182,7 +194,9 @@ theorem T_ge_Nseg : sys.T ≥ sys.Nseg :=
 each certified by its `MemStep` witness. Knowledge soundness of the leaf SNARK
 extracts the intermediate committed states.
 
-Paper: the segment-level relation; `R_{0,step}` simplified (no bus). -/
+Paper: the segment-level relation; `R_{0,step}` simplified (no bus). Each step
+must agree with the operation the fixed program selects, so a proof cannot claim
+a read where the program calls for a write. -/
 def RLeaf : Relation where
   Stmt := RecStmt sys.VC
   Wit := SegWitness sys.VC
@@ -190,7 +204,7 @@ def RLeaf : Relation where
     w.states 0 = st.S0 ∧
     w.states sys.Nseg = st.SN ∧
     ∀ j, j < sys.Nseg →
-      CommittedMemory.step sys.memFreePred (w.states j) (w.states (j + 1)) (w.steps j)
+      sys.isa.committedOperation (w.states j) (w.states (j + 1)) (w.steps j)
 
 /-- The leaf argument system. -/
 def ASLeaf : ArgumentSystem sys.RLeaf where
@@ -251,13 +265,33 @@ def ASEmbed : ArgumentSystem sys.REmbed where
 
 /-! ## Trust base -/
 
-/-- The trust base: knowledge soundness of all four SNARKs.
+/-- **Trust base for the recursion tower** — the single surface collecting the
+unproven assumptions `committedTrace_extract` relies on: knowledge soundness of
+all four SNARKs, which is exactly the trust base ch04 charges its layer lemmas
+with.
 
-Paper: the assumptions charged in `thm:main` (ch05). -/
+The memory-commitment properties (`Complete`/`PositionBinding`/`UpdateBinding`)
+are deliberately *not* bundled here. They are properties of `Com_mem` (ch02
+`def:binding`), not of the recursion tower, and they are consumed only by the
+ch05 bridge — `memoryBridge`, `traceValid_full`, and the full-memory statement
+`cte` take them as separate hypotheses, which keeps the tree-unrolling half
+charged with KS alone and lets a concrete `VectorCommitment` discharge them by
+construction (`MemorySanity` does, for `exactVC`). Same split as
+`TwoStep.System.Assumptions`; the one all-encompassing trust base is Issue 7's
+`cte_main`. The well-formedness side conditions `hNseg`/`hDvd`/`hT` are not part
+of the trust base either, nor is the fixed program `isa` — those are data and
+side conditions carried by `System`.
+
+Paper: `lem:convert`/`lem:combine`/`lem:embed` (ch04); the SNARK half of the
+assumptions charged in `thm:main` (ch05). -/
 structure Assumptions (sys : System) : Prop where
+  /-- Knowledge soundness of the leaf/segment SNARK `Π_leaf`. -/
   ksLeaf : KnowledgeSound sys.ASLeaf
+  /-- Knowledge soundness of the combine SNARK `Π_3`. -/
   ksCombine : KnowledgeSound sys.ASCombine
+  /-- Knowledge soundness of the convert SNARK `Π_2`. -/
   ksConvert : KnowledgeSound sys.ASConvert
+  /-- Knowledge soundness of the embed SNARK `Π_4`. -/
   ksEmbed : KnowledgeSound sys.ASEmbed
 
 /-! ## Committed trace validity -/
@@ -268,7 +302,7 @@ here because the committed layer carries no `ZkVM` of its own. -/
 def CommittedTraceValid (S0 SN : CommittedVMState sys.VC)
     (Ŝ : ℕ → CommittedVMState sys.VC) (N : ℕ) : Prop :=
   Ŝ 0 = S0 ∧ Ŝ N = SN ∧
-  ∀ k, k < N → committedStep sys.memFreePred (Ŝ k) (Ŝ (k + 1))
+  ∀ k, k < N → sys.isa.committedStep (Ŝ k) (Ŝ (k + 1))
 
 /-! ## Tree-unrolling extraction
 
@@ -279,11 +313,13 @@ runs combine extraction to obtain the midpoint and the two child proofs, recurse
 on both halves, and glues the results at `N_L`.
 
 It is a *total* function, so it must answer on inputs no honest verifier would
-produce (a convert proof claiming `N > Nseg`, a combine proof claiming
-`N = Nseg`, a combine witness whose child counts do not decrease). Those branches
-return the constant trace at `S0`; `combine_tree` shows that under a verifying
-proof they are never taken. Keeping them explicit is what makes the extractor a
-real algorithm rather than an appeal to choice.
+produce. A convert proof claiming `N > Nseg`, a combine proof claiming
+`N = Nseg`, and a combine witness whose child counts do not decrease all return
+the constant trace at `S0`. The guard is `N ≤ Nseg` rather than `N = Nseg`, so a
+convert proof claiming `N < Nseg` instead takes the leaf branch and returns
+whatever states extraction hands back. `combine_tree` assumes `Nseg ∣ N` and
+`N ≥ Nseg`, which rules out all four. Keeping the branches explicit is what makes
+the extractor a real algorithm rather than an appeal to choice.
 
 Termination is the well-founded measure of `rem:wellfounded`: the `dite` guard
 puts `w.NL < N` and `w.NR < N` in scope at exactly the two recursive calls.
@@ -323,9 +359,10 @@ for the leaf, convert, and combine SNARKs, `buildTrace` turns any accepting
 convert-or-combine proof for `N` steps into a valid committed trace. Proved by
 well-founded induction on `N`.
 
-Paper: `lem:combine` (ch04). The `(m-1)` combine coefficient arises because
-`RecTree.internals_eq_leaves_sub_one` counts exactly `m - 1` internal
-(combine) nodes for `m` leaves (segments). -/
+Paper: `lem:combine` (ch04). The induction is on `N`, not on a `RecTree`, so
+the paper's `(m-1)` combine coefficient plays no part in this statement;
+`RecTree.internals_eq_leaves_sub_one` records that count separately, for
+Issue 6. -/
 theorem combine_tree
     (El : Extractor sys.RLeaf sys.ASLeaf)
     (hEl : ∀ x p, sys.leafVerify x p → sys.RLeaf.rel x (El.extract x p))
@@ -456,16 +493,17 @@ theorem committedTrace_extract (h : sys.Assumptions) :
 
 /-! ## The zkVM -/
 
-/-- **The multi-step zkVM.** Its state is the *full-memory* VM state; its
-step is `∃ w, FullMemory.step …`; its statement carries full boundary states;
-its verifier commits the boundaries and defers to the embed SNARK.
+/-- **The multi-step zkVM.** Its state is the *full-memory* VM state; its step
+is `ISA.System.stepPlain`, the operation the fixed program selects at `code[pc]`;
+its statement carries full boundary states; its verifier commits the boundaries
+and defers to the embed SNARK.
 
-Paper: `def:cte` and `prop:memory-extractability` (ch05). This replaces the
-two-step toy with the paper's recursion tower but still omits the bus and
-concrete ISA. -/
+Paper: `def:cte` and `prop:memory-extractability` (ch05). The recursion tower
+stands where the two-step toy has a flat merge, over the same fixed-program ISA
+step; the bus (Issue 5) is omitted. -/
 def toZkVM : ZkVM where
   State := FullVMState sys.VC
-  step := fun S₁ S₂ => ∃ w, FullMemory.step sys.memFreePred S₁ S₂ w
+  step := sys.isa.stepPlain
   T := sys.T
   Stmt := FinalStmtFull sys.VC
   initial := FinalStmtFull.S0
@@ -473,12 +511,14 @@ def toZkVM : ZkVM where
   Proof := sys.EmbedProof
   verify := fun x p => sys.embedVerify ⟨toCommitted x.S0, toCommitted x.ST⟩ p
 
-/-- Step interface for this VM: `CommitInv` is the representation relation,
-`committedStep` the binary committed predicate. -/
+/-- Step interface for this VM: `CommitInv` is the representation relation, and
+`ISA.System.committedStep` the binary committed predicate — some `MemStep` passes
+both the memory checks and the program's operation check, not the bare memory
+relation. -/
 def memoryStepInterface : StepInterface sys.toZkVM where
   CommittedState := CommittedVMState sys.VC
   represents := CommitInv
-  stepCommitted := committedStep sys.memFreePred
+  stepCommitted := sys.isa.committedStep
 
 /-- `StepInterface.MemoryBridge` for this VM.
 
@@ -489,13 +529,19 @@ theorem memoryBridge
     (hupd : sys.VC.UpdateBinding) :
     sys.memoryStepInterface.MemoryBridge := by
   intro Ŝ₁ Ŝ₂ S₁ hInv hstep
-  simpa [memoryStepInterface, toZkVM] using
-    (step_reconstruct hComplete hpos hupd sys.memFreePred S₁ Ŝ₁ Ŝ₂ hInv hstep)
+  obtain ⟨w, hw⟩ := hstep
+  obtain ⟨S₂, hInv₂, hfull⟩ :=
+    step_reconstruct_exact hComplete hpos hupd sys.isa.selectedMemFreePred
+      S₁ Ŝ₁ Ŝ₂ w hInv hw.1
+  refine ⟨S₂, hInv₂, ?_⟩
+  exact sys.isa.committedOperation_stepPlain S₁ S₂ Ŝ₁ Ŝ₂ w hInv hInv₂ hw hfull
 
 /-! ## The Memory ↔ MultiStep bridge -/
 
-/-- A valid committed trace yields a valid full-memory trace. Restates
-`Memory.trace_mem_extract` in terms of `CommittedTraceValid` and `TraceValid`.
+/-- A valid committed trace yields a valid full-memory trace: `trace_mem_extract`
+reconstructs full memory along the trace, and
+`ISA.System.committedOperation_stepPlain` turns each reconstructed transition
+into the VM's `stepPlain`, upgrading `CommittedTraceValid` to `TraceValid`.
 
 Paper: `prop:memory-extractability` and `rem:mem-inheritance` (ch05). -/
 theorem traceValid_full
@@ -504,21 +550,29 @@ theorem traceValid_full
     (x : FinalStmtFull sys.VC) (Ŝ : ℕ → CommittedVMState sys.VC)
     (hval : sys.CommittedTraceValid (toCommitted x.S0) (toCommitted x.ST) Ŝ sys.T) :
     sys.toZkVM.TraceValid x
-      (reconstructTrace Ŝ (chooseMemStep (CommittedMemory.step sys.memFreePred) Ŝ) x.S0) := by
+      (reconstructTrace Ŝ (chooseMemStep sys.isa.committedOperation Ŝ) x.S0) := by
   obtain ⟨hstart, hend, hsteprel⟩ := hval
+  -- the invariant seed holds definitionally (committed initial = commit of full initial)
   have hseed : CommitInv (Ŝ 0) x.S0 := by rw [hstart]; exact ⟨rfl, rfl, rfl⟩
+  -- Choose a `MemStep` passing both the memory checks and the program checks at
+  -- each transition; keeping the program checks is what lets us prove `stepPlain`
+  -- once memory has been reconstructed.
+  have hopC : ∀ k, k < sys.T →
+      sys.isa.committedOperation (Ŝ k) (Ŝ (k + 1))
+        (chooseMemStep sys.isa.committedOperation Ŝ k) :=
+    fun k hk => chooseMemStep_spec sys.isa.committedOperation Ŝ k (hsteprel k hk)
   have hstepC : ∀ k, k < sys.T →
-      CommittedMemory.step sys.memFreePred (Ŝ k) (Ŝ (k + 1))
-        (chooseMemStep (CommittedMemory.step sys.memFreePred) Ŝ k) :=
-    fun k hk => chooseMemStep_spec (CommittedMemory.step sys.memFreePred) Ŝ k (hsteprel k hk)
+      CommittedMemory.step sys.isa.selectedMemFreePred (Ŝ k) (Ŝ (k + 1))
+        (chooseMemStep sys.isa.committedOperation Ŝ k) :=
+    fun k hk => (hopC k hk).1
   obtain ⟨hinv, hstepF⟩ :=
-    trace_mem_extract hComplete hpos hupd sys.memFreePred sys.T Ŝ
-      (chooseMemStep (CommittedMemory.step sys.memFreePred) Ŝ) x.S0 hseed hstepC
+    trace_mem_extract hComplete hpos hupd sys.isa.selectedMemFreePred sys.T Ŝ
+      (chooseMemStep sys.isa.committedOperation Ŝ) x.S0 hseed hstepC
   refine ⟨rfl, ?_, ?_⟩
-  · show reconstructTrace Ŝ (chooseMemStep (CommittedMemory.step sys.memFreePred) Ŝ)
-        x.S0 sys.T = x.ST
-    set ST' := reconstructTrace Ŝ (chooseMemStep (CommittedMemory.step sys.memFreePred) Ŝ)
-      x.S0 sys.T with hST'
+  · -- terminal state equals `x.ST`
+    show reconstructTrace Ŝ (chooseMemStep sys.isa.committedOperation Ŝ) x.S0 sys.T = x.ST
+    set ST' := reconstructTrace Ŝ (chooseMemStep sys.isa.committedOperation Ŝ) x.S0 sys.T
+      with hST'
     have hci : CommitInv (Ŝ sys.T) ST' := hinv sys.T (le_refl _)
     rw [hend] at hci
     simp only [toCommitted] at hci
@@ -527,18 +581,26 @@ theorem traceValid_full
     calc ST' = (⟨ST'.pc, ST'.regs, ST'.mem⟩ : FullVMState sys.VC) := rfl
       _ = ⟨x.ST.pc, x.ST.regs, x.ST.mem⟩ := by rw [← hpc, ← hreg, e3]
       _ = x.ST := rfl
-  · intro i hi
-    exact ⟨_, hstepF i hi⟩
+  · -- Every reconstructed transition executes the operation selected by
+    -- `code[pc]`, so it satisfies the VM's plain step predicate.
+    intro i hi
+    change i < sys.T at hi
+    exact sys.isa.committedOperation_stepPlain _ _ _ _ _
+      (hinv i (by omega)) (hinv (i + 1) (by omega)) (hopC i hi) (hstepF i hi)
 
 /-- **CTE for the multi-step VM.** Under KS of all four SNARKs and the memory
 commitment binding assumptions, the multi-step VM is correct-trace extractable
-over full-memory states.
+over full-memory states, with `ZkVM.step` the fixed-program ISA predicate.
 
 The two halves meet here: `committedTrace_extract` supplies the explicit
 committed-trace extractor (`buildTrace` under an embed extraction), and
 `traceValid_full` lifts it to full memory. The extractor exhibited for `CTE` is
 that named procedure composed with reconstruction — no choice principle is
 applied to the conclusion.
+
+The three commitment hypotheses sit beside `Assumptions` rather than inside it
+by design: `Assumptions` is the recursion tower's trust base, and these belong
+to `Com_mem`. See the note on `Assumptions`.
 
 Paper: `def:cte`, `prop:memory-extractability`, `rem:mem-inheritance` (ch05),
 and `lem:convert`/`combine`/`embed` (ch04). -/
@@ -549,7 +611,7 @@ theorem cte (h : sys.Assumptions)
   obtain ⟨E, hE⟩ := sys.committedTrace_extract h
   exact ⟨fun x p =>
       reconstructTrace (E ⟨toCommitted x.S0, toCommitted x.ST⟩ p)
-        (chooseMemStep (CommittedMemory.step sys.memFreePred)
+        (chooseMemStep sys.isa.committedOperation
           (E ⟨toCommitted x.S0, toCommitted x.ST⟩ p)) x.S0,
     fun x p hp =>
       sys.traceValid_full hComplete hpos hupd x _

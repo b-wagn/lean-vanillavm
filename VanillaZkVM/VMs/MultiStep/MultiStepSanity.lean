@@ -20,10 +20,16 @@ open MemorySanity
 private def memFree : MemFreePredicate :=
   fun _ _ _ _ => True
 
+private def isa : ISA.System exactVC.Index exactVC.Value where
+  code := fun _ => .arith
+  memFreePred := fun _ => memFree
+  indexOfWord := fun word => decide (word ≠ 0)
+  valueOfWord := fun word => decide (word ≠ 0)
+
 private def leafVerify (st : RecStmt exactVC) (w : SegWitness exactVC) : Prop :=
   w.states 0 = st.S0 ∧
   w.states 1 = st.SN ∧
-  ∀ j, j < 1 → CommittedMemory.step memFree (w.states j) (w.states (j + 1)) (w.steps j)
+  ∀ j, j < 1 → isa.committedOperation (w.states j) (w.states (j + 1)) (w.steps j)
 
 private def convertVerify (st : RecStmt exactVC) (w : SegWitness exactVC) : Prop :=
   leafVerify st w ∧ st.N = 1
@@ -46,7 +52,7 @@ private def system : MultiStep.System where
   VC := exactVC
   Nseg := 1
   T := 2
-  memFreePred := memFree
+  isa := isa
   hNseg := by omega
   hDvd := by norm_num
   hT := by omega
@@ -114,8 +120,13 @@ private def combineWitness : CombProof where
 set_option linter.flexible false in
 example : system.toZkVM.verify ⟨fullState, fullState⟩ combineWitness := by
   simp [MultiStep.System.toZkVM, system, embedVerify, combineVerify,
-    convertVerify, leafVerify, combineWitness, segmentWitness,
-    committedState, memFree, CommittedMemory.step]
+    convertVerify, leafVerify, combineWitness, segmentWitness, committedState,
+    isa, memFree, ISA.System.committedOperation, ISA.System.selectedMemFreePred,
+    CommittedMemory.step]
+
+example : system.toZkVM.step fullState fullState := by
+  simp [MultiStep.System.toZkVM, system, ISA.System.stepPlain,
+    ISA.System.operation, isa, memFree, fullState]
 
 example : system.toZkVM.CTE :=
   system.cte assumptions exactVC_complete exactVC_positionBinding exactVC_updateBinding

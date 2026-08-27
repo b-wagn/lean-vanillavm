@@ -526,7 +526,7 @@ does not depend on the bus (Issue 5).
 
 ### 4.1 System parameters
 
-    Sys = (VC, N_seg, T, φ',
+    Sys = (VC, N_seg, T, isa,
            LeafProof,    leafVerify    : RecStmt(VC) × LeafProof    → {0,1},
            ConvertProof, convertVerify : RecStmt(VC) × ConvertProof → {0,1},
            CombineProof, combineVerify : RecStmt(VC) × CombineProof → {0,1},
@@ -543,6 +543,11 @@ and with the derived segment count
 `T ≥ 2·N_seg` is the paper's requirement that the top of the tower really is a
 combine node: with `m = 1` there would be nothing to merge and `R_4` would have
 no combine proof to wrap.
+
+`isa` is the Issue 3 fixed-program ISA (§3), the same structure the two-step toy
+takes. It supplies the plain step predicate `stepPlain` used as `ZkVM.step` and
+the committed predicate `committedOperation` used by the leaf relation, so this
+layer no longer carries a bare `MemFreePredicate` of its own.
 
 A **recursion statement** carries committed boundaries and a step count; an
 **embed statement** carries boundaries only, because `T` is a system parameter:
@@ -592,7 +597,12 @@ witness is a segment witness `w = (states, steps)` as in §1:
     ( (S₀, S_N, N) ; w ) ∈ R_leaf
       :⟺ w.states(0) = S₀
           ∧ w.states(N_seg) = S_N
-          ∧ ∀ j < N_seg. CommittedMemory.step( w.states(j), w.states(j+1), w.steps(j) ).
+          ∧ ∀ j < N_seg. committedOperation( w.states(j), w.states(j+1), w.steps(j) ),
+
+where `committedOperation` (§3) checks the committed-memory equation *and* that
+the `MemStep` matches the operation `code[pc]` selects, at the designated
+registers. So a segment proof cannot claim a read where the program calls for a
+write.
 
 **Convert `R_2`** (1-to-1, `lem:convert`). A witness is a leaf proof:
 
@@ -678,7 +688,7 @@ proof never reaches them. Termination is the measure of §4.4: the guard
 all committed boundaries `S₀, S_N`, and all `π ∈ ConvertProof ⊎ CombineProof`,
 
     accept(π, S₀, S_N, N) = 1
-      ⟹ CommittedTraceValid(φ', S₀, S_N, buildTrace(S₀,S_N,N,π), N).
+      ⟹ CommittedTraceValid(S₀, S_N, buildTrace(S₀,S_N,N,π), N).
 
 *Proof.* Strong induction on `N`.
 
@@ -719,7 +729,7 @@ Composing `R_4` extraction with §4.5 at `N = T` (legitimate since `N_seg ∣ T`
 
 satisfies
 
-    ∀ x, π.  embedVerify x π = 1 ⟹ CommittedTraceValid(φ', x.S₀, x.S_T, E(x,π), T).
+    ∀ x, π.  embedVerify x π = 1 ⟹ CommittedTraceValid(x.S₀, x.S_T, E(x,π), T).
 
 **The VM.** This layer declares its own packaging — deliberately independent of
 the two-step toy's, which has the same shape (§1.4) but is kept as a separate set
@@ -729,7 +739,7 @@ of declarations rather than shared:
     toCommitted(S)    := (S.pc, S.regs, commit(S.mem)),
 
     toZkVM := ( State   := full states over VC,
-                step    := λ S₁ S₂. ∃ w : MemStep VC. FullMemory.step(S₁,S₂,w),
+                step    := isa.stepPlain,
                 T       := T,
                 Stmt    := FinalStmtFull(VC),
                 initial := x ↦ x.S₀,   terminal := x ↦ x.S_T,
@@ -739,14 +749,22 @@ of declarations rather than shared:
 and its own committed-trace predicate
 
     CommittedTraceValid(Ŝ₀, Ŝ_N, Ŝ, N)
-      := Ŝ(0) = Ŝ₀ ∧ Ŝ(N) = Ŝ_N ∧ ∀ k < N. committedStep(Ŝ(k), Ŝ(k+1)).
+      := Ŝ(0) = Ŝ₀ ∧ Ŝ(N) = Ŝ_N ∧ ∀ k < N. isa.committedStep(Ŝ(k), Ŝ(k+1)),
+
+where `isa.committedStep(Ŝ₁,Ŝ₂) := ∃ w. committedOperation(Ŝ₁,Ŝ₂,w)`.
 
 **Committed → full lift.** Given commitment completeness, position binding, and
 update binding, the reconstruction of §1.3 along a committed trace valid for the
 *committed* boundaries of `x` is a valid `toZkVM` trace for `x`:
 
     CommittedTraceValid(toCommitted(x.S₀), toCommitted(x.S_T), Ŝ, T)
-      ⟹ TraceValid_{toZkVM}( x, reconstructTrace(Ŝ, chooseMemStep(Ŝ), x.S₀) ).
+      ⟹ TraceValid_{toZkVM}( x, reconstructTrace(Ŝ, chooseMemStep(committedOperation, Ŝ), x.S₀) ).
+
+The `MemStep` sequence is chosen against `committedOperation` rather than the
+bare memory predicate, so the program checks survive reconstruction. That is what
+`committedOperation_stepPlain` (§3) then needs to conclude `stepPlain` at every
+reconstructed transition — the VM's step predicate is the fixed-program one, so a
+purely memory-level witness would not suffice.
 
 The terminal full state is not assumed: `CommitInv` at the extracted committed
 terminal state plus commitment injectivity identify it with `x.S_T`.
@@ -789,21 +807,24 @@ deeper witness is worth adding when Issue 7 assembles the full VM.
 
 ### 4.8 What this is not
 
-The leaf relation is abstract, `φ'` is still an abstract memory-free predicate,
-and there is no bus. So this is the paper's recursion *structure* verified over a
-placeholder leaf, not the Vanilla VM.
+The **leaf SNARK** is abstract — its proof type and verifier are parameters, and
+knowledge soundness of it is assumed rather than constructed. There is no bus. So
+this is the paper's recursion *structure* verified over a placeholder leaf, not
+the Vanilla VM.
 
-**Note after the Issue 3 merge.** Issue 3 (§3) landed the representative ISA and
-rewired the two-step toy's step predicate to `isa.stepPlain`. This layer was
-*not* rewired with it: `MultiStep.toZkVM.step` is still
-`∃ w, FullMemory.step(φ', ·, ·, w)` over an abstract `memFreePred`, so the two
-VMs now disagree about what a step is. That is deliberate — Issue 4's scope is
-the recursion tower over an **abstract** leaf, and substituting the real
-program-selected semantics is Issue 7's assembly step, not a rebase fix. A
-reviewer should read the recursion tower's fidelity against the abstract leaf
-only, and should not read `MultiStep.cte` as a statement about ISA-correct
-executions.
+What is *not* abstract any more is the execution semantics. Since the Issue 3
+integration this layer runs on the same fixed-program ISA as the two-step toy:
+`ZkVM.step` is `isa.stepPlain`, and the leaf relation demands
+`committedOperation` at every step, so a segment proof is pinned to the operation
+`code[pc]` selects. The two VMs therefore agree about what a step is, and
+`MultiStep.cte` is a statement about program-selected executions.
 
-Remaining: Issue 5 supplies the bus; Issue 7 substitutes the real segment
-relation (and the ISA step) for the abstract leaf; Issue 6 attaches the
-quantitative coefficients (including the `(m − 1)` of §4.2).
+The residual idealization is inherited rather than local: `isa.memFreePred` is
+still an abstract predicate per operation class, so what `arith`, `hash`, and
+`bin` actually compute on registers is unconstrained (§3 carries the same
+caveat). What is pinned is which class runs at each program counter and what it
+does to memory.
+
+Remaining: Issue 5 supplies the bus; Issue 7 substitutes a real segment relation
+for the abstract leaf; Issue 6 attaches the quantitative coefficients (including
+the `(m − 1)` of §4.2).
