@@ -340,13 +340,17 @@ known initial memory and per-step `MemStep` witnesses, realizes the frozen
 composes that reconstruction into
 `TwoStep.System.cte`. `VMs/ISA.lean` supplies the representative five-class
 plain predicate, connects its selected operation to each explicit `MemStep`,
-and `TwoStep.System.toZkVM` now uses that predicate as its actual `step`. The
-concrete opcode semantics and bus remain absent. The
-former playground `Bus.lean` prototype has been deleted from the active tree;
-its git history is reference material only for Issue 5.
+and `TwoStep.System.toZkVM` now uses that predicate as its actual `step`.
+`VMs/Bus.lean` supplies the replacement segment bus: the four inner relations
+and the proof that the four buses recovered for one segment agree.
+`VMs/TwoStep/Bus.lean` separately demonstrates per-segment extraction followed
+by `chain_flatten` and memory reconstruction. Concrete opcode and chip
+implementations remain absent. The
+former playground `Bus.lean` is still only git-history reference material; the
+current file is a new Issue 5 implementation against the frozen interfaces.
 
-**(a) Committed memory / memory-commitment properties — memory core and
-representative ISA wiring implemented.** `VMs/Memory.lean` now formalizes the perfect
+**(a) Committed memory / memory-commitment properties — memory core connected
+to the representative ISA.** `VMs/Memory.lean` now formalizes the perfect
 position/update-binding memory slice: committed/full read and write equations,
 the `CommitInv` relation, conditional `step_mem_extract`,
 `step_reconstruct`/`TwoStep.System.memoryBridge` (which produce each next
@@ -357,10 +361,14 @@ the theorem's hypotheses. The append-bit countermodel demonstrates that
 agreement of accepted openings away from the updated address does not provide
 update binding. `ISA.System.committedOperation` now ties each `MemStep`
 constructor and its address/value to program fetch and the designated
-registers, and the two-step CTE concludes `stepPlain`. Remaining:
-(i) the bus-deferred step predicate must add bus/chip evidence (Issue 5); and
-(ii) explicit advantage/reduction accounting remains the Issue 8 study and
-Issues 10 and 6 in `PLAN.md` (the former Issue 2 was withdrawn).
+registers, and the two-step CTE concludes `stepPlain`. `Bus.System.stepBus` now
+adds the bus/chip evidence, while
+`Bus.System.stepWithBus_committedOperation` returns the same recovered
+`MemStep` to that committed ISA relation. `Bus.TwoStepSystem.busBridge`
+uses the same recovered `MemStep` to prove that the demonstration VM has a
+suitable memory witness.
+Explicit advantage/reduction accounting remains the Issue 8 study and Issues
+10 and 6 in `PLAN.md` (the former Issue 2 was withdrawn).
 
 **(b) Multi-layer recursion — capped at 2 layers.** `VMs/TwoStep/TwoStep.lean` has only
 `RSeg→RFinal`; the paper has leaf(`inner-*`)→`segment`(`R_1`)→
@@ -377,26 +385,30 @@ single segment" argument); the binary-tree topology itself (Fig.
 `fig:topo`) is nowhere represented as data — `Twostep`'s indexing is a flat
 list, not a tree.
 
-**(c) Additional ISA ops (arithmetic, hash calls) — absent.**
-The paper names and structures `read`, `write`,
-`op_1..op_10` (arithmetic, no range check), `op_11..op_20` (arithmetic +
-range check, `φ_op_i=φ'_op_i∧φ_range(S1)`), and the disjunctive
-`φ_step:=⋁_op φ_op`. None of this taxonomy, nor the bus-membership
-disjunction `φ_step,bus` (Eq. `eq:step-expanded`) routing each op-class to
-inline-vs-deferred, is represented. This requires the representative opcode
-enumeration, per-class `φ_op`/`φ'_op` splits, and the disjunctive step predicate
-assigned to Issue 3.
+**(c) Representative ISA operations — structure implemented, exact opcodes
+still abstract.** `VMs/ISA.lean` uses the five Issue 3 classes `read`, `write`,
+`arith`, `hash`, and `bin`. It defines the disjunction `stepPlain`, checks
+`code[pc]`, makes the read/write memory equations explicit, and assigns
+`stepPlain` to the concrete two-step VM. `VMs/Bus.lean` further divides `bin`
+into its ordinary register check and its range check, and places hash and range
+entries on a segment bus. This represents the paper's division of work, but it
+does not define or verify the paper's individual `op_1..op_20`, Keccak, or
+Poseidon implementations.
 
-**(d) Bus per segment.** No bus implementation is retained in the active tree.
-The former prototype can inform Issue 5, but was neither authoritative nor an
-audited realization of `lem:segment`. The required implementation must apply
-the segment lemma **m times**
-(once per segment) and Step 5 concatenates the resulting per-segment
-bus-satisfying chains into one length-`T` chain, carrying a *distinct* bus
-`B̂_i` per segment (segments' buses are never claimed equal to each other,
-only internally self-consistent), combine the result with
-`concatTrace`/`chain_flatten`, and extend `TwoStep`-style concatenation to
-carry per-segment `StepAux`/bus data into a full-VM memory reconstruction.
+**(d) One bus per segment — reusable segment theorem plus a two-step connection.**
+`VMs/Bus.lean` defines the step, Keccak, Poseidon, and range relations and proves
+the perfect-security form of `lem:segment`: knowledge soundness recovers four
+buses under one digest, and collision resistance proves that those four buses
+are equal. This module has no dependency on a complete VM and does not choose
+how segment proofs are combined. `VMs/TwoStep/Bus.lean` is the separate
+demonstration module:
+`execution_extract` applies the segment theorem once per segment, retains a
+separate bus `B̂_i` and `MemStep` sequence, and reuses
+`concatTrace`/`chain_flatten` to obtain one committed-state trace. It then uses
+the existing memory reconstruction theorem to prove CTE for the non-recursive
+two-step VM. The sanity model accepts two segments with provably different
+buses. Issue 7 can reuse the segment theorem with the recursive VM; concrete
+chip implementations remain outside Issue 5.
 
 **(e) Explicit reductions to hardness assumptions — systematically absent.**
 `Preliminaries/` is deliberately **perfect/probability-free** (`KnowledgeSound`

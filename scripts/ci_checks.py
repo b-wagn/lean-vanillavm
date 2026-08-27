@@ -83,6 +83,11 @@ HEADLINE_THEOREMS = [
     "VanillaZkVM.ISA.System.stepPlain_iff_operation_at_pc",  # Issue 3 — fixed-program selection
     "VanillaZkVM.ISA.System.operation_preserves_memory_unless_write",  # Issue 3 — memory guard
     "VanillaZkVM.ISA.System.committedOperation_stepPlain",  # Issue 3 — committed/plain bridge
+    "VanillaZkVM.Bus.System.stepWithBus_committedOperation",  # Issue 5 — bus/ISA witness bridge
+    "VanillaZkVM.Bus.System.segment_extract",  # Issue 5 — one-segment bus unification
+    "VanillaZkVM.Bus.TwoStepSystem.busBridge",  # Issue 5 — concrete step-interface bridge
+    "VanillaZkVM.Bus.TwoStepSystem.execution_extract",  # Issue 5 — non-recursive per-segment execution
+    "VanillaZkVM.Bus.TwoStepSystem.cte",       # Issue 5 — bus-backed two-step CTE
 ]
 
 # A Lean identifier: dotted, letters/digits/_/'  (no braces, no spaces).

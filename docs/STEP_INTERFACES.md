@@ -42,11 +42,17 @@ stepWithBus
   : CommittedState -> CommittedState -> BusEvidence -> Prop
 ```
 
-where `BusEvidence` packages the per-step bus/chip data after the extracted buses
-have been identified with one common bus. `stepWithBus` is the complete
-bus-backed antecedent over that package, not the raw inner-step predicate by
-itself. Keeping it out of the structure lets Issue 1 instantiate the memory
-interface without inventing a dummy bus.
+where `BusEvidence` contains one segment's bus and the memory-opening data for
+one transition. Before the bridge is used, `Bus.System.segment_extract` proves
+that the step, Keccak, Poseidon, and range proofs all refer to that same segment
+bus. This theorem is independent of how segment proofs are later combined.
+`stepWithBus` then requires both the step check and all three chip checks. The
+reusable `stepWithBus_committedOperation` theorem derives the canonical
+committed ISA operation for the same recovered `MemStep`; a concrete VM uses
+that same value to prove the weaker `BusBridge` statement that a suitable
+`MemStep` exists.
+Keeping the bus predicate out of `StepInterface` lets Issue 1 instantiate the
+memory interface without inventing unused bus data.
 
 ## Frozen bridge statements
 
@@ -80,9 +86,11 @@ I.BusBridge stepWithBus :=
     stepCommitted C1 C2.
 ```
 
-The concrete proof unifies the extracted per-chip buses into one common
-`BusEvidence` and establishes this implication under collision resistance of
-`Com_bus`, which is what rules out two segments' buses disagreeing.
+For one segment, the step, Keccak, Poseidon, and range-proof extractors each
+return a bus. All four buses have the same committed digest, so collision
+resistance proves that they are equal. Different segments have separate bus
+commitments and may use different buses; the proof neither compares nor
+equates them.
 
 ## Ownership
 
@@ -90,7 +98,7 @@ The concrete proof unifies the extracted per-chip buses into one common
 |---|---|---|
 | Memory reconstruction | `VanillaZkVM/VMs/Memory.lean` + concrete VM module (Issue 1 / #7) | `VMs/Memory.lean` defines `CommitInv`, the memory-only step predicates, `step_reconstruct_exact`, `step_reconstruct`, and `trace_mem_extract`. The concrete VM packages the appropriate committed relation as a `StepInterface` and proves `MemoryBridge`; `VMs/TwoStep/TwoStep.lean` supplies the current instance. |
 | Plain ISA semantics | `VanillaZkVM/VMs/ISA.lean` (Issue 3 / #9) | Define `ISA.System.stepPlain`, connect explicit committed-memory witnesses through `ISA.System.committedOperation`, and assign `stepPlain` directly to `TwoStep.System.toZkVM.step`. Issue 7 reuses the same predicate in the assembled VM. |
-| Bus unification | `VanillaZkVM/VMs/Bus.lean` (Issue 5 / #11) | Define `stepWithBus` and prove `BusBridge` from extracted witnesses and bus-commitment security. |
+| Segment bus | `VanillaZkVM/VMs/Bus.lean` + concrete VM connection module (Issue 5 / #11) | `Bus.System.stepWithBus` combines the segment step check with the three chip checks. `Bus.System.stepWithBus_committedOperation` proves the implication to the Issue 3 committed ISA operation while preserving the recovered `MemStep`, and `Bus.System.segment_extract` proves that the four buses recovered for one segment are equal. Neither theorem chooses how segments are combined. `VMs/TwoStep/Bus.lean` uses that `MemStep` to satisfy `StepInterface.BusBridge` and demonstrates whole-execution extraction; Issue 7 can reuse the same segment system with the recursive VM. |
 
 No other module should introduce a different, unrelated public execution
 predicate between two states.

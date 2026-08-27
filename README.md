@@ -25,9 +25,12 @@ VanillaZkVM/
 │   ├── Zkvm.lean                    abstract ZkVM + TraceValid
 │   └── Cte.lean                     R*, CTE, and the keystone cte_iff_knowledgeSound
 └── VMs/                           concrete VM machinery and instances, one subdirectory per VM
-    ├── ...
-    └── VM1/
-        ├── ..
+    ├── State.lean                   shared full/committed state shape
+    ├── Memory.lean                  committed-to-full memory reconstruction
+    ├── ISA.lean                     representative five-class execution predicate
+    ├── Bus.lean                     reusable one-segment bus and extraction theorem
+    └── TwoStep/                     non-recursive two-layer VM instance
+        └── Bus.lean                 connects bus-backed segments to that VM
 ```
 
 Dependencies point one way: **`Preliminaries/` → `Specification/` → `VMs/`.**
@@ -47,8 +50,11 @@ serve every VM.
 committed-memory execution, and the reconstruction of full memory from committed memory — plus one
 subdirectory per concrete VM. Each such VM is an *instance* of the abstract zkVM above and proves
 correct-trace extractability for itself, rather than restating the definition. So far there is one, a
-deliberately minimal two-layer VM using a representative five-class ISA. Concrete opcode semantics,
-the bus, and the recursion tower are still to come.
+deliberately minimal two-layer VM using a representative five-class ISA. The reusable bus module
+models the separate step, Keccak, Poseidon, and range proofs for one segment without depending on
+that VM. A small connection module then demonstrates whole-execution extraction
+while retaining a distinct bus for each segment. Concrete opcode semantics and
+the final recursive assembly are still to come.
 
 Each `*Sanity.lean` file holds concrete models and countermodels witnessing that the definitions
 beside it are satisfiable and the theorems consuming them non-vacuous — kept separate so the
@@ -56,6 +62,8 @@ definition files stay definitions-only.
 
 The representative five-class ISA introduced by Issue 3 is documented in
 [`docs/ISA.md`](docs/ISA.md).
+The Issue 5 bus construction is described mathematically in
+[`VanillaZkVM/math-companion.md`](VanillaZkVM/math-companion.md#4-segment-buses-and-one-complete-execution-issue-5).
 
 ## Idealization
 

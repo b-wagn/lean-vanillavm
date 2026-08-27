@@ -25,9 +25,9 @@ guard; when a guard becomes a CI check, note that.
   **Guard:** CONVENTIONS.md §4; branch dispositions in `docs/branch-analysis.md`.
 
 - **The deleted `Bus.lean` prototype was not ground truth.** Its declarations
-  were Yavor's playground and are redone in Issue 5. Do not restore or build on
-  them as if they were an audited checkpoint.
-  **Guard:** CONVENTIONS.md §4; the planned Issue-5 rows in CORRESPONDENCE.md.
+  were Yavor's playground. The current `VMs/Bus.lean` was re-derived in Issue 5;
+  do not import claims from the old file as if they were an audited checkpoint.
+  **Guard:** CONVENTIONS.md §4; the Issue-5 rows in CORRESPONDENCE.md.
 
 ## Definitions / abstraction (the load-bearing 80%, I3)
 
