@@ -790,8 +790,20 @@ deeper witness is worth adding when Issue 7 assembles the full VM.
 ### 4.8 What this is not
 
 The leaf relation is abstract, `φ'` is still an abstract memory-free predicate,
-and there is no bus and no concrete ISA. So this is the paper's recursion
-*structure* verified over a placeholder leaf, not the Vanilla VM. Issues 3 and 5
-supply the ISA and the bus; Issue 7 substitutes the real segment relation for the
-abstract leaf; Issue 6 attaches the quantitative coefficients (including the
-`(m − 1)` of §4.2).
+and there is no bus. So this is the paper's recursion *structure* verified over a
+placeholder leaf, not the Vanilla VM.
+
+**Note after the Issue 3 merge.** Issue 3 (§3) landed the representative ISA and
+rewired the two-step toy's step predicate to `isa.stepPlain`. This layer was
+*not* rewired with it: `MultiStep.toZkVM.step` is still
+`∃ w, FullMemory.step(φ', ·, ·, w)` over an abstract `memFreePred`, so the two
+VMs now disagree about what a step is. That is deliberate — Issue 4's scope is
+the recursion tower over an **abstract** leaf, and substituting the real
+program-selected semantics is Issue 7's assembly step, not a rebase fix. A
+reviewer should read the recursion tower's fidelity against the abstract leaf
+only, and should not read `MultiStep.cte` as a statement about ISA-correct
+executions.
+
+Remaining: Issue 5 supplies the bus; Issue 7 substitutes the real segment
+relation (and the ISA step) for the abstract leaf; Issue 6 attaches the
+quantitative coefficients (including the `(m − 1)` of §4.2).

@@ -504,19 +504,21 @@ theorem traceValid_full
     (x : FinalStmtFull sys.VC) (Ŝ : ℕ → CommittedVMState sys.VC)
     (hval : sys.CommittedTraceValid (toCommitted x.S0) (toCommitted x.ST) Ŝ sys.T) :
     sys.toZkVM.TraceValid x
-      (reconstructTrace Ŝ (chooseMemStep sys.memFreePred Ŝ) x.S0) := by
+      (reconstructTrace Ŝ (chooseMemStep (CommittedMemory.step sys.memFreePred) Ŝ) x.S0) := by
   obtain ⟨hstart, hend, hsteprel⟩ := hval
   have hseed : CommitInv (Ŝ 0) x.S0 := by rw [hstart]; exact ⟨rfl, rfl, rfl⟩
   have hstepC : ∀ k, k < sys.T →
       CommittedMemory.step sys.memFreePred (Ŝ k) (Ŝ (k + 1))
-        (chooseMemStep sys.memFreePred Ŝ k) :=
-    fun k hk => chooseMemStep_spec sys.memFreePred Ŝ k (hsteprel k hk)
+        (chooseMemStep (CommittedMemory.step sys.memFreePred) Ŝ k) :=
+    fun k hk => chooseMemStep_spec (CommittedMemory.step sys.memFreePred) Ŝ k (hsteprel k hk)
   obtain ⟨hinv, hstepF⟩ :=
     trace_mem_extract hComplete hpos hupd sys.memFreePred sys.T Ŝ
-      (chooseMemStep sys.memFreePred Ŝ) x.S0 hseed hstepC
+      (chooseMemStep (CommittedMemory.step sys.memFreePred) Ŝ) x.S0 hseed hstepC
   refine ⟨rfl, ?_, ?_⟩
-  · show reconstructTrace Ŝ (chooseMemStep sys.memFreePred Ŝ) x.S0 sys.T = x.ST
-    set ST' := reconstructTrace Ŝ (chooseMemStep sys.memFreePred Ŝ) x.S0 sys.T with hST'
+  · show reconstructTrace Ŝ (chooseMemStep (CommittedMemory.step sys.memFreePred) Ŝ)
+        x.S0 sys.T = x.ST
+    set ST' := reconstructTrace Ŝ (chooseMemStep (CommittedMemory.step sys.memFreePred) Ŝ)
+      x.S0 sys.T with hST'
     have hci : CommitInv (Ŝ sys.T) ST' := hinv sys.T (le_refl _)
     rw [hend] at hci
     simp only [toCommitted] at hci
@@ -547,7 +549,7 @@ theorem cte (h : sys.Assumptions)
   obtain ⟨E, hE⟩ := sys.committedTrace_extract h
   exact ⟨fun x p =>
       reconstructTrace (E ⟨toCommitted x.S0, toCommitted x.ST⟩ p)
-        (chooseMemStep sys.memFreePred
+        (chooseMemStep (CommittedMemory.step sys.memFreePred)
           (E ⟨toCommitted x.S0, toCommitted x.ST⟩ p)) x.S0,
     fun x p hp =>
       sys.traceValid_full hComplete hpos hupd x _
