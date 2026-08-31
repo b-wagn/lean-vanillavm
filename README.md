@@ -56,8 +56,12 @@ The concrete VM variants currently implemented are:
 - **TwoStep with a bus** ([`WithBus.lean`](VanillaZkVM/VMs/TwoStep/WithBus.lean)):
   the same two-layer proof structure, with separate step, Keccak, Poseidon, and
   range proofs for each segment. Each segment keeps its own bus.
+- **MultiStep without a bus**
+  ([`MultiStep.lean`](VanillaZkVM/VMs/MultiStep/MultiStep.lean)): the recursive
+  convert/combine/embed proof structure over an abstract segment proof.
 
-Concrete opcode semantics and the final recursive assembly are still to come.
+Concrete opcode semantics and the final assembly connecting the recursive
+tower to the segment bus are still to come.
 
 Each `*Sanity.lean` file holds concrete models and countermodels witnessing that the definitions
 beside it are satisfiable and the theorems consuming them non-vacuous — kept separate so the

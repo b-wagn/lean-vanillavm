@@ -325,7 +325,7 @@ not a concrete security level.
 
 ## 6. Gap list for Lean formalization
 
-Current Issue-1 development (`VanillaZkVM/**/*.lean`): `Specification/Zkvm.lean` has the
+The current implementation (`VanillaZkVM/**/*.lean`): `Specification/Zkvm.lean` has the
 abstract `ZkVM` structure and `Specification/Cte.lean` has `R*=ZkVM.Rstar`, `CTE=ZkVM.CTE`, keystone
 `cte_iff_knowledgeSound`; `Preliminaries/Trace.lean` has `concatTrace`/`chain_flatten`.
 `Preliminaries/ArgumentSystem.lean`
@@ -345,7 +345,10 @@ and `TwoStep.System.toZkVM` now uses that predicate as its actual `step`.
 and the proof that the four buses recovered for one segment agree.
 `VMs/TwoStep/WithBus.lean` separately demonstrates per-segment extraction followed
 by `chain_flatten` and memory reconstruction. Concrete opcode and chip
-implementations remain absent. The
+implementations remain absent. `VMs/MultiStep/MultiStep.lean` formalizes the
+recursive convert/combine/embed proof tower over an abstract segment proof. Its
+recursive extractor constructs and joins the committed traces recovered from the
+tree, and its CTE theorem then applies the existing memory reconstruction. The
 former playground `Bus.lean` is still only git-history reference material; the
 current file is a new Issue 5 implementation against the frozen interfaces.
 
@@ -370,20 +373,19 @@ suitable memory witness.
 Explicit advantage/reduction accounting remains the Issue 8 study and Issues
 10 and 6 in `PLAN.md` (the former Issue 2 was withdrawn).
 
-**(b) Multi-layer recursion — capped at 2 layers.** `VMs/TwoStep/TwoStep.lean` has only
-`RSeg→RFinal`; the paper has leaf(`inner-*`)→`segment`(`R_1`)→
-`convert`(`R_2`, **missing**)→`combine`(`R_3`, **missing**, binary
-self-recursive)→`embed`(`R_4`, **missing**). Lean's `RFinal` flattens the
-`m`-way merge directly (`∀ i<m`), sidestepping the recursion-tree reasoning
-that `lem:combine`'s strong induction and `(m-1)` coefficient are about.
-Specifically missing: `R_2`/`convert` (trivial 1-to-1 wrapper +
-`lem:convert`-style lemma); `R_3`/`combine` (binary 2-to-1 relation with
-`N_L+N_R=N`, divisibility, well-foundedness side conditions, plus a
-tree-unrolling extraction lemma generalizing `chain_flatten` to trees);
-`R_4`/`embed` (fixed `T≥2N_seg`, `N_seg|T`, plus the "no valid tree for a
-single segment" argument); the binary-tree topology itself (Fig.
-`fig:topo`) is nowhere represented as data — `Twostep`'s indexing is a flat
-list, not a tree.
+**(b) Multi-layer recursion — structure implemented over an abstract leaf.**
+`VMs/MultiStep/MultiStep.lean` formalizes the leaf, convert, combine, and embed
+relations. Its explicit, terminating `buildTrace` extractor follows the binary
+proof tree, and `combine_tree` proves that it joins the recovered child traces
+correctly. The recursive proof type permits both balanced and unbalanced trees;
+the combine relation's size conditions guarantee that each recursive child is
+strictly smaller. `committedTrace_extract` obtains the committed execution, and
+the MultiStep CTE theorem reconstructs its full-memory execution.
+`VMs/MultiStep/MultiStepSanity.lean` supplies a small accepted example showing
+that these assumptions can hold together. The remaining integration task is to
+instantiate the abstract leaf with `Bus.System.RSegment` and its extraction
+theorem, rather than to reimplement recursion. The quantitative `(m-1)`
+accounting remains deferred to Issue 6.
 
 **(c) Representative ISA operations — structure implemented, exact opcodes
 still abstract.** `VMs/ISA.lean` uses the five Issue 3 classes `read`, `write`,

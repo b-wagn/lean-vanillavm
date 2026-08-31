@@ -83,6 +83,10 @@ HEADLINE_THEOREMS = [
     "VanillaZkVM.ISA.System.stepPlain_iff_operation_at_pc",  # Issue 3 — fixed-program selection
     "VanillaZkVM.ISA.System.operation_preserves_memory_unless_write",  # Issue 3 — memory guard
     "VanillaZkVM.ISA.System.committedOperation_stepPlain",  # Issue 3 — committed/plain bridge
+    "VanillaZkVM.MultiStep.System.memoryBridge", # Issue 4 — frozen-interface realization
+    "VanillaZkVM.MultiStep.System.combine_tree", # Issue 4 — tree-unrolling extraction
+    "VanillaZkVM.MultiStep.System.committedTrace_extract",  # Issue 4 — embed ∘ tree unrolling
+    "VanillaZkVM.MultiStep.System.cte",          # Issue 4 — full-memory multi-step CTE
     "VanillaZkVM.Bus.System.stepWithBus_committedOperation",  # Issue 5 — bus/ISA witness bridge
     "VanillaZkVM.Bus.System.segment_extract",  # Issue 5 — one-segment bus unification
     "VanillaZkVM.Bus.TwoStepSystem.busBridge",  # Issue 5 — concrete step-interface bridge
