@@ -17,8 +17,6 @@ a segment of committed steps, each agreeing with the operation the fixed program
 selects (`ISA.System.committedOperation`, Issue 3).
 
 ## Main definitions
-* `RecTree` — the binary recursion-tree topology (`fig:topo`); scaffolding for
-  Issue 6, not used by the extraction proof.
 * `MultiStep.System` — the system parameters.
 * `RLeaf` / `RConvert` / `RCombine` / `REmbed` — the layer relations.
 * `buildTrace` — the **explicit** tree-unrolling extraction procedure.
@@ -40,64 +38,7 @@ Paper: ch04 (`R_2`, `R_3`, `R_4`, `fig:topo`), `lem:convert`/`combine`/`embed`,
 namespace VanillaZkVM
 namespace MultiStep
 
-/-! ## Binary recursion-tree topology -/
-
-/-- The binary recursion tree (`fig:topo`). A `leaf` covers one segment;
-a `node` merges two subtrees via `combine`.
-
-**Scaffolding for Issue 6.** Nothing in this file recurses on a `RecTree`:
-`buildTrace` and `combine_tree` recurse on the step count `N`, which is what the
-layer statements carry. This type and the counting lemmas in its namespace state
-properties of the topology alone — in particular the `(m-1)` combine count — and
-are hypotheses of no theorem here. They become load-bearing in Issue 6, where
-that coefficient multiplies a real advantage. -/
-inductive RecTree where
-  | leaf : RecTree
-  | node : RecTree → RecTree → RecTree
-
-namespace RecTree
-
-def steps (Nseg : ℕ) : RecTree → ℕ
-  | .leaf => Nseg
-  | .node l r => l.steps Nseg + r.steps Nseg
-
-def leaves : RecTree → ℕ
-  | .leaf => 1
-  | .node l r => l.leaves + r.leaves
-
-def internals : RecTree → ℕ
-  | .leaf => 0
-  | .node l r => 1 + l.internals + r.internals
-
-/-- The number of internal nodes is one less than the number of leaves:
-exactly `m - 1` combine applications for `m` segments. -/
-theorem internals_eq_leaves_sub_one (t : RecTree) : t.internals + 1 = t.leaves := by
-  induction t with
-  | leaf => simp [internals, leaves]
-  | node l r ihl ihr => simp [internals, leaves]; omega
-
-theorem leaves_pos (t : RecTree) : 0 < t.leaves := by
-  induction t with
-  | leaf => simp [leaves]
-  | node l r ihl _ => simp [leaves]; omega
-
-theorem steps_dvd_Nseg (Nseg : ℕ) (t : RecTree) : Nseg ∣ t.steps Nseg := by
-  induction t with
-  | leaf => exact dvd_refl _
-  | node l r ihl ihr => exact Nat.dvd_add ihl ihr
-
-theorem steps_ge_Nseg (Nseg : ℕ) (t : RecTree) : t.steps Nseg ≥ Nseg := by
-  induction t with
-  | leaf => exact le_refl _
-  | node l r ihl _ => simp [steps]; omega
-
-/-- Each leaf covers `Nseg` steps, so the total is `leaves * Nseg`. -/
-theorem leaves_mul_Nseg (Nseg : ℕ) (t : RecTree) : t.leaves * Nseg = t.steps Nseg := by
-  induction t with
-  | leaf => simp [leaves, steps]
-  | node l r ihl ihr => simp [leaves, steps, Nat.add_mul, ihl, ihr]
-
-end RecTree
+/-! # Definitions -/
 
 /-! ## Data types -/
 
@@ -177,16 +118,34 @@ variable (sys : System)
 
 def m : ℕ := sys.T / sys.Nseg
 
-theorem m_ge_two : sys.m ≥ 2 :=
-  (Nat.le_div_iff_mul_le sys.hNseg).mpr sys.hT
+/-! ## The zkVM -/
 
-theorem m_pos : 0 < sys.m := Nat.lt_of_lt_of_le (by omega) sys.m_ge_two
+/-- **The multi-step zkVM.** Its state is the *full-memory* VM state; its step
+is `ISA.System.stepPlain`, the operation the fixed program selects at `code[pc]`;
+its statement carries full boundary states; its verifier commits the boundaries
+and defers to the embed SNARK.
 
-theorem T_eq : sys.T = sys.m * sys.Nseg :=
-  (Nat.div_mul_cancel sys.hDvd).symm
+Paper: `def:cte` and `prop:memory-extractability` (ch05). The recursion tower
+stands where the two-step toy has a flat merge, over the same fixed-program ISA
+step; the bus (Issue 5) is omitted. -/
+def toZkVM : ZkVM where
+  State := FullVMState sys.VC
+  step := sys.isa.stepPlain
+  T := sys.T
+  Stmt := FinalStmtFull sys.VC
+  initial := FinalStmtFull.S0
+  terminal := FinalStmtFull.ST
+  Proof := sys.EmbedProof
+  verify := fun x p => sys.embedVerify ⟨toCommitted x.S0, toCommitted x.ST⟩ p
 
-theorem T_ge_Nseg : sys.T ≥ sys.Nseg :=
-  le_trans (Nat.le_mul_of_pos_left sys.Nseg (by omega)) sys.hT
+/-- Step interface for this VM: `CommitInv` is the representation relation, and
+`ISA.System.committedStep` the binary committed predicate — some `MemStep` passes
+both the memory checks and the program's operation check, not the bare memory
+relation. -/
+def memoryStepInterface : StepInterface sys.toZkVM where
+  CommittedState := CommittedVMState sys.VC
+  represents := CommitInv
+  stepCommitted := sys.isa.committedStep
 
 /-! ## Relations -/
 
@@ -354,15 +313,37 @@ def buildTrace
   · omega
   · omega
 
+end System
+
+/-! # Proofs -/
+
+namespace System
+
+variable (sys : System)
+
+/-! ## System parameter properties -/
+
+theorem m_ge_two : sys.m ≥ 2 :=
+  (Nat.le_div_iff_mul_le sys.hNseg).mpr sys.hT
+
+theorem m_pos : 0 < sys.m := Nat.lt_of_lt_of_le (by omega) sys.m_ge_two
+
+theorem T_eq : sys.T = sys.m * sys.Nseg :=
+  (Nat.div_mul_cancel sys.hDvd).symm
+
+theorem T_ge_Nseg : sys.T ≥ sys.Nseg :=
+  le_trans (Nat.le_mul_of_pos_left sys.Nseg (by omega)) sys.hT
+
+/-! ## Tree-unrolling correctness -/
+
 /-- **Tree-unrolling extraction (correctness).** Given straight-line extractors
 for the leaf, convert, and combine SNARKs, `buildTrace` turns any accepting
 convert-or-combine proof for `N` steps into a valid committed trace. Proved by
 well-founded induction on `N`.
 
-Paper: `lem:combine` (ch04). The induction is on `N`, not on a `RecTree`, so
-the paper's `(m-1)` combine coefficient plays no part in this statement;
-`RecTree.internals_eq_leaves_sub_one` records that count separately, for
-Issue 6. -/
+Paper: `lem:combine` (ch04). The proof uses strong induction on `N`; the current
+qualitative statement does not count combine nodes. Quantitative `(m-1)`
+accounting is deferred to Issue 6. -/
 theorem combine_tree
     (El : Extractor sys.RLeaf sys.ASLeaf)
     (hEl : ∀ x p, sys.leafVerify x p → sys.RLeaf.rel x (El.extract x p))
@@ -491,34 +472,7 @@ theorem committedTrace_extract (h : sys.Assumptions) :
   exact sys.combine_tree El hEl Ec hEc Ecb hEcb sys.T sys.hDvd sys.T_ge_Nseg
     x.S0 x.ST (.inr (Ee.extract x p)) (hEe x p hp)
 
-/-! ## The zkVM -/
-
-/-- **The multi-step zkVM.** Its state is the *full-memory* VM state; its step
-is `ISA.System.stepPlain`, the operation the fixed program selects at `code[pc]`;
-its statement carries full boundary states; its verifier commits the boundaries
-and defers to the embed SNARK.
-
-Paper: `def:cte` and `prop:memory-extractability` (ch05). The recursion tower
-stands where the two-step toy has a flat merge, over the same fixed-program ISA
-step; the bus (Issue 5) is omitted. -/
-def toZkVM : ZkVM where
-  State := FullVMState sys.VC
-  step := sys.isa.stepPlain
-  T := sys.T
-  Stmt := FinalStmtFull sys.VC
-  initial := FinalStmtFull.S0
-  terminal := FinalStmtFull.ST
-  Proof := sys.EmbedProof
-  verify := fun x p => sys.embedVerify ⟨toCommitted x.S0, toCommitted x.ST⟩ p
-
-/-- Step interface for this VM: `CommitInv` is the representation relation, and
-`ISA.System.committedStep` the binary committed predicate — some `MemStep` passes
-both the memory checks and the program's operation check, not the bare memory
-relation. -/
-def memoryStepInterface : StepInterface sys.toZkVM where
-  CommittedState := CommittedVMState sys.VC
-  represents := CommitInv
-  stepCommitted := sys.isa.committedStep
+/-! ## Memory reconstruction -/
 
 /-- `StepInterface.MemoryBridge` for this VM.
 

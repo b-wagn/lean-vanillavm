@@ -557,37 +557,20 @@ A **recursion statement** carries committed boundaries and a step count; an
 *Lean:* `MultiStep.System`, `RecStmt`, `EmbedStmt`, `m`, `m_ge_two`, `T_eq`,
 `T_ge_Nseg`.
 
-### 4.2 Topology
+### 4.2 Implicit proof-tree topology
 
-The proof shape is a binary tree
+Each `R_3` witness contains two child proofs, so accepted proofs have an implicit
+binary-tree shape. Lean does not represent that shape with a separate tree type:
+`buildTrace` follows it by strong recursion on the step count `N`. The side
+conditions `N_L + N_R = N` with both child counts positive make the recursion
+well-founded. Unbalanced shapes are admitted.
 
-    t ::= leaf | node(t, t)
+A binary tree covering `m` segments has `m − 1` internal nodes, which is where
+the paper's `(m − 1)` combine coefficient comes from. The current qualitative
+extraction theorem does not count those nodes; Issue 6 will make that recurrence
+part of the quantitative reduction.
 
-with
-
-    steps_{N_seg}(leaf) = N_seg,     steps(node(l,r)) = steps(l) + steps(r),
-    leaves(leaf) = 1,                leaves(node(l,r)) = leaves(l) + leaves(r),
-    internals(leaf) = 0,             internals(node(l,r)) = 1 + internals(l) + internals(r).
-
-Two counting facts hold for every `t`:
-
-    internals(t) + 1 = leaves(t),          leaves(t)·N_seg = steps_{N_seg}(t).
-
-The first is where the paper's `(m − 1)` combine coefficient comes from: a tree
-covering `m` segments has exactly `m − 1` internal nodes, hence `m − 1`
-applications of `lem:combine`. Unbalanced trees are admitted — nothing constrains
-the shape beyond `N_L + N_R = N`.
-
-**Scope note.** These are counting facts about the topology only. The extraction
-lemma of §4.5 recurses on the step count `N`, not on a `RecTree` value, so the
-`(m − 1)` count is *not* currently threaded into the extraction statement. It
-becomes load-bearing in Issue 6, where the coefficient multiplies a real
-advantage. Until then it is a stated property of the topology, not a hypothesis
-of any theorem.
-
-*Lean:* `RecTree`, `RecTree.steps`, `.leaves`, `.internals`,
-`internals_eq_leaves_sub_one`, `leaves_mul_Nseg`, `steps_dvd_Nseg`,
-`steps_ge_Nseg`, `leaves_pos`.
+*Lean:* `CombineWitness`, `RCombine`, `buildTrace`, `combine_tree`.
 
 ### 4.3 The four relations
 
@@ -824,7 +807,3 @@ still an abstract predicate per operation class, so what `arith`, `hash`, and
 `bin` actually compute on registers is unconstrained (§3 carries the same
 caveat). What is pinned is which class runs at each program counter and what it
 does to memory.
-
-Remaining: Issue 5 supplies the bus; Issue 7 substitutes a real segment relation
-for the abstract leaf; Issue 6 attaches the quantitative coefficients (including
-the `(m − 1)` of §4.2).
