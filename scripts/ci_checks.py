@@ -83,6 +83,10 @@ HEADLINE_THEOREMS = [
     "VanillaZkVM.ISA.System.stepPlain_iff_operation_at_pc",  # Issue 3 — fixed-program selection
     "VanillaZkVM.ISA.System.operation_preserves_memory_unless_write",  # Issue 3 — memory guard
     "VanillaZkVM.ISA.System.committedOperation_stepPlain",  # Issue 3 — committed/plain bridge
+    "VanillaZkVM.MultiStep.System.memoryBridge", # Issue 4 — frozen-interface realization
+    "VanillaZkVM.MultiStep.System.combine_tree", # Issue 4 — tree-unrolling extraction
+    "VanillaZkVM.MultiStep.System.committedTrace_extract",  # Issue 4 — embed ∘ tree unrolling
+    "VanillaZkVM.MultiStep.System.cte",          # Issue 4 — full-memory multi-step CTE
 ]
 
 # A Lean identifier: dotted, letters/digits/_/'  (no braces, no spaces).

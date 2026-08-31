@@ -200,23 +200,25 @@ do not build reusable Lean vocabulary for that shape, not that the bus proof cha
 ## Issue 4 — Multi-layer recursion → `MultiStepVM` (convert / combine / embed)
 - **Goal.** Replace the flat two-layer merge with the paper's recursion tower over an **abstract
   leaf** relation: `R_2` convert (1-to-1), `R_3` combine (binary 2-to-1, self-recursive, well-founded
-  by strictly-decreasing step counts), `R_4` embed (final, `T ≥ 2·N_seg`). Provide the
-  **tree-unrolling** extraction lemma generalizing `chain_flatten` from a list to a binary tree
-  (yielding the `(m-1)` combine-node count).
+  by strictly-decreasing step counts), `R_4` embed (final, `T ≥ 2·N_seg`). Provide an explicit
+  **tree-unrolling** extractor and correctness lemma generalizing `chain_flatten` from a list to the
+  binary recursive proof shape. Quantitative `(m-1)` combine-node accounting is deferred to Issue 6.
 - **Depends on.** Issue 0. (Uses an abstract leaf — does **not** depend on the bus, Issue 5.)
 - **Assigned.** Dmitry (his `cost-twostep` shows he works on the merge/two-step structure).
   *Review: George + Benedikt. Redundant tree-lemma attempt via the Issue-9 autonomous re-derivation.*
 - **Reuse.** None directly; `chain_flatten` is the pattern to generalize.
-- **New public surface (max ~6).** `RConvert`/`RCombine`/`REmbed` (derived via `Relation`), the
-  binary-tree topology as data, the `combine_tree` unrolling lemma, and `MultiStepVM` as a `ZkVM`
-  instance. Well-foundedness side conditions live inside the relation, not as public lemmas.
-- **Deliverables.** `MultiStep.lean` with the three relations, the tree type + unrolling lemma, the
-  `MultiStepVM` instance, and its CTE (perfect model) via composed extraction over an abstract leaf.
-- **Math companion.** Write the tree topology, the well-founded measure, and the unrolling lemma.
+- **New public surface (max ~6).** `RConvert`/`RCombine`/`REmbed` (derived via `Relation`),
+  `buildTrace`, the `combine_tree` correctness lemma, and `MultiStepVM` as a `ZkVM` instance.
+  Well-foundedness side conditions live inside the relation, not as public lemmas.
+- **Deliverables.** `MultiStep.lean` with the three relations, the explicit recursive extractor and
+  its correctness lemma, the `MultiStepVM` instance, and its CTE (perfect model) via composed
+  extraction over an abstract leaf.
+- **Math companion.** Write the recursive proof shape, the well-founded measure, and the unrolling
+  lemma.
 - **Review requirement (human — George).** Confirm the well-founded measure (child step counts
-  strictly `< N`; `N=N_seg` base vacuous by arithmetic, per `rem:wellfounded`); that unbalanced trees
-  are admitted (only `N_L+N_R=N` + divisibility); and that `embed`'s `T≥2N_seg` is enforced. Confirm
-  the redundant re-derivation proves the same statement.
+  strictly `< N`; `N=N_seg` base vacuous by arithmetic, per `rem:wellfounded`); that unbalanced
+  recursive decompositions are admitted (only `N_L+N_R=N` + divisibility); and that `embed`'s
+  `T≥2N_seg` is enforced. Confirm the redundant re-derivation proves the same statement.
 - **Skills & conventions.** `/security-review`, `/simplify`. Generalize — don't fork — `chain_flatten`.
   Heavy branch-point comments on the induction (finality style).
 - **Paper anchor.** ch04 (`R_2`,`R_3`,`R_4`, `fig:topo`), `lem:convert`/`combine`/`embed`,
@@ -267,9 +269,10 @@ do not build reusable Lean vocabulary for that shape, not that the bus proof cha
   explicit reduction `Alg` and its cost were written.
 - **New public surface (max ~4).** Per-layer reduction statements over Issue 10's vocabulary. No new
   security *definitions* — those are Issue 10's.
-- **Deliverables.** Each layer lemma restated as an advantage bound; the composed `thm:main` bound
-  with its real coefficients; `cte_main` re-derived quantitatively, superseding Issue 7's qualitative
-  form without contradicting it.
+- **Deliverables.** Each layer lemma restated as an advantage bound; an internal counting lemma tied
+  to the reduction's actual traversal, showing that `m` segment leaves cause `m-1` combine
+  invocations; the composed `thm:main` bound with its real coefficients; `cte_main` re-derived
+  quantitatively, superseding Issue 7's qualitative form without contradicting it.
 - **Math companion.** The per-layer reductions and the summed bound.
 - **Review requirement (human — Dmitry/Benedikt).** Confirm each reduction targets the *correct*
   assumption (Hicks: *what* you reduce to matters), that the coefficient structure matches

@@ -90,7 +90,7 @@ faithful memory component from the complete committed `φ̂_step`.
 | full-memory read/write (`eq:mem-op-read`, `eq:mem-op-write`) | `VanillaZkVM.FullMemory.read` / `FullMemory.write` | proved | — | — | _unreviewed_ |
 | committed/full memory step (memory component of `φ̂_step`/`φ_step`) | `VanillaZkVM.CommittedMemory.step` / `FullMemory.step` / `VanillaZkVM.committedStep` | proved | — | — | _unreviewed_ |
 | one-step memory lift (`prop:memory-extractability`) | `VanillaZkVM.step_mem_extract` | proved | — | — | _unreviewed_ |
-| memory-inheritance step constructing the next full state (`rem:mem-inheritance`, `thm:main` Step 6) | `VanillaZkVM.step_reconstruct_exact` / `VanillaZkVM.step_reconstruct` / `VanillaZkVM.TwoStep.System.memoryBridge` | proved | — | — | _unreviewed_ |
+| memory-inheritance step constructing the next full state (`rem:mem-inheritance`, `thm:main` Step 6) | `VanillaZkVM.step_reconstruct_exact` / `VanillaZkVM.step_reconstruct` / `VanillaZkVM.TwoStep.System.memoryBridge` / `VanillaZkVM.MultiStep.System.memoryBridge` | proved | — | — | _unreviewed_ |
 | trace reconstruction invariant (`rem:mem-inheritance`) | `VanillaZkVM.trace_mem_extract` | proved | — | — | _unreviewed_ |
 | — (joint satisfiability model, I6) | `VanillaZkVM.MemorySanity.exactVC_bindingAssumptions` | proved (n/a) | — | — | _unreviewed_ |
 | — (punctured-condition countermodel, I6) | `VanillaZkVM.MemorySanity.appendBitVC_not_updateBinding` | proved (n/a) | — | — | _unreviewed_ |
@@ -147,6 +147,18 @@ code-and-guide version.
 | — (two-layer committed-chain extraction, intermediate) | `VanillaZkVM.TwoStep.System.committedTrace_extract` | proved (n/a) | n/a | n/a | _unreviewed_ |
 | toy CTE over full memory (`def:cte`, `prop:memory-extractability`) | `VanillaZkVM.TwoStep.System.cte` | proved | — | — | _unreviewed_ |
 
+## Multi-step recursion tower (Issue 4)
+
+| Paper label | Lean declaration | Status | Fidelity | Complete | Reviewer |
+|---|---|---|---|---|---|
+| `R_2` convert (`lem:convert`) | `MultiStep.System.RConvert` | proved | — | — | _unreviewed_ |
+| `R_3` combine + tree unrolling (`lem:combine`) | `MultiStep.System.RCombine` / `combine_tree` | proved | — | — | _unreviewed_ |
+| — (explicit tree-unrolling extraction procedure, `rem:wellfounded`) | `MultiStep.System.buildTrace` | proved (n/a) | n/a | n/a | _unreviewed_ |
+| `R_4` embed (`lem:embed`) | `MultiStep.System.REmbed` | proved | — | — | _unreviewed_ |
+| — (committed-trace extraction via tree unrolling) | `MultiStep.System.committedTrace_extract` | proved (n/a) | n/a | n/a | _unreviewed_ |
+| multi-step CTE over full memory (`def:cte`, `prop:memory-extractability`) | `MultiStep.System.cte` | proved | — | — | _unreviewed_ |
+| — (joint satisfiability model, I6) | `VMs/MultiStep/MultiStepSanity.lean` (all declarations private — no public name to `#check`) | n/a | — | — | _unreviewed_ |
+
 ## Planned (owned by issues — see PLAN.md)
 
 | Paper label | Lean declaration (planned name) | Owner issue |
@@ -154,9 +166,6 @@ code-and-guide version.
 | `R_{0,step}` and the inner chip relations | _name pending Issue-5 definition review_ | Issue 5 |
 | `R_1` segment relation and extraction (`lem:segment`) | _name pending Issue-5 definition review_ | Issue 5 |
 | bus unification under CR of `Com_bus` | _name pending Issue-5 definition review_ | Issue 5 |
-| `R_2` convert (`lem:convert`) | `MultiStep.RConvert` | Issue 4 |
-| `R_3` combine + tree unrolling (`lem:combine`) | `MultiStep.RCombine` / `combine_tree` | Issue 4 |
-| `R_4` embed (`lem:embed`) | `MultiStep.REmbed` | Issue 4 |
 | bus-deferred step `φ̂_step` (`eq:step-expanded`) + per-execution bus lift (`thm:main` 4–5) | `Bus.*` (redone) + `concatTrace` glue | Issue 5 |
 | main theorem (`thm:main`) | `VanillaVM.cte_main` | Issue 7 |
 | advantage / negligibility vocabulary | _name pending Issue-10 definition review_ | Issue 10 |
