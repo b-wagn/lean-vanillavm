@@ -343,7 +343,7 @@ plain predicate, connects its selected operation to each explicit `MemStep`,
 and `TwoStep.System.toZkVM` now uses that predicate as its actual `step`.
 `VMs/Bus.lean` supplies the replacement segment bus: the four inner relations
 and the proof that the four buses recovered for one segment agree.
-`VMs/TwoStep/Bus.lean` separately demonstrates per-segment extraction followed
+`VMs/TwoStep/WithBus.lean` separately demonstrates per-segment extraction followed
 by `chain_flatten` and memory reconstruction. Concrete opcode and chip
 implementations remain absent. The
 former playground `Bus.lean` is still only git-history reference material; the
@@ -400,7 +400,7 @@ Poseidon implementations.
 the perfect-security form of `lem:segment`: knowledge soundness recovers four
 buses under one digest, and collision resistance proves that those four buses
 are equal. This module has no dependency on a complete VM and does not choose
-how segment proofs are combined. `VMs/TwoStep/Bus.lean` is the separate
+how segment proofs are combined. `VMs/TwoStep/WithBus.lean` is the separate
 demonstration module:
 `execution_extract` applies the segment theorem once per segment, retains a
 separate bus `B̂_i` and `MemStep` sequence, and reuses

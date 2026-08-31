@@ -20,8 +20,8 @@ import VanillaZkVM.VMs.ISASanity                       -- accepted and rejected 
 import VanillaZkVM.VMs.Bus                             -- reusable one-segment bus and chip-proof extraction
 import VanillaZkVM.VMs.TwoStep.TwoStep                 -- minimal two-relation zkVM instantiating the abstract one
 import VanillaZkVM.VMs.TwoStep.TwoStepSanity           -- accepting model for the full-memory two-step theorem
-import VanillaZkVM.VMs.TwoStep.Bus                     -- connects the reusable bus to the two-layer VM
-import VanillaZkVM.VMs.TwoStep.BusSanity               -- consistency model for that connection
+import VanillaZkVM.VMs.TwoStep.WithBus                 -- connects the reusable bus to the two-layer VM
+import VanillaZkVM.VMs.TwoStep.WithBusSanity           -- consistency model for that connection
 
 /-!
 # VanillaZkVM — umbrella module

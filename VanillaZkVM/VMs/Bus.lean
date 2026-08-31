@@ -31,7 +31,7 @@ entries recorded in the segment's bus.
   trace using one internally consistent bus.
 
 This file does not choose how segment proofs are combined into a final proof. A
-non-recursive two-layer demonstration lives in `VMs/TwoStep/Bus.lean`; the
+non-recursive two-layer demonstration lives in `VMs/TwoStep/WithBus.lean`; the
 recursive VanillaVM can reuse the segment relation and `segment_extract` as its
 first proof layer. The bus conditions support the existing
 `ISA.System.stepPlain` execution rule; they do not define a second VM execution

@@ -20,7 +20,7 @@ commitment map. The rationale is documented once in `ArgumentSystem.lean`.
 `VMs/Bus.lean` consumes these declarations to identify the four buses extracted
 inside one segment. A concrete VM can then use the resulting committed-step
 theorem to prove its `StepInterface.BusBridge`; the two-layer VM does so in
-`VMs/TwoStep/Bus.lean`. No theorem compares buses from different segments.
+`VMs/TwoStep/WithBus.lean`. No theorem compares buses from different segments.
 -/
 
 namespace VanillaZkVM

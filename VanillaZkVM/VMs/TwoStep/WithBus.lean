@@ -2,7 +2,7 @@ import VanillaZkVM.VMs.Bus
 import VanillaZkVM.VMs.TwoStep.TwoStep
 
 /-!
-# Two-layer VM using the reusable segment bus
+# TwoStep VM with the reusable segment bus
 
 This module connects `Bus.System.segment_extract` to the repository's
 non-recursive two-layer VM. It is a small connection module, not part of the
@@ -75,9 +75,15 @@ def toTwoStep : TwoStep.System where
   FinalProof := sys.FinalProof
   finalVerify := sys.finalVerify
 
-/-- The assumptions used by the non-recursive execution theorem: all one-segment bus
-assumptions plus knowledge soundness of the final proof that joins the segment
-proofs. Memory-commitment assumptions remain separate arguments to `cte`.
+/-- The assumptions used by the non-recursive execution theorem: all
+one-segment bus assumptions plus knowledge soundness of the final proof that
+joins the segment proofs. Memory-commitment assumptions remain separate
+arguments to `cte`.
+
+`sys.toTwoStep.Assumptions` is enough to extract an ordinary TwoStep trace, but
+not enough for `execution_extract`: its segment extractor returns only states
+and memory witnesses. `execution_extract` must also return each segment's bus,
+which requires `sys.segment.Assumptions`.
 
 Paper: `lem:segment` and the final-proof extraction in Steps 1--5 of
 `thm:main`, restricted to the two-layer arrangement. -/

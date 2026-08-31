@@ -117,7 +117,7 @@ final and segment argument systems extracts and flattens a valid committed-state
 trace, proving `committedTrace_extract`. The memory results reconstruct a
 full-memory trace, while the ISA bridge proves that each reconstructed step
 executes the operation selected by `code[pc]`. This file proves CTE for the
-two-layer toy without bus checks. `VMs/TwoStep/Bus.lean` reuses this memory
+two-layer toy without bus checks. `VMs/TwoStep/WithBus.lean` reuses this memory
 result after `VMs/Bus.lean` has checked each segment bus. The bus theorem does
 not choose how segment proofs are combined; the recursive proof layers are
 still separate.

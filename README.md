@@ -25,12 +25,9 @@ VanillaZkVM/
 │   ├── Zkvm.lean                    abstract ZkVM + TraceValid
 │   └── Cte.lean                     R*, CTE, and the keystone cte_iff_knowledgeSound
 └── VMs/                           concrete VM machinery and instances, one subdirectory per VM
-    ├── State.lean                   shared full/committed state shape
-    ├── Memory.lean                  committed-to-full memory reconstruction
-    ├── ISA.lean                     representative five-class execution predicate
-    ├── Bus.lean                     reusable one-segment bus and extraction theorem
-    └── TwoStep/                     non-recursive two-layer VM instance
-        └── Bus.lean                 connects bus-backed segments to that VM
+    ├── ...
+    └── VM1/
+        ├── ..
 ```
 
 Dependencies point one way: **`Preliminaries/` → `Specification/` → `VMs/`.**
@@ -49,21 +46,27 @@ serve every VM.
 **`VMs/`** holds the concrete machinery — VM states, the contract linking plain execution to
 committed-memory execution, and the reconstruction of full memory from committed memory — plus one
 subdirectory per concrete VM. Each such VM is an *instance* of the abstract zkVM above and proves
-correct-trace extractability for itself, rather than restating the definition. So far there is one, a
-deliberately minimal two-layer VM using a representative five-class ISA. The reusable bus module
-models the separate step, Keccak, Poseidon, and range proofs for one segment without depending on
-that VM. A small connection module then demonstrates whole-execution extraction
-while retaining a distinct bus for each segment. Concrete opcode semantics and
-the final recursive assembly are still to come.
+correct-trace extractability for itself, rather than restating the definition.
+
+The concrete VM variants currently implemented are:
+
+- **TwoStep without a bus** ([`TwoStep.lean`](VanillaZkVM/VMs/TwoStep/TwoStep.lean)):
+  a deliberately minimal, non-recursive two-layer VM using the representative
+  five-class ISA.
+- **TwoStep with a bus** ([`WithBus.lean`](VanillaZkVM/VMs/TwoStep/WithBus.lean)):
+  the same two-layer proof structure, with separate step, Keccak, Poseidon, and
+  range proofs for each segment. Each segment keeps its own bus.
+
+Concrete opcode semantics and the final recursive assembly are still to come.
 
 Each `*Sanity.lean` file holds concrete models and countermodels witnessing that the definitions
 beside it are satisfiable and the theorems consuming them non-vacuous — kept separate so the
 definition files stay definitions-only.
 
-The representative five-class ISA introduced by Issue 3 is documented in
+The representative five-class ISA is documented in
 [`docs/ISA.md`](docs/ISA.md).
-The Issue 5 bus construction is described mathematically in
-[`VanillaZkVM/math-companion.md`](VanillaZkVM/math-companion.md#4-segment-buses-and-one-complete-execution-issue-5).
+The segment-bus construction is described mathematically in
+[`VanillaZkVM/math-companion.md`](VanillaZkVM/math-companion.md).
 
 ## Idealization
 

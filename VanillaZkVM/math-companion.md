@@ -605,7 +605,7 @@ This is proved first for `committedOperation` using the exact memory witness
 `w` recovered from the segment. A concrete VM then uses that same `w` to prove
 the `StepInterface.BusBridge` statement that a suitable witness exists; the
 non-recursive demonstration does so in
-`VMs/TwoStep/Bus.lean`. The conclusion is therefore the existing Issue 3
+`VMs/TwoStep/WithBus.lean`. The conclusion is therefore the existing Issue 3
 committed relation, not a second VM execution semantics.
 
 *Lean:* `Bus.BusState`, `Bus.HashCall`, `Bus.SegmentBus`, `Bus.StepAux`,
@@ -698,7 +698,7 @@ the final assembly to Issue 7.
 
 *Lean:* `Bus.TwoStepSystem`, `Bus.TwoStepSystem.Execution`,
 `Execution.trace`, `Execution.Valid`, `execution_extract`, `toZkVM`, and `cte`.
-`VMs/TwoStep/BusSanity.lean` supplies a private two-segment model whose segment
+`VMs/TwoStep/WithBusSanity.lean` supplies a private two-segment model whose segment
 buses are deliberately unequal, while all assumptions and the CTE theorem
 remain satisfiable. It separately exercises the Poseidon and range-check
 transition branches and rejects buses missing the required hash or range

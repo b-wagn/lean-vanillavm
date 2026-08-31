@@ -159,7 +159,7 @@ implementations remain outside this issue.
 The reusable declarations in `VMs/Bus.lean` depend only on the commitment
 scheme, segment length, representative ISA, and segment/inner verifiers. The
 non-recursive execution and CTE demonstration is deliberately isolated in
-`VMs/TwoStep/Bus.lean`; Issue 7 can consume the same one-segment system from
+`VMs/TwoStep/WithBus.lean`; Issue 7 can consume the same one-segment system from
 the recursive VM without importing the two-layer connection module.
 
 Human review must verify four points independently. First,
