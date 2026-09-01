@@ -112,10 +112,10 @@ predicate `Rep ⊆ CState × V.State`, and
 
     stepCommitted : CState × CState → Prop.
 
-Issue 5 later supplies a bus-evidence type `BEvidence` packaging the unified
-per-step bus/chip data and
+Issue 5 supplies `StepAux`, which contains one segment's bus and one
+transition's `MemStep`, and
 
-    stepWithBus : CState × CState × BEvidence → Prop.
+    stepWithBus : CState × CState × StepAux → Prop.
 
 The **memory bridge** (`StepInterface.MemoryBridge`) is
 
@@ -130,8 +130,10 @@ The **bus bridge** (`StepInterface.BusBridge stepWithBus`) is
 
     stepWithBus(Ĉ₁,Ĉ₂,b) ⟹ stepCommitted(Ĉ₁,Ĉ₂).
 
-The concrete instance obtains this implication from collision resistance of
-`Com_bus`.
+The segment theorem first uses collision resistance of `Com_bus` to put the
+step and chip checks on one bus. Once `stepWithBus` holds, the concrete
+two-layer instance proves this implication directly from the ISA definitions;
+the bridge itself needs no additional cryptographic assumption.
 
 These are Lean-only coordination propositions whose concrete instances target
 `prop:memory-extractability` and `lem:segment`; they are not additional paper
@@ -359,7 +361,7 @@ make the frozen bridge conclusion false, not merely harder to prove.
 
 This is not yet the full VanillaVM theorem. The representative ISA remains
 abstract inside each operation's PC/register predicate, and the bus, recursion,
-and explicit quantitative reductions remain later issues in `docs/PLAN.md`.
+and explicit quantitative reductions remain separate layers in `docs/PLAN.md`.
 
 ---
 
@@ -507,9 +509,9 @@ output memory differs from its input. It also rejects a step when the program
 contains a different operation class and rejects a write with the wrong output
 memory. Finally, it instantiates a private `ZkVM` whose `step` field is
 `ISA.System.stepPlain`. `TwoStepSanity.lean` additionally checks the public
-two-step construction using the same predicate. Issue 5 still adds the bus
-evidence required by hash/precompile operations; this section does not verify
-concrete RV32IM opcode implementations.
+two-step construction using the same predicate. The next two sections describe
+the recursive proof structure and the bus evidence required by hash/precompile
+operations; this section does not verify concrete RV32IM opcode implementations.
 
 ---
 
@@ -807,3 +809,195 @@ still an abstract predicate per operation class, so what `arith`, `hash`, and
 `bin` actually compute on registers is unconstrained (§3 carries the same
 caveat). What is pinned is which class runs at each program counter and what it
 does to memory.
+
+---
+
+## 5. Segment buses and one complete execution (Issue 5)
+
+Paper: the bus layout in ch02; `eq:step-expanded`, `eq:step-bus2`, the four
+inner relations and `R_1` in ch03--ch04; `lem:segment`; and Steps 4--5 of
+`thm:main` in ch05. As in the rest of the current development, collision
+resistance and knowledge soundness use their perfect, probability-free forms.
+
+### 5.1 Bus entries and checks postponed to the bus
+
+Write `ctrl(S) := (S.pc,S.regs)` for the part of a state that a hash or range
+check reads. One segment bus is a record containing three lists:
+
+    B := (B_keccak, B_poseidon, B_range),
+
+where `B_keccak` and `B_poseidon` contain pairs
+`(ctrl(S₁),ctrl(S₂))`, and `B_range` contains values `ctrl(S₁)`. Memory is not
+duplicated in these entries because every hash and range-checked transition
+separately requires the memory commitment to remain unchanged.
+
+The paper calls the bus a collection without fixing its data representation.
+Lean uses lists, so order and duplicates are part of the value hashed by
+`Com_bus`; the predicates themselves check entries through list membership.
+Every deferred operation must add its required entry, and every stored entry
+must pass its chip check, but the relation does not require each call to occur
+exactly once. Additional valid entries and duplicates are therefore allowed,
+as in the discussion following `eq:step-expanded`.
+
+The Issue 3 ISA has one representative class `hash`, so the fixed program also
+supplies
+
+    hashChipAt : Word → {keccak, poseidon}
+
+to say which chip checks the hash instruction at a given program counter. Its
+representative `bin` class stands for operations with a range check. The ISA
+description supplies predicates `φ'_bin,inline` and `φ_range` satisfying
+
+    φ'_bin(pc₁,regs₁,pc₂,regs₂)
+      ↔ φ'_bin,inline(pc₁,regs₁,pc₂,regs₂) ∧ φ_range(pc₁,regs₁).
+
+This is the five-class form of the paper's decomposition of arithmetic with a
+range check.
+
+For a committed transition and its explicit memory witness `w`, define the
+segment-trace predicate `stepBus(Ŝ₁,Ŝ₂,w,B)` by the operation selected by
+`code(Ŝ₁.pc)`:
+
+- `read`, `write`, and `arith` are checked completely by
+  `committedOperation(Ŝ₁,Ŝ₂,w)`;
+- `hash` requires `w=other`, unchanged committed memory, and the call
+  `(ctrl(Ŝ₁),ctrl(Ŝ₂))` in the Keccak or Poseidon list selected by
+  `hashChipAt(Ŝ₁.pc)`;
+- `bin` requires `w=other`, `φ'_bin,inline`, unchanged committed memory, and
+  `ctrl(Ŝ₁) ∈ B_range`.
+
+The three chip predicates check every entry in their respective lists:
+
+    keccakChip(B)
+      := ∀ call ∈ B_keccak,
+           code(call.input.pc)=hash
+           ∧ hashChipAt(call.input.pc)=keccak
+           ∧ φ'_hash(call.input,call.output),
+
+    poseidonChip(B)
+      := ∀ call ∈ B_poseidon,
+           code(call.input.pc)=hash
+           ∧ hashChipAt(call.input.pc)=poseidon
+           ∧ φ'_hash(call.input,call.output),
+
+    rangeChip(B)
+      := ∀ state ∈ B_range, φ_range(state).
+
+The first two predicates therefore cannot exchange Keccak and Poseidon entries,
+even though Issue 3 gives both operations the same representative `hash`
+class.
+
+The complete transition, including the checks performed through the bus, is
+
+    stepWithBus(Ŝ₁,Ŝ₂,(B,w))
+      := stepBus(Ŝ₁,Ŝ₂,w,B)
+         ∧ keccakChip(B) ∧ poseidonChip(B) ∧ rangeChip(B).
+
+Membership supplies the particular chip fact required by a hash or `bin`
+transition. Consequently,
+
+    stepWithBus(Ŝ₁,Ŝ₂,(B,w)) ⟹ committedStep(Ŝ₁,Ŝ₂).
+
+This is proved first for `committedOperation` using the exact memory witness
+`w` recovered from the segment. A concrete VM then uses that same `w` to prove
+the `StepInterface.BusBridge` statement that a suitable witness exists; the
+non-recursive demonstration does so in
+`VMs/TwoStep/WithBus.lean`. The conclusion is therefore the existing Issue 3
+committed relation, not a second VM execution semantics.
+
+*Lean:* `Bus.BusState`, `Bus.HashCall`, `Bus.SegmentBus`, `Bus.StepAux`,
+`Bus.System.stepBus`, `Bus.System.keccakChip`, `Bus.System.poseidonChip`,
+`Bus.System.rangeChip`, `Bus.System.stepWithBus`, and
+`Bus.System.stepWithBus_committedOperation`. The concrete interface
+theorem is `Bus.TwoStepSystem.busBridge`.
+
+### 5.2 Inner proofs and why their recovered buses agree
+
+Let `Com_bus(B) := busHash(B)`. The inner segment-trace relation is
+
+    R_(0,step)((Ŝin,Ŝout,C); (B,Ŝ,w)) :=
+      Ŝ(0)=Ŝin
+      ∧ Ŝ(Nseg)=Ŝout
+      ∧ ∀ j<Nseg, stepBus(Ŝ(j),Ŝ(j+1),w(j),B)
+      ∧ C=Com_bus(B).
+
+For `chip ∈ {keccak,poseidon,range}`, the corresponding inner relation is
+
+    R_(0,chip)(C;B) := chipPredicate(B) ∧ C=Com_bus(B).
+
+The segment relation `R_1` has public input `(Ŝin,Ŝout)`. Its witness contains
+one digest `C` and four inner proofs, and it requires all four verifiers to
+accept under that same `C`.
+
+Suppose the five argument systems are knowledge-sound: `R_1` and the four
+inner relations. Extraction first obtains the four inner proofs from the `R_1`
+witness and then extracts buses
+
+    B_step, B_keccak, B_poseidon, B_range.
+
+Each bus hashes to `C`. Perfect collision resistance is injectivity of
+`Com_bus`, hence
+
+    B_step = B_keccak = B_poseidon = B_range.
+
+After rewriting the three chip checks using these equalities, choose
+`B := B_step`. Every recovered transition then satisfies `stepWithBus` using
+the same bus for that segment. This is `lem:segment` in the current perfect
+model.
+
+The equality is only among the four buses extracted for this one segment. If a
+second segment uses digest `C'` and bus `B'`, neither the relation nor the proof
+requires `C=C'` or `B=B'`.
+
+*Lean:* `Bus.System.RInnerStep`, `RInnerKeccak`, `RInnerPoseidon`,
+`RInnerRange`, `RSegment`, `Assumptions`, `segmentValid`, and
+`segment_extract`.
+
+### 5.3 Connecting separately extracted segments in the non-recursive VM
+
+The definitions and theorem in §§5.1--5.2 form the reusable segment-bus layer;
+they do not mention `TwoStep` or choose how segment proofs are combined. Issue 5
+also requires a bus-backed `ZkVM` and whole-execution demonstration, which are
+provided separately by `Bus.TwoStepSystem`. This separation lets the final
+recursive VanillaVM reuse `segment_extract` as its leaf result without taking a
+dependency on the non-recursive demonstration.
+
+Let the final extractor recover boundary states `d(0),...,d(m)` and one
+accepted segment proof for each `i<m`. Apply the segment extractor separately:
+
+    segment_i = (B_i, Ŝ_i, w_i),
+
+with
+
+    Ŝ_i(0)=d(i),
+    Ŝ_i(Nseg)=d(i+1),
+    ∀ j<Nseg,
+      stepWithBus(Ŝ_i(j),Ŝ_i(j+1),(B_i,w_i(j))).
+
+The recovered execution keeps the function `i ↦ segment_i`; in particular it
+keeps the separate values `B_i`. Apply `BusBridge` to each transition and then
+the shared theorem for joining traces:
+
+    trace := concatTrace(Nseg,d,(i,j) ↦ Ŝ_i(j),m),
+
+    chain_flatten ⟹
+      trace(0)=d(0)
+      ∧ trace(m·Nseg)=d(m)
+      ∧ ∀ k<m·Nseg, committedStep(trace(k),trace(k+1)).
+
+The buses themselves are not concatenated, and buses from different segments
+do not need to be equal. The boundary equalities alone join the state traces.
+Finally, the existing memory reconstruction theorem turns this committed trace
+into a full-memory trace satisfying `ISA.System.stepPlain`, proving CTE for the
+two-step VM whose segment proofs use buses.
+The convert/combine/embed recursion tower is formalized separately in §4 over
+an abstract leaf. Connecting that tower to this bus-backed segment layer remains
+part of the final assembly in Issue 7.
+
+*Lean:* `Bus.TwoStepSystem`, `Bus.TwoStepSystem.Execution`,
+`Execution.trace`, `Execution.Valid`, `execution_extract`, `toZkVM`, and `cte`.
+`VMs/TwoStep/WithBusSanity.lean` supplies a private two-segment model whose segment
+buses are deliberately unequal, while all assumptions and the CTE theorem
+remain satisfiable. It separately exercises the Poseidon and range-check
+transition branches and rejects buses missing the required hash or range
+entry.

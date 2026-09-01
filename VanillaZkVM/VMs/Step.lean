@@ -5,7 +5,7 @@ import VanillaZkVM.Specification.Zkvm
 
 A VM's execution appears at three levels of detail: ordinary execution over
 full states, execution over memory commitments that a SNARK can check, and a
-later predicate that also includes bus data. This module records how those
+predicate that also includes bus data. This module records how those
 levels must relate, so later files do not introduce unrelated predicates all
 called "step." It states the required properties; concrete VM files prove them.
 
@@ -20,8 +20,12 @@ called "step." It states the required properties; concrete VM files prove them.
 `TwoStep.System.memoryStepInterface` is the one instance so far, and
 `TwoStep.System.memoryBridge` discharges its `MemoryBridge` from
 `Memory.step_reconstruct_exact` plus the ISA correspondence theorem. Its
-`ZkVM.step` is `ISA.System.stepPlain`. `BusBridge` has no instance yet; see
-`docs/STEP_INTERFACES.md` for which module owns that remaining obligation.
+`ZkVM.step` is `ISA.System.stepPlain`.
+`Bus.System.stepWithBus_committedOperation` checks the Issue 3 ISA cases and
+preserves the segment's explicit memory witness without choosing how segment
+proofs are combined. `Bus.TwoStepSystem.busBridge` uses that witness to prove
+that the two-layer VM has a suitable memory witness. See
+`docs/STEP_INTERFACES.md` for the layer-by-layer map.
 -/
 
 namespace VanillaZkVM
@@ -81,8 +85,13 @@ bus-backed predicate implies the canonical committed step. `BusEvidence` and
 `stepWithBus` are arguments rather than `StepInterface` fields, so an instance that
 only has a memory layer is not forced to name a bus witness type.
 
-No instance exists yet; the bus layer is expected to discharge this from
-inner-circuit extraction and collision-resistance of the bus commitment.
+`Bus.System.stepWithBus_committedOperation` proves the reusable implication for
+the exact `MemStep` recovered from a segment. `Bus.TwoStepSystem.busBridge` is
+the concrete two-layer result: it uses that exact value to prove that a memory
+witness exists. Inner-proof extraction and collision resistance first establish
+`stepWithBus` for one common segment bus. The reusable theorem then checks the
+selected ISA case, and the concrete bridge supplies the same `MemStep` as the
+required witness.
 
 Paper target: `lem:segment`, feeding `prop:memory-extractability`. -/
 def BusBridge {BusEvidence : Type}

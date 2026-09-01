@@ -46,16 +46,31 @@ serve every VM.
 **`VMs/`** holds the concrete machinery — VM states, the contract linking plain execution to
 committed-memory execution, and the reconstruction of full memory from committed memory — plus one
 subdirectory per concrete VM. Each such VM is an *instance* of the abstract zkVM above and proves
-correct-trace extractability for itself, rather than restating the definition. So far there is one, a
-deliberately minimal two-layer VM using a representative five-class ISA. Concrete opcode semantics,
-the bus, and the recursion tower are still to come.
+correct-trace extractability for itself, rather than restating the definition.
+
+The concrete VM variants currently implemented are:
+
+- **TwoStep without a bus** ([`TwoStep.lean`](VanillaZkVM/VMs/TwoStep/TwoStep.lean)):
+  a deliberately minimal, non-recursive two-layer VM using the representative
+  five-class ISA.
+- **TwoStep with a bus** ([`WithBus.lean`](VanillaZkVM/VMs/TwoStep/WithBus.lean)):
+  the same two-layer proof structure, with separate step, Keccak, Poseidon, and
+  range proofs for each segment. Each segment keeps its own bus.
+- **MultiStep without a bus**
+  ([`MultiStep.lean`](VanillaZkVM/VMs/MultiStep/MultiStep.lean)): the recursive
+  convert/combine/embed proof structure over an abstract segment proof.
+
+Concrete opcode semantics and the final assembly connecting the recursive
+tower to the segment bus are still to come.
 
 Each `*Sanity.lean` file holds concrete models and countermodels witnessing that the definitions
 beside it are satisfiable and the theorems consuming them non-vacuous — kept separate so the
 definition files stay definitions-only.
 
-The representative five-class ISA introduced by Issue 3 is documented in
+The representative five-class ISA is documented in
 [`docs/ISA.md`](docs/ISA.md).
+The segment-bus construction is described mathematically in
+[`VanillaZkVM/math-companion.md`](VanillaZkVM/math-companion.md).
 
 ## Idealization
 

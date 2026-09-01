@@ -87,6 +87,11 @@ HEADLINE_THEOREMS = [
     "VanillaZkVM.MultiStep.System.combine_tree", # Issue 4 — tree-unrolling extraction
     "VanillaZkVM.MultiStep.System.committedTrace_extract",  # Issue 4 — embed ∘ tree unrolling
     "VanillaZkVM.MultiStep.System.cte",          # Issue 4 — full-memory multi-step CTE
+    "VanillaZkVM.Bus.System.stepWithBus_committedOperation",  # Issue 5 — bus/ISA witness bridge
+    "VanillaZkVM.Bus.System.segment_extract",  # Issue 5 — one-segment bus unification
+    "VanillaZkVM.Bus.TwoStepSystem.busBridge",  # Issue 5 — concrete step-interface bridge
+    "VanillaZkVM.Bus.TwoStepSystem.execution_extract",  # Issue 5 — non-recursive per-segment execution
+    "VanillaZkVM.Bus.TwoStepSystem.cte",       # Issue 5 — bus-backed two-step CTE
 ]
 
 # A Lean identifier: dotted, letters/digits/_/'  (no braces, no spaces).

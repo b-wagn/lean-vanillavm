@@ -116,9 +116,11 @@ representative ISA into a minimal two-layer zkVM. Knowledge soundness of the
 final and segment argument systems extracts and flattens a valid committed-state
 trace, proving `committedTrace_extract`. The memory results reconstruct a
 full-memory trace, while the ISA bridge proves that each reconstructed step
-executes the operation selected by `code[pc]`. This is a CTE theorem for the
-two-layer toy system, not yet the complete Vanilla VM with its bus and recursive
-proof layers.
+executes the operation selected by `code[pc]`. This file proves CTE for the
+two-layer toy without bus checks. `VMs/TwoStep/WithBus.lean` reuses this memory
+result after `VMs/Bus.lean` has checked each segment bus. The bus theorem does
+not choose how segment proofs are combined; the recursive proof layers are
+still separate.
 
 - `SegStmt` and `SegWitness` describe a segment's committed boundaries,
   intermediate states, and explicit `MemStep` witnesses.
@@ -160,7 +162,7 @@ declarations are private, so the file adds no public API.
 ## Scope
 
 Issue 1 establishes the committed-memory-to-full-memory bridge, and Issue 3
-connects that bridge to the representative five-class ISA. The toy still omits
-the bus and the `convert`/`combine`/`embed` recursion tower. Those are separate
-issues in [`PLAN.md`](PLAN.md), and this result must not be presented as the
-complete Vanilla VM security theorem.
+connects that bridge to the representative five-class ISA. Issue 5 reuses this
+toy inside a separate segment-bus layer. The `convert`/`combine`/`embed`
+recursion tower remains a separate issue, so this result must not be presented
+as the complete Vanilla VM security theorem.

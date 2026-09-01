@@ -87,8 +87,9 @@ layer.
   hunks onto current `main`**, do not merge stale branches wholesale — the cost/CR/memory
   branches predate PR #4 and carry drift that spuriously deletes `trivialAS`.
 - **The former `Bus.lean` prototype was removed from the active tree.** Its
-  declarations were never ground truth or an audited checkpoint. Issue 5 owns
-  the segment/bus layer; consult the deleted file's history only as background.
+  declarations were never ground truth or an audited checkpoint. The current
+  `VMs/Bus.lean` is an Issue 5 reimplementation against the frozen interfaces,
+  not a restoration; consult the deleted file's history only as background.
 - **The commitment binding layer is provisional** (I4): Issue 1 removes the insufficient
   `PuncturedBinding` predicate in favor of `UpdateBinding`. Do not reintroduce or build on
   `PuncturedBinding`; do not freeze binding notions.

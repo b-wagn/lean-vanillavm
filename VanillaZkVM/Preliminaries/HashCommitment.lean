@@ -17,9 +17,10 @@ As everywhere in `Preliminaries/`, the notion is the **perfect**,
 probability-free specialization required by I8 — here, plain injectivity of the
 commitment map. The rationale is documented once in `ArgumentSystem.lean`.
 
-The bus layer itself is not implemented yet; when it is, it will consume these
-declarations to prove `StepInterface.BusBridge` (see `docs/STEP_INTERFACES.md`
-for the obligation and `docs/PLAN.md` for scheduling).
+`VMs/Bus.lean` consumes these declarations to identify the four buses extracted
+inside one segment. A concrete VM can then use the resulting committed-step
+theorem to prove its `StepInterface.BusBridge`; the two-layer VM does so in
+`VMs/TwoStep/WithBus.lean`. No theorem compares buses from different segments.
 -/
 
 namespace VanillaZkVM

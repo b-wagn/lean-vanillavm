@@ -72,8 +72,8 @@ change (see notes below the table).
 These declarations formalize the memory component only. `MemFreePredicate`
 abstracts the PC/register transition and cannot itself connect a separate
 `MemStep` value to registers. The dependencies and remaining work are tracked
-in [`PLAN.md`](PLAN.md): Issue 3 now supplies that program/register connection,
-while Issue 5 still adds the bus predicate.
+in [`PLAN.md`](PLAN.md): Issue 3 supplies that program/register connection, and
+Issue 5 supplies the separate bus predicate and bridge.
 
 For these rows, human review must separately check (a) that the read/write
 opening and memory equations match the paper's memory slice, (b) that
@@ -138,6 +138,57 @@ code-and-guide version.
 | non-write operations preserve memory (ch01/ch03) | `VanillaZkVM.ISA.System.operation_preserves_memory_unless_write` | proved | — | — | _unreviewed_ |
 | committed/full operation correspondence (`prop:memory-extractability`, `thm:main` Step 6) | `VanillaZkVM.ISA.System.committedOperation_stepPlain` | proved | — | — | _unreviewed_ |
 
+## Segment bus (Issue 5)
+
+Each segment has its own `SegmentBus`. Separate lists hold Keccak calls,
+Poseidon calls, and range-check inputs. The step proof checks reads, writes, and
+ordinary arithmetic directly. For hash and range operations, it instead adds
+the required entry to the bus; the three chip proofs check every entry in their
+respective lists. The explicit `MemStep` is also kept for later memory
+reconstruction. Bus entries contain only program counters and registers because
+the hash and range checks inspect only those fields; `stepBus` separately
+requires the memory commitment to remain unchanged. This is the Issue 3
+five-class version of the paper's bus. Each hash-list predicate also checks
+whether the fixed program assigns that call to Keccak or Poseidon. Lean uses
+lists, making order and duplicate entries part of the committed bus value; the
+paper leaves the concrete collection representation unspecified. Required
+entries must be present and every stored entry must pass its chip check, but an
+additional valid entry or duplicate is allowed. Exact RV32IM and chip
+implementations remain outside this issue.
+
+The reusable declarations in `VMs/Bus.lean` depend only on the commitment
+scheme, segment length, representative ISA, and segment/inner verifiers. The
+non-recursive execution and CTE demonstration is deliberately isolated in
+`VMs/TwoStep/WithBus.lean`; Issue 7 can consume the same one-segment system from
+the recursive VM without importing the two-layer connection module.
+
+Human review must verify four points independently. First,
+`stepWithBus_committedOperation` must derive the existing
+`ISA.System.committedOperation` for the same `MemStep`, not an unrelated
+execution predicate or an assumed refinement theorem; the concrete
+`TwoStepSystem.busBridge` must use that same `MemStep` to prove the weaker
+interface statement that a suitable memory witness exists. Second, collision
+resistance may identify only the four buses extracted under one segment's
+public commitment; it must not imply that different segments have equal buses. Third,
+`execution_extract` must retain each segment's bus and `MemStep` values and use
+the shared `chain_flatten` theorem to join the state traces. Fourth, the reviewer
+must approve the concrete choice of lists for the paper's bus collections.
+
+**Reviewer action:** after checking the PR head, replace the em dashes and
+`_unreviewed_` cells below in a separate review commit.
+
+| Paper label | Lean declaration | Status | Fidelity | Complete | Reviewer |
+|---|---|---|---|---|---|
+| segment bus collection (ch02/ch03) | `VanillaZkVM.Bus.SegmentBus` | proved | ✓ | ✓ | Dmitry |
+| committed step with hash/range checks recorded in the bus (`eq:step-expanded`, `eq:step-bus2`) | `VanillaZkVM.Bus.System.stepBus` / `VanillaZkVM.Bus.System.stepWithBus` | proved | ✓ | ✓ | Dmitry |
+| bus-to-committed-step implication (`eq:step-bus2`) | `VanillaZkVM.Bus.System.stepWithBus_committedOperation` / `VanillaZkVM.Bus.TwoStepSystem.busBridge` | proved | ✓ | ✓ | Dmitry |
+| `R_{0,step}` (`eq:rel-inner-step`) | `VanillaZkVM.Bus.System.RInnerStep` | proved | ✓ | ✓ | Dmitry |
+| `R_{0,keccak}`, `R_{0,poseidon}`, `R_{0,range}` (ch04) | `VanillaZkVM.Bus.System.RInnerKeccak` / `VanillaZkVM.Bus.System.RInnerPoseidon` / `VanillaZkVM.Bus.System.RInnerRange` | proved | ✓ | ✓ | Dmitry |
+| `R_1` segment relation (ch04) | `VanillaZkVM.Bus.System.RSegment` | proved | ✓ | ✓ | Dmitry |
+| segment extraction and agreement of its four recovered buses (`lem:segment`) | `VanillaZkVM.Bus.System.segment_extract` | proved | ✓ | ✓ | Dmitry |
+| per-segment extraction and concatenation (`thm:main` Steps 4–5) | `VanillaZkVM.Bus.TwoStepSystem.execution_extract` | proved | ✓ | ✓ | Dmitry |
+| two-step VM with segment buses and full-memory CTE (`def:cte`, `thm:main` Steps 4–6, non-recursive specialization) | `VanillaZkVM.Bus.TwoStepSystem.toZkVM` / `VanillaZkVM.Bus.TwoStepSystem.cte` | proved | ✓ | ✓ | Dmitry |
+
 ## Two-step toy (intermediate)
 
 | Paper label | Lean declaration | Status | Fidelity | Complete | Reviewer |
@@ -163,10 +214,6 @@ code-and-guide version.
 
 | Paper label | Lean declaration (planned name) | Owner issue |
 |---|---|---|
-| `R_{0,step}` and the inner chip relations | _name pending Issue-5 definition review_ | Issue 5 |
-| `R_1` segment relation and extraction (`lem:segment`) | _name pending Issue-5 definition review_ | Issue 5 |
-| bus unification under CR of `Com_bus` | _name pending Issue-5 definition review_ | Issue 5 |
-| bus-deferred step `φ̂_step` (`eq:step-expanded`) + per-execution bus lift (`thm:main` 4–5) | `Bus.*` (redone) + `concatTrace` glue | Issue 5 |
 | main theorem (`thm:main`) | `VanillaVM.cte_main` | Issue 7 |
 | advantage / negligibility vocabulary | _name pending Issue-10 definition review_ | Issue 10 |
 | per-layer reduction bounds + `thm:main` weighted sum | _name pending Issue-6 definition review_ | Issue 6 |

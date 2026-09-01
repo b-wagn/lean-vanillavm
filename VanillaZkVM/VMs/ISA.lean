@@ -189,8 +189,8 @@ registers. In particular, a proof cannot claim a read when the program calls
 for a write, or open a different address from the one in the address register.
 
 The explicit `w` argument is necessary here because read and write values carry
-the opening proofs later used to reconstruct full memory. The bus layer will
-add its own checks to this relation in a later issue.
+the opening proofs later used to reconstruct full memory. `Bus.System.stepBus`
+adds the hash-call and range-check conditions without changing this relation.
 
 Paper: `eq:phi-read-decomp`, `eq:phi-write-decomp` (ch01), and the memory
 component of `eq:step-bus2` (ch03). -/

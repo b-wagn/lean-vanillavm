@@ -49,8 +49,8 @@ are explicit.
 
 The file does not verify an opcode decoder, concrete arithmetic implementation,
 hash chip, or bus consistency. It does connect the selected operation to the
-`MemStep` used by committed-memory reconstruction; the bus checks remain a
-later issue.
+`MemStep` used by committed-memory reconstruction. `VMs/Bus.lean` now adds the
+bus and chip checks as a separate layer without changing this ISA definition.
 
 - `OperationClass`: the five representative classes:
   - `read`: loads a value from memory;
@@ -259,7 +259,7 @@ sign-off and records exactly which commit was reviewed.
 ## Scope of the result
 
 Issue 3 establishes the representative plain-execution predicate and connects
-it to the committed `MemStep` data used by the two-layer VM. It does not add
-bus evidence, prove individual RV32IM opcodes, or construct the complete
-recursive Vanilla VM. Issue 5 adds the bus and chip checks, while Issue 7
-assembles the final VM.
+it to the committed `MemStep` data used by the two-layer VM. This file does not
+itself add bus evidence, prove individual RV32IM opcodes, or construct the
+complete recursive Vanilla VM. Issue 5's `VMs/Bus.lean` adds the separate bus
+and chip checks, while Issue 7 assembles the final VM.
