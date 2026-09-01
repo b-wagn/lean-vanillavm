@@ -179,15 +179,15 @@ must approve the concrete choice of lists for the paper's bus collections.
 
 | Paper label | Lean declaration | Status | Fidelity | Complete | Reviewer |
 |---|---|---|---|---|---|
-| segment bus collection (ch02/ch03) | `VanillaZkVM.Bus.SegmentBus` | proved | — | — | _unreviewed_ |
-| committed step with hash/range checks recorded in the bus (`eq:step-expanded`, `eq:step-bus2`) | `VanillaZkVM.Bus.System.stepBus` / `VanillaZkVM.Bus.System.stepWithBus` | proved | — | — | _unreviewed_ |
-| bus-to-committed-step implication (`eq:step-bus2`) | `VanillaZkVM.Bus.System.stepWithBus_committedOperation` / `VanillaZkVM.Bus.TwoStepSystem.busBridge` | proved | — | — | _unreviewed_ |
-| `R_{0,step}` (`eq:rel-inner-step`) | `VanillaZkVM.Bus.System.RInnerStep` | proved | — | — | _unreviewed_ |
-| `R_{0,keccak}`, `R_{0,poseidon}`, `R_{0,range}` (ch04) | `VanillaZkVM.Bus.System.RInnerKeccak` / `VanillaZkVM.Bus.System.RInnerPoseidon` / `VanillaZkVM.Bus.System.RInnerRange` | proved | — | — | _unreviewed_ |
-| `R_1` segment relation (ch04) | `VanillaZkVM.Bus.System.RSegment` | proved | — | — | _unreviewed_ |
-| segment extraction and agreement of its four recovered buses (`lem:segment`) | `VanillaZkVM.Bus.System.segment_extract` | proved | — | — | _unreviewed_ |
-| per-segment extraction and concatenation (`thm:main` Steps 4–5) | `VanillaZkVM.Bus.TwoStepSystem.execution_extract` | proved | — | — | _unreviewed_ |
-| two-step VM with segment buses and full-memory CTE (`def:cte`, `thm:main` Steps 4–6, non-recursive specialization) | `VanillaZkVM.Bus.TwoStepSystem.toZkVM` / `VanillaZkVM.Bus.TwoStepSystem.cte` | proved | — | — | _unreviewed_ |
+| segment bus collection (ch02/ch03) | `VanillaZkVM.Bus.SegmentBus` | proved | ✓ | ✓ | Dmitry |
+| committed step with hash/range checks recorded in the bus (`eq:step-expanded`, `eq:step-bus2`) | `VanillaZkVM.Bus.System.stepBus` / `VanillaZkVM.Bus.System.stepWithBus` | proved | ✓ | ✓ | Dmitry |
+| bus-to-committed-step implication (`eq:step-bus2`) | `VanillaZkVM.Bus.System.stepWithBus_committedOperation` / `VanillaZkVM.Bus.TwoStepSystem.busBridge` | proved | ✓ | ✓ | Dmitry |
+| `R_{0,step}` (`eq:rel-inner-step`) | `VanillaZkVM.Bus.System.RInnerStep` | proved | ✓ | ✓ | Dmitry |
+| `R_{0,keccak}`, `R_{0,poseidon}`, `R_{0,range}` (ch04) | `VanillaZkVM.Bus.System.RInnerKeccak` / `VanillaZkVM.Bus.System.RInnerPoseidon` / `VanillaZkVM.Bus.System.RInnerRange` | proved | ✓ | ✓ | Dmitry |
+| `R_1` segment relation (ch04) | `VanillaZkVM.Bus.System.RSegment` | proved | ✓ | ✓ | Dmitry |
+| segment extraction and agreement of its four recovered buses (`lem:segment`) | `VanillaZkVM.Bus.System.segment_extract` | proved | ✓ | ✓ | Dmitry |
+| per-segment extraction and concatenation (`thm:main` Steps 4–5) | `VanillaZkVM.Bus.TwoStepSystem.execution_extract` | proved | ✓ | ✓ | Dmitry |
+| two-step VM with segment buses and full-memory CTE (`def:cte`, `thm:main` Steps 4–6, non-recursive specialization) | `VanillaZkVM.Bus.TwoStepSystem.toZkVM` / `VanillaZkVM.Bus.TwoStepSystem.cte` | proved | ✓ | ✓ | Dmitry |
 
 ## Two-step toy (intermediate)
 
