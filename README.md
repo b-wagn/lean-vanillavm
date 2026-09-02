@@ -10,8 +10,10 @@ The exact paper source used for review is pinned in
 [`docs/PAPER_REVISION.md`](docs/PAPER_REVISION.md); this matters because the default paper branch and
 its corrected `proof` revision currently differ on whether the step count `T` is adversary-chosen.
 
-> **Status: WIP.** The current core is small, clean, and axiom-clean, but idealized (see
-> [Idealization](#idealization)). The path from here to the full theorem is [`docs/PLAN.md`](docs/PLAN.md).
+> **Status: WIP.** The main probability-free theorem is assembled and
+> axiom-clean, but remains idealized (see [Idealization](#idealization)). It
+> does not yet provide numerical security bounds or concrete instruction
+> semantics; those steps are tracked in [`docs/PLAN.md`](docs/PLAN.md).
 
 ---
 
@@ -59,9 +61,13 @@ The concrete VM variants currently implemented are:
 - **MultiStep without a bus**
   ([`MultiStep.lean`](VanillaZkVM/VMs/MultiStep/MultiStep.lean)): the recursive
   convert/combine/embed proof structure over an abstract segment proof.
+- **Assembled Vanilla VM**
+  ([`VanillaVM.lean`](VanillaZkVM/VMs/VanillaVM/VanillaVM.lean)): the recursive
+  proof structure in which every base segment is checked through the segment
+  bus. Its main theorem says that, under the probability-free cryptographic
+  assumptions below, every accepted proof yields a valid full-memory trace.
 
-Concrete opcode semantics and the final assembly connecting the recursive
-tower to the segment bus are still to come.
+Concrete opcode semantics and quantitative security bounds are still to come.
 
 Each `*Sanity.lean` file holds concrete models and countermodels witnessing that the definitions
 beside it are satisfiable and the theorems consuming them non-vacuous — kept separate so the
@@ -70,7 +76,7 @@ definition files stay definitions-only.
 The representative five-class ISA is documented in
 [`docs/ISA.md`](docs/ISA.md).
 The segment-bus construction is described mathematically in
-[`VanillaZkVM/math-companion.md`](VanillaZkVM/math-companion.md).
+[`docs/math-companion.md`](docs/math-companion.md).
 
 ## Idealization
 
